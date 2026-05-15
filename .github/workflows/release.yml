@@ -154,7 +154,26 @@ jobs:
         Invoke-WebRequest -Uri $sumUrl   -OutFile deno.zip.sha256sum
 
         # Hash from the publisher's sidecar (defends against MITM / mirror tampering).
-        $publishedHash = (Get-Content deno.zip.sha256sum -Raw).Trim().Split()[0].ToLower()
+        # The sidecar layout varies (bare hash, "hash  file", or a multi-asset
+        # checksums list), so extract the 64-hex digest robustly: prefer the line
+        # naming our asset, else fall back to the only digest in the file.
+        $assetName = "deno-x86_64-pc-windows-msvc.zip"
+        $sumLines  = Get-Content deno.zip.sha256sum
+        $publishedHash = $null
+        foreach ($line in $sumLines) {
+          if ($line -match [regex]::Escape($assetName)) {
+            $m = [regex]::Match($line, '[A-Fa-f0-9]{64}')
+            if ($m.Success) { $publishedHash = $m.Value.ToLower(); break }
+          }
+        }
+        if (-not $publishedHash) {
+          $m = [regex]::Match(($sumLines -join "`n"), '[A-Fa-f0-9]{64}')
+          if ($m.Success) { $publishedHash = $m.Value.ToLower() }
+        }
+        if (-not $publishedHash) {
+          Write-Error "Could not parse a SHA-256 from the Deno sidecar. Raw content:`n$($sumLines -join "`n")"
+          exit 1
+        }
         # Hash actually computed from what we received.
         $actualHash    = (Get-FileHash -Algorithm SHA256 deno.zip).Hash.ToLower()
 
