@@ -1,0 +1,65 @@
+name: CodeQL
+
+# Static analysis (SAST) for the Python source.
+#
+# Threat model note: this is a GUI-only desktop app with no public service,
+# so the value here is catching injection / unsafe-subprocess / path-traversal
+# style bugs in our own code before they ship inside the PyInstaller EXE.
+#
+# Action pinning: every action is pinned to a commit SHA (repo convention).
+# checkout / setup-python reuse the exact SHAs from build.yml & release.yml.
+# github/codeql-action is pinned to the v4.35.5 release commit; the v4 moving
+# tag and the v4.35.5 tag were cross-checked to resolve to the same commit.
+# Renovate (`helpers:pinGitHubActionDigests`) keeps these digests current.
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  schedule:
+    # Weekly catch-all so newly published CodeQL queries also re-scan main.
+    - cron: '27 4 * * 1'  # Mondays 04:27 UTC
+  workflow_dispatch:
+
+# Least-privilege default; the analyze job grants only what it needs.
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (python)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # upload SARIF results to code scanning
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: '3.11'
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+      with:
+        languages: python
+        # security-extended adds higher-recall security queries on top of the
+        # default suite (slightly slower, acceptable for a weekly + PR cadence).
+        queries: security-extended
+        # No build step needed for Python; analyze the source tree directly.
+        config: |
+          paths:
+            - src
+            - launcher.py
+          paths-ignore:
+            - tests
+            - vendor
+            - venv
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+      with:
+        category: "/language:python"

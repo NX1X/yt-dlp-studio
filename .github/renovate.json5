@@ -1,0 +1,194 @@
+{
+  // ---------------------------------------------------------------------------
+  // YT-DLP Studio — Renovate configuration
+  // Docs: https://docs.renovatebot.com/configuration-options/
+  //
+  // Threat model: GUI-only desktop app, no public-facing service.
+  //   - Highest concern: malicious upstream release ("supply chain") shipped
+  //     to end-user machines as part of the PyInstaller EXE.
+  //   - Lower concern: speed of CVE patching (no live service to exploit).
+  //
+  // Therefore: symmetric 7-day cooldown on ALL updates, including CVE
+  // "fixes" — a malicious release disguised as a security patch is exactly
+  // the attack vector we're defending against. Real active exploits can be
+  // manually expedited from the Dependency Dashboard issue if needed.
+  // ---------------------------------------------------------------------------
+
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    "helpers:pinGitHubActionDigests",
+  ],
+
+  // ----- Cooldown (supply-chain mitigation) ----------------------------------
+  // Wait N days after upstream release before opening a PR.
+  // Per-package overrides live in packageRules below.
+  "minimumReleaseAge": "7 days",
+
+  // ----- Dependency Dashboard (in-repo issue, NOT an external UI) ------------
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "Dependency Dashboard",
+  "dependencyDashboardLabels": ["dependencies", "dashboard"],
+  // Show OSV vulnerability data inside the dashboard so we can decide quickly
+  // whether a CVE warrants manual expediting past the cooldown.
+  "dependencyDashboardOSVVulnerabilitySummary": "all",
+
+  // ----- PR behavior ---------------------------------------------------------
+  "labels": ["dependencies"],
+  "assignees": ["NX1X"],
+  "reviewers": ["NX1X"],
+  "prConcurrentLimit": 10,        // max simultaneously open Renovate PRs
+  "prHourlyLimit": 2,             // rate-limit PR creation (defence in depth)
+  "rangeStrategy": "bump",        // bump version ranges to match new version
+  "rebaseWhen": "behind-base-branch",
+
+  // ----- Security alerts -----------------------------------------------------
+  // We deliberately do NOT let CVE PRs bypass the cooldown. See threat model
+  // comment at top. If exploitation is active, expedite manually via the
+  // dashboard checkbox.
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security", "dependencies"],
+    "assignees": ["NX1X"],
+    "reviewers": ["NX1X"],
+    "minimumReleaseAge": "7 days",
+    "prPriority": 10,             // surface above ordinary updates
+  },
+  // Pull CVE data from OSV.dev (broader than GitHub Advisory DB alone).
+  "osvVulnerabilityAlerts": true,
+
+  // ----- Ignore paths --------------------------------------------------------
+  "ignorePaths": [
+    "vendor/**",                  // vendored yt-dlp; tracked via customManager below
+    "build/**",
+    "dist/**",
+    "**/node_modules/**",
+  ],
+
+  // ----- Pre-commit hook updates ---------------------------------------------
+  "pre-commit": {
+    "enabled": true,
+  },
+
+  // ----- Package rules -------------------------------------------------------
+  "packageRules": [
+    // === Python runtime deps (pyproject.toml [project.dependencies]) ===
+    {
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["dependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "python runtime (minor/patch)",
+      "commitMessagePrefix": "deps:",
+      "labels": ["dependencies", "python"],
+    },
+    // === Python dev/build/docs extras ===
+    {
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["optional-dependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "python dev (minor/patch)",
+      "commitMessagePrefix": "deps-dev:",
+      "labels": ["dependencies", "python", "dev"],
+    },
+    // === Python majors — separate PRs, longer cooldown ===
+    {
+      "matchManagers": ["pep621"],
+      "matchUpdateTypes": ["major"],
+      "labels": ["dependencies", "python", "major"],
+      "minimumReleaseAge": "14 days",
+      "prPriority": -5,
+    },
+    // === Block pip yt-dlp — engine is vendored, tracked via customManager ===
+    {
+      "matchPackageNames": ["yt-dlp", "yt_dlp"],
+      "matchManagers": ["pep621"],
+      "enabled": false,
+    },
+
+    // === GitHub Actions ===
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "github-actions (minor/patch)",
+      "commitMessagePrefix": "ci:",
+      "labels": ["dependencies", "github-actions"],
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["major"],
+      "labels": ["dependencies", "github-actions", "major"],
+      "minimumReleaseAge": "14 days",
+    },
+
+    // === yt-dlp engine binary (custom manager → github-releases) ===
+    // yt-dlp ships VERY frequently (often daily). 7-day cooldown would mean
+    // we're always weeks behind. 5 days is the compromise.
+    {
+      "matchDepNames": ["yt-dlp/yt-dlp"],
+      "matchDatasources": ["github-releases"],
+      "labels": ["dependencies", "yt-dlp-engine", "binary"],
+      "commitMessagePrefix": "deps:",
+      "commitMessageTopic": "yt-dlp engine",
+      "minimumReleaseAge": "5 days",
+      "prPriority": 5,
+    },
+
+    // === Deno binary (custom manager → github-releases) ===
+    {
+      "matchDepNames": ["denoland/deno"],
+      "matchDatasources": ["github-releases"],
+      "labels": ["dependencies", "deno", "binary"],
+      "commitMessagePrefix": "deps:",
+      "commitMessageTopic": "Deno runtime",
+    },
+
+    // === FFmpeg binary (custom manager → github-releases) ===
+    {
+      "matchDepNames": ["GyanD/codexffmpeg"],
+      "matchDatasources": ["github-releases"],
+      "labels": ["dependencies", "ffmpeg", "binary"],
+      "commitMessagePrefix": "deps:",
+      "commitMessageTopic": "FFmpeg",
+    },
+  ],
+
+  // ----- Custom managers (pinned binary versions in source/CI) ---------------
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "yt-dlp engine version pinned in src/utils/constants.py",
+      "managerFilePatterns": ["src/utils/constants\\.py$"],
+      "matchStrings": [
+        "YTDLP_VERSION\\s*=\\s*\"(?<currentValue>[^\"]+)\"",
+      ],
+      "depNameTemplate": "yt-dlp/yt-dlp",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "loose",
+    },
+    {
+      "customType": "regex",
+      "description": "Deno runtime version pinned in src/utils/deno_installer.py",
+      "managerFilePatterns": ["src/utils/deno_installer\\.py$"],
+      "matchStrings": [
+        "DENO_VERSION\\s*=\\s*\"(?<currentValue>[^\"]+)\"",
+      ],
+      "depNameTemplate": "denoland/deno",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver",
+    },
+    {
+      "customType": "regex",
+      "description": "FFmpeg binary version pinned in .github/workflows/build.yml",
+      "managerFilePatterns": ["\\.github/workflows/build\\.yml$"],
+      "matchStrings": [
+        "FFMPEG_VERSION:\\s*\"(?<currentValue>[^\"]+)\"",
+      ],
+      "depNameTemplate": "GyanD/codexffmpeg",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "loose",
+    },
+  ],
+}

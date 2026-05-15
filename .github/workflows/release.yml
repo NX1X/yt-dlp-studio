@@ -1,0 +1,434 @@
+name: Release YT-DLP Studio
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check-version:
+    name: Check for new version
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.version }}
+      is_prerelease: ${{ steps.check.outputs.is_prerelease }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        fetch-depth: 0
+
+    - name: Determine canonical version
+      id: check
+      run: |
+        # Single source of truth: src/__init__.py (`__version__`).
+        # CHANGELOG.md must contain a matching `## [VERSION]` entry — that's
+        # validated below. version_info.txt is regenerated at build time by
+        # scripts/sync_version.py.
+        VERSION=$(python3 -c "import re,pathlib; m=re.search(r'^__version__\s*=\s*\"([^\"]+)\"', pathlib.Path('src/__init__.py').read_text(), re.M); print(m.group(1) if m else '')")
+        if [ -z "$VERSION" ]; then
+          echo "::error::Could not parse __version__ from src/__init__.py"
+          exit 1
+        fi
+        TAG="v${VERSION}"
+        echo "Canonical version: $VERSION (tag: $TAG)"
+
+        # Verify CHANGELOG.md has a matching entry (release without changelog is a bug)
+        if ! grep -q "^## \[${VERSION}\]" CHANGELOG.md; then
+          echo "::error::Version ${VERSION} (from src/__init__.py) has no '## [${VERSION}]' entry in CHANGELOG.md"
+          exit 1
+        fi
+
+        # Mark as prerelease if 0.x.x or has a pre-release suffix (e.g. -beta.1, -rc.1)
+        if [[ "$VERSION" =~ ^0\. ]] || [[ "$VERSION" == *-* ]]; then
+          IS_PRERELEASE=true
+        else
+          IS_PRERELEASE=false
+        fi
+        echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+        echo "Prerelease: $IS_PRERELEASE"
+
+        # Tag-exists logic (unchanged): manual trigger forces re-release; otherwise skip.
+        if git rev-parse "$TAG" >/dev/null 2>&1; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Tag $TAG exists but manual trigger — will force re-release"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $TAG already exists — skipping release"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "Tag $TAG does not exist — will release"
+          echo "should_release=true" >> $GITHUB_OUTPUT
+        fi
+        echo "version=$TAG" >> $GITHUB_OUTPUT
+
+  test:
+    name: Tests (${{ matrix.os }})
+    needs: [check-version]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: '3.11'
+
+    - name: Install system dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb libegl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install --require-hashes -r requirements/lock.txt
+        pip install -e .[dev]
+
+    - name: Run tests (Linux)
+      if: runner.os == 'Linux'
+      run: xvfb-run --auto-servernum pytest tests/ -v --tb=short
+      env:
+        QT_QPA_PLATFORM: offscreen
+
+    - name: Run tests (Windows)
+      if: runner.os == 'Windows'
+      run: pytest tests/ -v --tb=short
+      env:
+        QT_QPA_PLATFORM: offscreen
+
+  build-windows:
+    name: Build Windows
+    needs: [check-version, test]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      id-token: write       # OIDC token for Sigstore signing
+      attestations: write   # Publish build provenance attestation
+    env:
+      # Pinned third-party binaries. MUST stay in lockstep with build.yml.
+      # When bumping a version, update the matching SHA-256 in the same commit.
+      # Procedure: download the asset locally, run `Get-FileHash -Algorithm SHA256`,
+      # cross-check against the publisher's own checksum file, then paste here.
+      DENO_VERSION: "2.6.10"
+      # Cross-checked against
+      # https://github.com/denoland/deno/releases/download/v2.6.10/deno-x86_64-pc-windows-msvc.zip.sha256sum
+      DENO_SHA256: "6b26d272c2107ca63474c5702c824132a4a3e4469463edf0f327b9b5a5f5f854"
+      FFMPEG_VERSION: "8.1.1"
+      FFMPEG_SHA256: "7a6c3e86f54b0dd3bceff31f81bf3b70397171fcf35d1a13b9ed9cbf1040fc18"
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install --require-hashes -r requirements/lock.txt
+        pip install -e .[build]
+
+    - name: Download and verify Deno
+      run: |
+        $ErrorActionPreference = "Stop"
+        $version = $env:DENO_VERSION
+        $base = "https://github.com/denoland/deno/releases/download/v$version"
+        $assetUrl = "$base/deno-x86_64-pc-windows-msvc.zip"
+        $sumUrl   = "$assetUrl.sha256sum"
+
+        Write-Host "Downloading Deno $version from $assetUrl"
+        Invoke-WebRequest -Uri $assetUrl -OutFile deno.zip
+        Invoke-WebRequest -Uri $sumUrl   -OutFile deno.zip.sha256sum
+
+        # Hash from the publisher's sidecar (defends against MITM / mirror tampering).
+        $publishedHash = (Get-Content deno.zip.sha256sum -Raw).Trim().Split()[0].ToLower()
+        # Hash actually computed from what we received.
+        $actualHash    = (Get-FileHash -Algorithm SHA256 deno.zip).Hash.ToLower()
+
+        if ($actualHash -ne $publishedHash) {
+          Write-Error "Deno SHA-256 mismatch vs publisher sidecar. Expected: $publishedHash  Actual: $actualHash"
+          exit 1
+        }
+
+        # Hash hardcoded in the repo (defends against release compromise).
+        $pinnedHash = $env:DENO_SHA256.ToLower()
+        if ($pinnedHash -eq "") {
+          Write-Warning "DENO_SHA256 is unset. Verified against publisher sidecar only."
+          Write-Warning "Pin this value in release.yml after manual cross-check: $actualHash"
+        } elseif ($actualHash -ne $pinnedHash) {
+          Write-Error "Deno SHA-256 mismatch vs pinned hash. Pinned: $pinnedHash  Actual: $actualHash"
+          exit 1
+        }
+
+        Write-Host "Deno SHA-256 verified: $actualHash"
+        New-Item -ItemType Directory -Force -Path deno | Out-Null
+        Expand-Archive -Path deno.zip -DestinationPath deno
+        Remove-Item deno.zip, deno.zip.sha256sum
+        deno/deno.exe --version
+
+    - name: Download and verify FFmpeg
+      run: |
+        $ErrorActionPreference = "Stop"
+        $version = $env:FFMPEG_VERSION
+        # GyanD/codexffmpeg is the GitHub-hosted mirror of the gyan.dev builds.
+        # Versioned URL (not the moving "release-full-shared" alias) so the artifact is reproducible.
+        $assetUrl = "https://github.com/GyanD/codexffmpeg/releases/download/$version/ffmpeg-$version-full_build-shared.7z"
+
+        Write-Host "Downloading FFmpeg $version from $assetUrl"
+        Invoke-WebRequest -Uri $assetUrl -OutFile ffmpeg.7z
+
+        $actualHash = (Get-FileHash -Algorithm SHA256 ffmpeg.7z).Hash.ToLower()
+        $pinnedHash = $env:FFMPEG_SHA256.ToLower()
+        if ($actualHash -ne $pinnedHash) {
+          Write-Error "FFmpeg SHA-256 mismatch. Pinned: $pinnedHash  Actual: $actualHash"
+          exit 1
+        }
+        Write-Host "FFmpeg SHA-256 verified: $actualHash"
+
+        7z x ffmpeg.7z -offmpeg_temp
+        New-Item -ItemType Directory -Force -Path ffmpeg/bin | Out-Null
+        Copy-Item -Path "ffmpeg_temp/ffmpeg-*-full_build-shared/bin/ffmpeg.exe" -Destination "ffmpeg/bin/"
+        Copy-Item -Path "ffmpeg_temp/ffmpeg-*-full_build-shared/bin/ffprobe.exe" -Destination "ffmpeg/bin/"
+        Copy-Item -Path "ffmpeg_temp/ffmpeg-*-full_build-shared/bin/ffplay.exe" -Destination "ffmpeg/bin/" -ErrorAction SilentlyContinue
+        Copy-Item -Path "ffmpeg_temp/ffmpeg-*-full_build-shared/bin/*.dll" -Destination "ffmpeg/bin/"
+        Write-Host "FFmpeg files:"
+        Get-ChildItem -Path "ffmpeg/bin" | Select-Object Name, Length
+        Remove-Item ffmpeg.7z
+        Remove-Item -Recurse ffmpeg_temp
+
+    - name: Sync version metadata
+      # Regenerates version_info.txt from src/__init__.py (`__version__`) so the
+      # Windows EXE's embedded ProductVersion/FileVersion always match the
+      # canonical Python version, even if a developer forgot to run the script
+      # locally before tagging.
+      run: python scripts/sync_version.py
+
+    - name: Build executable
+      run: pyinstaller packaging/build.spec
+
+    - name: Verify build
+      run: |
+        if (-Not (Test-Path "dist/yt-dlp-studio.exe")) {
+          Write-Error "Build failed: yt-dlp-studio.exe not found!"
+          exit 1
+        }
+        $fileSize = (Get-Item "dist/yt-dlp-studio.exe").Length / 1MB
+        Write-Host "Build verified: yt-dlp-studio.exe ($([math]::Round($fileSize, 2)) MB)"
+
+    - name: Generate build provenance attestation
+      # Produces a Sigstore-signed SLSA provenance statement binding the
+      # exe's SHA-256 to this workflow file at this commit on this runner.
+      # Verify with: gh attestation verify dist/yt-dlp-studio.exe --owner NX1X
+      uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+      with:
+        subject-path: 'dist/yt-dlp-studio.exe'
+
+    - name: Create Windows archive
+      run: |
+        $version = "${{ needs.check-version.outputs.version }}"
+        $archiveName = "yt-dlp-studio-$version-Windows.zip"
+        New-Item -ItemType Directory -Force -Path release
+        Copy-Item -Path "dist/yt-dlp-studio.exe" -Destination "release/"
+        $readme = @(
+            "yt-dlp-studio $version",
+            "================================",
+            "",
+            "INSTALLATION",
+            "1. Extract this ZIP file to any folder",
+            "2. Run yt-dlp-studio.exe",
+            "",
+            "REQUIREMENTS",
+            "- Windows 10/11 (64-bit)",
+            "- No additional software needed (FFmpeg included)",
+            "",
+            "SUPPORT",
+            "- Website: https://nx1xlab.dev/nxtools",
+            "- Support development: https://buymeacoffee.com/nx1x"
+        ) -join "`r`n"
+        $readme | Out-File -FilePath "release/README.txt" -Encoding UTF8
+        Compress-Archive -Path "release/*" -DestinationPath $archiveName
+        Write-Host "Archive created: $archiveName"
+
+    - name: Copy standalone exe for direct download
+      run: |
+        $version = "${{ needs.check-version.outputs.version }}"
+        Copy-Item -Path "dist/yt-dlp-studio.exe" -Destination "YT-DLP Studio.exe"
+        Write-Host "Standalone exe: YT-DLP Studio.exe"
+
+    - name: Upload Windows artifact
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: windows-release
+        path: |
+          yt-dlp-studio-*-Windows.zip
+          YT-DLP Studio.exe
+
+  build-linux:
+    name: Build Linux (disabled)
+    needs: [check-version, test]
+    if: false  # Disabled — Windows only for now. Re-enable when adding Linux support.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: '3.11'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libegl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install --require-hashes -r requirements/lock.txt
+        pip install pyinstaller
+
+    - name: Sync version metadata
+      # Linux build_linux.spec doesn't currently use version_info.txt, but
+      # running the sync keeps the file in lockstep with __version__ in case
+      # the Linux spec ever embeds version metadata (or for sdist builds).
+      run: python scripts/sync_version.py
+
+    - name: Build Linux binary
+      run: pyinstaller packaging/build_linux.spec
+      env:
+        QT_QPA_PLATFORM: offscreen
+
+    - name: Verify build
+      run: |
+        if [ ! -f "dist/yt-dlp-studio" ]; then
+          echo "Build failed: yt-dlp-studio not found!"
+          exit 1
+        fi
+        ls -lh dist/yt-dlp-studio
+        chmod +x dist/yt-dlp-studio
+
+    - name: Create Linux archive
+      run: |
+        VERSION="${{ needs.check-version.outputs.version }}"
+        mkdir -p release
+        cp dist/yt-dlp-studio release/
+        chmod +x release/yt-dlp-studio
+        cat > release/README.txt << 'EOF'
+        yt-dlp-studio - Linux
+        ================================
+
+        INSTALLATION
+        1. Extract this archive to any folder
+        2. Make executable: chmod +x yt-dlp-studio
+        3. Run: ./yt-dlp-studio
+
+        REQUIREMENTS
+        - Linux (64-bit, glibc 2.31+)
+        - FFmpeg must be installed: sudo apt install ffmpeg
+        - Deno (optional): curl -fsSL https://deno.land/install.sh | sh
+
+        SUPPORT
+        - Website: https://nx1xlab.dev/nxtools
+        - Support development: https://buymeacoffee.com/nx1x
+        EOF
+        tar -czf "yt-dlp-studio-${VERSION}-Linux.tar.gz" -C release .
+        echo "Archive created: yt-dlp-studio-${VERSION}-Linux.tar.gz"
+
+    - name: Upload Linux artifact
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: linux-release
+        path: yt-dlp-studio-*-Linux.tar.gz
+
+  create-release:
+    name: Create GitHub Release
+    needs: [check-version, build-windows]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Delete existing release (if re-releasing)
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        VERSION="${{ needs.check-version.outputs.version }}"
+        gh release delete "$VERSION" --yes 2>/dev/null || true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create or update tag
+      run: |
+        VERSION="${{ needs.check-version.outputs.version }}"
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag -fa "$VERSION" -m "Release $VERSION"
+        git push origin "$VERSION" --force
+
+    - name: Download Windows artifact
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        name: windows-release
+        path: ./artifacts/
+
+    - name: List artifacts
+      run: ls -la artifacts/
+
+    - name: Create Release
+      uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+      with:
+        tag_name: ${{ needs.check-version.outputs.version }}
+        name: yt-dlp-studio ${{ needs.check-version.outputs.version }}
+        body: |
+          ## yt-dlp-studio ${{ needs.check-version.outputs.version }}
+
+          ### Downloads
+
+          | Platform | File | Notes |
+          |----------|------|-------|
+          | **Windows** | `yt-dlp-studio-...-Windows.zip` | Includes FFmpeg + Deno. Just extract and run. |
+
+          ### Features
+
+          - User-friendly GUI for yt-dlp video downloader
+          - Download from YouTube
+          - Multiple quality options (Best, 8K, 4K, 2K, 1080p, 720p, 480p, 360p)
+          - Audio download support (MP3, FLAC, WAV, M4A, OPUS, Vorbis)
+          - Subtitle, comment, and metadata download
+          - Queue management with concurrent download protection
+          - Download history tracking
+          - Dark/Light theme, Multi-language (English/Hebrew)
+
+          ### System Requirements
+
+          **Windows:** Windows 10/11 (64-bit) - No additional software needed
+
+          ### Credits
+
+          Part of **NXTools** by **NX1X**
+          - Website: https://nx1xlab.dev/nxtools
+          - Support development: https://buymeacoffee.com/nx1x
+        files: |
+          artifacts/*
+        draft: false
+        prerelease: ${{ needs.check-version.outputs.is_prerelease == 'true' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

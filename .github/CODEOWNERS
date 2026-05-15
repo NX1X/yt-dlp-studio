@@ -1,0 +1,59 @@
+# CODEOWNERS for YT-DLP Studio
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Order matters: the LAST matching pattern wins for any given file.
+
+# ---------------------------------------------------------------------------
+# Default owner — applies to everything not matched by a more specific rule
+# ---------------------------------------------------------------------------
+*                                       @NX1X
+
+# ---------------------------------------------------------------------------
+# CI / build / release tooling
+# ---------------------------------------------------------------------------
+/.github/                               @NX1X
+/.github/workflows/                     @NX1X
+/packaging/                             @NX1X
+/launcher.py                            @NX1X
+
+# ---------------------------------------------------------------------------
+# Source code
+# ---------------------------------------------------------------------------
+/src/                                   @NX1X
+/src/ui/                                @NX1X
+/src/backend/                           @NX1X
+/src/models/                            @NX1X
+/src/utils/                             @NX1X
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+/tests/                                 @NX1X
+/conftest.py                            @NX1X
+
+# ---------------------------------------------------------------------------
+# Project metadata, packaging, and dependencies
+# ---------------------------------------------------------------------------
+/pyproject.toml                         @NX1X
+/requirements/                          @NX1X
+
+# ---------------------------------------------------------------------------
+# Security, licensing, and governance
+# ---------------------------------------------------------------------------
+/LICENSE                                @NX1X
+/SECURITY.md                            @NX1X
+/CODE_OF_CONDUCT.md                     @NX1X
+/CONTRIBUTING.md                        @NX1X
+
+# ---------------------------------------------------------------------------
+# Vendored third-party code — do not modify without explicit review
+# ---------------------------------------------------------------------------
+/vendor/                                @NX1X
+
+# ---------------------------------------------------------------------------
+# Documentation
+# ---------------------------------------------------------------------------
+/docs/                                  @NX1X
+/README.md                              @NX1X
+/CHANGELOG.md                           @NX1X
+/ROADMAP.md                             @NX1X

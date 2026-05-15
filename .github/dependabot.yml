@@ -1,0 +1,45 @@
+# Dependabot configuration for YT-DLP Studio
+# Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# ---------------------------------------------------------------------------
+# Dependency VERSION updates are owned by Renovate, NOT Dependabot.
+# ---------------------------------------------------------------------------
+# Single source of truth: .github/renovate.json5
+#
+# Renovate handles GitHub Actions + pip/pep621 *and* the things Dependabot
+# cannot: the vendored yt-dlp / Deno / FFmpeg binary version pins (custom
+# managers), OSV vulnerability data, and the symmetric supply-chain cooldown
+# that is core to this project's threat model. Running Dependabot version
+# updates in parallel would create duplicate, conflicting PRs.
+#
+# Every `updates` entry below therefore sets `open-pull-requests-limit: 0`,
+# which is the only schema-valid way to keep this file present (no Dependabot
+# "invalid configuration" badge) while emitting ZERO version-update PRs.
+#
+# ---------------------------------------------------------------------------
+# SECURITY updates are unaffected by this file.
+# ---------------------------------------------------------------------------
+# GitHub-native "Dependabot security updates" (repo Settings > Code security)
+# operate independently of dependabot.yml and remain ON. They open security
+# PRs immediately when an advisory is published. Renovate's vulnerabilityAlerts
+# / osvVulnerabilityAlerts provide a second, cooldown-gated signal. If you ever
+# want to turn version updates back over to Dependabot, restore the previous
+# revision of this file and disable the corresponding Renovate managers.
+
+version: 2
+
+updates:
+  # github-actions version updates are handled by Renovate
+  # (helpers:pinGitHubActionDigests + the github-actions packageRules).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+
+  # pip / pyproject.toml version updates are handled by Renovate (pep621).
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0

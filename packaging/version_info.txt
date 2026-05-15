@@ -1,0 +1,49 @@
+# UTF-8
+#
+# Windows version information resource for YT-DLP Studio
+# This file defines the metadata shown in Windows Explorer properties
+#
+# DO NOT EDIT THE VERSION NUMBERS BY HAND.
+# The canonical version lives in src/__init__.py (`__version__`).
+# Run `python scripts/sync_version.py` to regenerate this file from there.
+#
+
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers=(0, 1, 0, 0),
+    prodvers=(0, 1, 0, 0),
+    # Contains a bitmask that specifies the valid bits 'flags'
+    mask=0x3f,
+    # Contains a bitmask that specifies the Boolean attributes of the file.
+    flags=0x0,
+    # The operating system for which this file was designed.
+    # 0x4 - NT and there is no need to change it.
+    OS=0x40004,
+    # The general type of file.
+    # 0x1 - the file is an application.
+    fileType=0x1,
+    # The function of the file.
+    # 0x0 - the function is not defined for this fileType
+    subtype=0x0,
+    # Creation date and time stamp.
+    date=(0, 0)
+  ),
+  kids=[
+    StringFileInfo(
+      [
+      StringTable(
+        u'040904B0',
+        [StringStruct(u'CompanyName', u'NX1X LAB - NXTools Collection'),
+        StringStruct(u'FileDescription', u'YT-DLP Studio - User-friendly GUI for yt-dlp video downloader'),
+        StringStruct(u'FileVersion', u'0.1.0.0'),
+        StringStruct(u'InternalName', u'YT-DLP Studio'),
+        StringStruct(u'LegalCopyright', u'Copyright © 2024-2026 NX1X. Part of NXTools collection.'),
+        StringStruct(u'OriginalFilename', u'YT-DLP Studio.exe'),
+        StringStruct(u'ProductName', u'YT-DLP Studio (NXTools)'),
+        StringStruct(u'ProductVersion', u'0.1.0'),
+        StringStruct(u'Comments', u'Download videos from YouTube. Website: https://nx1xlab.dev/nxtools'),
+        StringStruct(u'LegalTrademarks', u'Part of NXtools - https://nx1xlab.dev/nxtools')])
+      ]),
+    VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
+  ]
+)

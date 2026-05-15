@@ -1,0 +1,248 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+# ---------------------------------------------------------------------------
+# Project metadata (PEP 621)
+# ---------------------------------------------------------------------------
+[project]
+name = "yt-dlp-studio"
+dynamic = ["version"]
+description = "A user-friendly desktop GUI for yt-dlp — download videos and audio from YouTube and 1000+ sites."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [
+    { name = "NX1X" },
+]
+maintainers = [
+    { name = "NX1X" },
+]
+keywords = [
+    "yt-dlp",
+    "youtube",
+    "downloader",
+    "video",
+    "audio",
+    "gui",
+    "pyside6",
+    "qt",
+    "desktop",
+    "nxtools",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Win32 (MS Windows)",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Natural Language :: Hebrew",
+    "Operating System :: Microsoft :: Windows :: Windows 10",
+    "Operating System :: Microsoft :: Windows :: Windows 11",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Desktop Environment",
+]
+
+dependencies = [
+    "PySide6>=6.6.0",
+    "requests>=2.31.0",
+    "packaging>=23.0",
+    "plyer>=2.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-qt>=4.2.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.8.0,<0.13",
+    "black>=26.3.1",
+    "pre-commit>=3.7.0",
+    "pip-tools>=7.4.0",
+]
+build = [
+    "pyinstaller>=6.3.0",
+]
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.0.0",
+]
+
+# No `[project.scripts]` / `[project.gui-scripts]` entries are declared.
+# YT-DLP Studio is a GUI-only desktop application distributed as a PyInstaller
+# EXE (Windows) or run from source via `python launcher.py`. It is not intended
+# to be installed from PyPI as a console script.
+
+[project.urls]
+Homepage      = "https://studio.nx1xlab.dev"
+Repository    = "https://github.com/NX1X/yt-dlp-studio"
+Issues        = "https://github.com/NX1X/yt-dlp-studio/issues"
+Discussions   = "https://github.com/NX1X/yt-dlp-studio/discussions"
+Changelog     = "https://github.com/NX1X/yt-dlp-studio/blob/main/CHANGELOG.md"
+Roadmap       = "https://github.com/NX1X/yt-dlp-studio/blob/main/ROADMAP.md"
+Security      = "https://github.com/NX1X/yt-dlp-studio/blob/main/SECURITY.md"
+Documentation = "https://github.com/NX1X/yt-dlp-studio/tree/main/docs"
+Funding       = "https://buymeacoffee.com/nx1x"
+NXTools       = "https://nx1xlab.dev/nxtools"
+
+# ---------------------------------------------------------------------------
+# Hatch build configuration
+# ---------------------------------------------------------------------------
+# Single source of truth for the version: src/__init__.py (`__version__`).
+# Hatch reads it dynamically here, so updating src/__init__.py is all that's
+# needed to change the version everywhere Python tooling looks. The Windows
+# EXE metadata file (packaging/version_info.txt) is regenerated from the same
+# source by scripts/sync_version.py — run it after bumping __version__.
+[tool.hatch.version]
+path = "src/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/docs",
+    "/packaging",
+    "/requirements",
+    "/launcher.py",
+    "/conftest.py",
+    "/CHANGELOG.md",
+    "/CONTRIBUTING.md",
+    "/CODE_OF_CONDUCT.md",
+    "/SECURITY.md",
+    "/README.md",
+    "/ROADMAP.md",
+    "/LICENSE",
+]
+exclude = [
+    "/vendor",
+    "/.github",
+    "/.venv",
+    "/build",
+    "/dist",
+    "/.ruff_cache",
+    "/.pytest_cache",
+    "/.mypy_cache",
+    "/.claude",
+    "/docs-internal",
+]
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+qt_api = "pyside6"
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "gui: marks tests that require a real Qt event loop",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+
+# ---------------------------------------------------------------------------
+# Coverage
+# ---------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+    "vendor/*",
+    "tests/*",
+    "src/resources/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+
+# ---------------------------------------------------------------------------
+# Ruff
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+exclude = [
+    "vendor",
+    "venv",
+    ".venv",
+    "build",
+    "dist",
+    "docs-internal",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "S",    # flake8-bandit (security)
+]
+ignore = [
+    "E402",   # module-level import not at top (PySide6 sometimes needs this)
+    "E722",   # bare except (legacy code)
+    "B008",   # function call in default arg
+    "S101",   # assert used (fine in tests)
+    "S603",   # subprocess call (yt-dlp invocations)
+    "S607",   # starting subprocess with partial path
+    "S606",   # os.startfile: opening the user's own download file/folder via
+              # the OS default handler is core desktop-app behaviour, not an
+              # injection vector (same rationale as S603/S607 above).
+]
+
+[tool.ruff.lint.per-file-ignores]
+# S108: test fixtures pass a constant "/tmp/..." string as a DownloadTask
+# field; nothing is ever written there, so the insecure-temp-file rule is a
+# false positive in the test suite.
+"tests/**/*.py"              = ["S101", "S105", "S106", "S108"]
+"launcher.py"                = ["E402"]
+# E501: these modules are UI-string data / HTML-template f-strings. Wrapping
+# translated message strings or mid-tag HTML hurts readability without value.
+"src/utils/translations.py"  = ["E501"]
+"src/ui/about_tab.py"        = ["E501"]
+"src/ui/history_tab.py"      = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+# ---------------------------------------------------------------------------
+# Black
+# ---------------------------------------------------------------------------
+[tool.black]
+line-length = 120
+target-version = ["py311"]
+extend-exclude = '''
+/(
+    vendor
+  | docs-internal
+  | build
+  | dist
+  | \.venv
+  | venv
+)/
+'''

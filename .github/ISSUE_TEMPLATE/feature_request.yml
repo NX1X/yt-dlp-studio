@@ -1,0 +1,92 @@
+name: Feature Request
+description: Suggest a new feature or improvement for YT-DLP Studio
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement!
+
+        Before submitting:
+          - Check [existing issues](https://github.com/NX1X/yt-dlp-studio/issues?q=is%3Aissue) and the [ROADMAP](https://github.com/NX1X/yt-dlp-studio/blob/main/ROADMAP.md) — your idea may already be planned.
+          - For broad/open-ended ideas, consider opening a [Discussion](https://github.com/NX1X/yt-dlp-studio/discussions) first.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      options:
+        - label: I have searched existing issues and the roadmap and this is not already requested
+          required: true
+        - label: This feature aligns with the project's scope (a friendly GUI for yt-dlp)
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      description: What problem does this feature solve? What user pain or workflow gap does it address?
+      placeholder: "When I download a long playlist, I have no way to ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like. Include UI flow, settings surface, and edge cases.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Other approaches or workarounds you've considered, and why they fall short.
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Affected Area
+      multiple: true
+      options:
+        - Download UI
+        - Queue / concurrency
+        - Playlist / channel handling
+        - Audio extraction / formats
+        - Subtitles / metadata / thumbnails
+        - History
+        - Settings / preferences
+        - Translations / i18n
+        - Notifications / alerts
+        - Theming / accessibility
+        - Build / installer / auto-update
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: How important is this to you?
+      options:
+        - Nice to have
+        - Would significantly improve my workflow
+        - Blocking my use of the app
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I would be willing to help implement this feature
+        - label: I would be willing to help test this feature
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Mockups, screenshots, links to similar features in other tools, etc.

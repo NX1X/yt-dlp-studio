@@ -1,0 +1,111 @@
+# Pre-commit hooks for YT-DLP Studio
+# Install once with: pre-commit install
+# Run on all files:  pre-commit run --all-files
+# Docs: https://pre-commit.com/
+
+# Skip vendored code, internal docs, and local virtualenv/build outputs
+exclude: |
+  (?x)^(
+    vendor/.*
+    | docs-internal/.*
+    | venv/.*
+    | \.venv/.*
+    | build/.*
+    | dist/.*
+    | requirements/lock\.txt
+  )$
+
+default_language_version:
+  python: python3.11
+
+repos:
+  # ---------------------------------------------------------------------------
+  # Ruff — fast linter + formatter
+  # Keep `rev` in lockstep with the ruff version pinned in pyproject.toml
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # ---------------------------------------------------------------------------
+  # Black — secondary formatter (project keeps both ruff-format and black)
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/psf/black
+    rev: 26.3.1
+    hooks:
+      - id: black
+        args: [--line-length=120]
+
+  # ---------------------------------------------------------------------------
+  # General hygiene
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: detect-private-key
+      - id: debug-statements
+      - id: no-commit-to-branch
+        args: [--branch, main]
+
+  # ---------------------------------------------------------------------------
+  # Secret scanning — catches accidentally-committed credentials
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  # ---------------------------------------------------------------------------
+  # GitHub Actions workflow linting
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.4
+    hooks:
+      - id: actionlint
+
+  # ---------------------------------------------------------------------------
+  # Conventional Commits — enforce commit message style
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.6.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args:
+          - feat
+          - fix
+          - docs
+          - style
+          - refactor
+          - perf
+          - test
+          - build
+          - ci
+          - chore
+          - revert
+          - security
+          - deps
+
+ci:
+  autofix_commit_msg: "ci: pre-commit autofix"
+  autoupdate_commit_msg: "ci: pre-commit autoupdate"
+  autoupdate_schedule: monthly
+  skip: [gitleaks]

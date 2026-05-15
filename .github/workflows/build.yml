@@ -1,0 +1,235 @@
+name: CI - YT-DLP Studio
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:
+
+# Least-privilege default for all jobs. Individual jobs override as needed.
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: '3.11'
+
+    - name: Install linting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install ruff black
+
+    - name: Run ruff linter
+      run: ruff check src/ tests/ launcher.py --output-format=github
+
+    - name: Check black formatting
+      run: black --check --diff src/ tests/ launcher.py
+      continue-on-error: true
+
+  test:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: '3.11'
+
+    - name: Install system dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb libegl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install --require-hashes -r requirements/lock.txt
+        pip install -e .[dev]
+
+    - name: Run smoke tests
+      run: bash tests/test_smoke.sh
+      shell: bash
+      env:
+        QT_QPA_PLATFORM: offscreen
+
+    - name: Run tests (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        xvfb-run --auto-servernum pytest tests/ -v --tb=short --junitxml=test-results.xml --cov=src --cov-report=xml
+      env:
+        QT_QPA_PLATFORM: offscreen
+
+    - name: Run tests (Windows)
+      if: runner.os == 'Windows'
+      run: pytest tests/ -v --tb=short --junitxml=test-results.xml --cov=src --cov-report=xml
+      env:
+        QT_QPA_PLATFORM: offscreen
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: test-results-${{ matrix.os }}
+        path: test-results.xml
+        retention-days: 7
+
+    - name: Upload coverage report
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: coverage-${{ matrix.os }}
+        path: coverage.xml
+        retention-days: 7
+
+  build-windows:
+    name: Build Windows Executable
+    needs: [lint, test]
+    runs-on: windows-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+    permissions:
+      contents: read
+      id-token: write       # OIDC token for Sigstore signing
+      attestations: write   # Publish build provenance attestation
+    env:
+      # Pinned third-party binaries.
+      # When bumping a version, update the matching SHA-256 in the same commit.
+      # Procedure: download the asset locally, run `Get-FileHash -Algorithm SHA256`,
+      # cross-check against the publisher's own checksum file, then paste here.
+      DENO_VERSION: "2.6.10"
+      # Cross-checked against
+      # https://github.com/denoland/deno/releases/download/v2.6.10/deno-x86_64-pc-windows-msvc.zip.sha256sum
+      DENO_SHA256: "6b26d272c2107ca63474c5702c824132a4a3e4469463edf0f327b9b5a5f5f854"
+      FFMPEG_VERSION: "8.1.1"
+      FFMPEG_SHA256: "7a6c3e86f54b0dd3bceff31f81bf3b70397171fcf35d1a13b9ed9cbf1040fc18"
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install --require-hashes -r requirements/lock.txt
+        pip install -e .[build]
+
+    - name: Download and verify Deno
+      run: |
+        $ErrorActionPreference = "Stop"
+        $version = $env:DENO_VERSION
+        $base = "https://github.com/denoland/deno/releases/download/v$version"
+        $assetUrl = "$base/deno-x86_64-pc-windows-msvc.zip"
+        $sumUrl   = "$assetUrl.sha256sum"
+
+        Write-Host "Downloading Deno $version from $assetUrl"
+        Invoke-WebRequest -Uri $assetUrl -OutFile deno.zip
+        Invoke-WebRequest -Uri $sumUrl   -OutFile deno.zip.sha256sum
+
+        # Hash from the publisher's sidecar (defends against MITM / mirror tampering).
+        $publishedHash = (Get-Content deno.zip.sha256sum -Raw).Trim().Split()[0].ToLower()
+        # Hash actually computed from what we received.
+        $actualHash    = (Get-FileHash -Algorithm SHA256 deno.zip).Hash.ToLower()
+
+        if ($actualHash -ne $publishedHash) {
+          Write-Error "Deno SHA-256 mismatch vs publisher sidecar. Expected: $publishedHash  Actual: $actualHash"
+          exit 1
+        }
+
+        # Hash hardcoded in the repo (defends against release compromise).
+        # Empty string = first-time setup; print the value so the maintainer can pin it.
+        $pinnedHash = $env:DENO_SHA256.ToLower()
+        if ($pinnedHash -eq "") {
+          Write-Warning "DENO_SHA256 is unset. Verified against publisher sidecar only."
+          Write-Warning "Pin this value in build.yml after manual cross-check: $actualHash"
+        } elseif ($actualHash -ne $pinnedHash) {
+          Write-Error "Deno SHA-256 mismatch vs pinned hash. Pinned: $pinnedHash  Actual: $actualHash"
+          exit 1
+        }
+
+        Write-Host "Deno SHA-256 verified: $actualHash"
+        New-Item -ItemType Directory -Force -Path deno | Out-Null
+        Expand-Archive -Path deno.zip -DestinationPath deno
+        Remove-Item deno.zip, deno.zip.sha256sum
+        deno/deno.exe --version
+
+    - name: Download and verify FFmpeg
+      run: |
+        $ErrorActionPreference = "Stop"
+        $version = $env:FFMPEG_VERSION
+        # GyanD/codexffmpeg is the GitHub-hosted mirror of the gyan.dev builds.
+        # Versioned URL (not the moving "release-full-shared" alias) so the artifact is reproducible.
+        $assetUrl = "https://github.com/GyanD/codexffmpeg/releases/download/$version/ffmpeg-$version-full_build-shared.7z"
+
+        Write-Host "Downloading FFmpeg $version from $assetUrl"
+        Invoke-WebRequest -Uri $assetUrl -OutFile ffmpeg.7z
+
+        $actualHash = (Get-FileHash -Algorithm SHA256 ffmpeg.7z).Hash.ToLower()
+        $pinnedHash = $env:FFMPEG_SHA256.ToLower()
+        if ($actualHash -ne $pinnedHash) {
+          Write-Error "FFmpeg SHA-256 mismatch. Pinned: $pinnedHash  Actual: $actualHash"
+          exit 1
+        }
+        Write-Host "FFmpeg SHA-256 verified: $actualHash"
+
+        7z x ffmpeg.7z -offmpeg_temp
+        New-Item -ItemType Directory -Force -Path ffmpeg/bin | Out-Null
+        Copy-Item -Path "ffmpeg_temp/ffmpeg-*-full_build-shared/bin/ffmpeg.exe" -Destination "ffmpeg/bin/"
+        Copy-Item -Path "ffmpeg_temp/ffmpeg-*-full_build-shared/bin/ffprobe.exe" -Destination "ffmpeg/bin/"
+        Copy-Item -Path "ffmpeg_temp/ffmpeg-*-full_build-shared/bin/ffplay.exe" -Destination "ffmpeg/bin/" -ErrorAction SilentlyContinue
+        Copy-Item -Path "ffmpeg_temp/ffmpeg-*-full_build-shared/bin/*.dll" -Destination "ffmpeg/bin/"
+        Write-Host "FFmpeg files:"
+        Get-ChildItem -Path "ffmpeg/bin" | Select-Object Name, Length
+        Remove-Item ffmpeg.7z
+        Remove-Item -Recurse ffmpeg_temp
+
+    - name: Sync version metadata
+      # Regenerates version_info.txt from src/__init__.py (`__version__`) so
+      # CI builds always carry the canonical version, even on PRs that bumped
+      # __version__ without re-running the script locally.
+      run: python scripts/sync_version.py
+
+    - name: Build executable
+      run: pyinstaller packaging/build.spec
+
+    - name: Generate build provenance attestation
+      # Produces a Sigstore-signed SLSA provenance statement binding the
+      # exe's SHA-256 to this workflow file at this commit on this runner.
+      # Verify with: gh attestation verify dist/yt-dlp-studio.exe --owner <owner>
+      uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+      with:
+        subject-path: 'dist/yt-dlp-studio.exe'
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: YT-DLP-Studio-Windows
+        path: dist/yt-dlp-studio.exe
+        retention-days: 7
+
+    - name: Display build info
+      run: |
+        Write-Host "Build completed successfully!"
+        Write-Host "Executable location: dist/yt-dlp-studio.exe"
+        $fileSize = (Get-Item "dist/yt-dlp-studio.exe").Length / 1MB
+        Write-Host "File size: $([math]::Round($fileSize, 2)) MB"

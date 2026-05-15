@@ -1,0 +1,203 @@
+# ========================================
+# YT-DLP Studio - .gitignore
+# Part of NXTools by NX1X
+# https://nx1xlab.dev/nxtools
+# ========================================
+
+# ========================================
+# Python
+# ========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# ========================================
+# PyInstaller Build
+# ========================================
+build/
+dist/
+*.spec.bak
+*.manifest
+
+# ========================================
+# IDE & Editors
+# ========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ========================================
+# Logs
+# ========================================
+*.log
+logs/
+
+# ========================================
+# Configuration Files
+# ========================================
+yt-dlp-studio_config.json
+config.json
+!src/resources/config/default_config.json
+
+# ========================================
+# Testing
+# ========================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# ========================================
+# Linting & Formatting
+# ========================================
+.ruff_cache/
+.mypy_cache/
+
+# ========================================
+# OS Files
+# ========================================
+# Windows
+Thumbs.db
+desktop.ini
+Desktop.ini
+*.lnk
+ehthumbs.db
+ehthumbs_vista.db
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ========================================
+# Temporary Files
+# ========================================
+*.tmp
+*.bak
+*.orig
+*.swp
+
+# ========================================
+# Build Artifacts
+# ========================================
+*.exe
+*.app
+*.dmg
+*.AppImage
+*.msi
+*.pkg
+
+# ========================================
+# Distribution
+# ========================================
+dist-packages/
+*.whl
+
+# ========================================
+# FFmpeg Binaries
+# ========================================
+# GitHub Actions downloads these automatically
+# DO NOT commit FFmpeg to git (files are too large)
+ffmpeg/
+ffmpeg.exe
+ffprobe.exe
+
+# ========================================
+# UPX Compressor
+# ========================================
+upx/
+upx.exe
+
+# ========================================
+# Deno JS Runtime
+# ========================================
+# Auto-downloaded on first run by deno_installer.py
+# CI/CD also downloads this for the bundled .exe build
+deno/
+deno.exe
+
+# ========================================
+# SECURITY - Sensitive Files
+# ========================================
+*.env
+*.env.*
+!.env.example
+.env.local
+.env.*.local
+*.key
+*.pem
+*.p12
+*.pfx
+*.cer
+*.crt
+*.der
+secrets.json
+credentials.json
+*.secret
+.secrets/
+secrets/
+*_token
+*_key
+*_secret
+.tokens/
+.keys/
+
+# ========================================
+# Large Binary Files
+# ========================================
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.dll
+*.dylib
+
+# ========================================
+# Database Files
+# ========================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# ========================================
+# Claude Code (private to maintainer)
+# ========================================
+.claude/
+CLAUDE.md
+MEMORY.md
+**/CLAUDE.md
+**/MEMORY.md
+
+# ========================================
+# Internal docs (private to maintainer)
+# ========================================
+docs-internal/
+
+# ========================================
+# Documentation (DO NOT IGNORE)
+# ========================================
+!docs/
+!tests/
+!README.md
+!ROADMAP.md
+!LICENSE

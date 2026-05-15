@@ -1,0 +1,17 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions / Q&A
+    url: https://github.com/NX1X/yt-dlp-studio/discussions
+    about: Ask a question, share an idea, or get help from the community
+  - name: Security Vulnerability
+    url: https://github.com/NX1X/yt-dlp-studio/security/advisories/new
+    about: Privately report a security vulnerability (please do not file a public issue)
+  - name: yt-dlp Bugs (extractors / site support)
+    url: https://github.com/yt-dlp/yt-dlp/issues
+    about: Report a bug in yt-dlp itself (site extractor issues, format bugs, etc.)
+  - name: Buy Me a Coffee
+    url: https://buymeacoffee.com/nx1x
+    about: Support development if you find YT-DLP Studio useful
+  - name: NXTools
+    url: https://nx1xlab.dev/nxtools
+    about: Other tools by NX1X
