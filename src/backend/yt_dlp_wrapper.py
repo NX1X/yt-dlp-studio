@@ -18,12 +18,19 @@ from ..utils.logger import get_logger
 logger = get_logger()
 
 # Add vendored yt_dlp_engine to Python path
-# This allows us to import the bundled yt-dlp
-_current_dir = Path(__file__).resolve().parent
-_project_root = _current_dir.parent.parent
-_engine_path = _project_root / "vendor" / "yt_dlp_engine"
+# This allows us to import the bundled yt-dlp.
+# In a PyInstaller bundle the engine is extracted to <_MEIPASS>/yt_dlp_engine
+# (see packaging/build.spec datas); running from source it lives at
+# <project_root>/vendor/yt_dlp_engine.
+if getattr(sys, "frozen", False):
+    _bundle_dir = getattr(sys, "_MEIPASS", None)
+    _engine_path = Path(_bundle_dir) / "yt_dlp_engine" if _bundle_dir else None
+else:
+    _current_dir = Path(__file__).resolve().parent
+    _project_root = _current_dir.parent.parent
+    _engine_path = _project_root / "vendor" / "yt_dlp_engine"
 
-if str(_engine_path) not in sys.path:
+if _engine_path is not None and str(_engine_path) not in sys.path:
     sys.path.insert(0, str(_engine_path))
     logger.debug(f"Added yt_dlp_engine to path: {_engine_path}")
 
