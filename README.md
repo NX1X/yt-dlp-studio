@@ -9,6 +9,7 @@
 [![Build YT-DLP Studio](https://github.com/NX1X/yt-dlp-studio/actions/workflows/build.yml/badge.svg)](https://github.com/NX1X/yt-dlp-studio/actions/workflows/build.yml)
 [![Release](https://github.com/NX1X/yt-dlp-studio/actions/workflows/release.yml/badge.svg)](https://github.com/NX1X/yt-dlp-studio/actions/workflows/release.yml)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-yellow?logo=buy-me-a-coffee&logoColor=white)](https://buymeacoffee.com/nx1x)
+![Views](https://visitor-badge.laobi.icu/badge?page_id=NX1X.yt-dlp-studio)
 
 **A user-friendly GUI for yt-dlp**
 
