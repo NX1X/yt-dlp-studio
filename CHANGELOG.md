@@ -15,6 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.1] - 2026-05-16
+
+**Bug-fix release.** The 0.1.0 Windows executable failed to start; this release fixes that.
+
+### Fixed
+- Windows executable crashed on launch with `ModuleNotFoundError: No module named 'yt_dlp'`. The bundled yt-dlp engine path was only resolved for source runs, not inside the PyInstaller bundle, so the frozen app could never import yt-dlp. Both the main download path and the playlist fetcher are fixed.
+
+### Security
+- Downloaded Deno binary is now created with `0o700` (owner-only) permissions instead of being world-accessible.
+
+### Changed
+- CI tooling (ruff, black, pip-audit, zizmor) is now hash-pinned, and supplementary security scanners were added. No user-facing change.
+
+---
+
 ## [0.1.0] - 2026-05-10
 
 **First public beta of YT-DLP Studio.**
