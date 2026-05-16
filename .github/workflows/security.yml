@@ -1,0 +1,148 @@
+name: Security
+
+# Supplementary security scanners. These intentionally do NOT overlap the
+# existing coverage:
+#   - CodeQL (codeql.yml) ........ SAST of our own Python source
+#   - Socket (GitHub App) ........ malicious / behavioral dependency risk
+#   - Renovate ................... keeps action digests current
+#
+# What this file adds:
+#   - pip-audit .... KNOWN CVEs in the hash-pinned lockfile (Socket does not
+#                    cover published CVEs; this closes that gap)
+#   - zizmor ....... static security audit of the workflow files themselves
+#                    (template injection, over-broad permissions, unpinned refs)
+#   - Scorecard .... weekly OpenSSF repo-posture score, uploaded to code scanning
+#
+# Threat model note: GUI-only desktop app with no public service. The value is
+# catching a compromised/ vulnerable dependency or a CI misconfiguration before
+# it ships inside the signed PyInstaller EXE.
+#
+# Action pinning: every action is pinned to a commit SHA (repo convention).
+# checkout / setup-python / upload-artifact reuse the exact SHAs from
+# build.yml. github/codeql-action/upload-sarif reuses the v4.35.5 SHA already
+# pinned in codeql.yml (same monorepo). ossf/scorecard-action is pinned to the
+# v2.4.3 release commit, cross-checked via the release page and the
+# dereferenced annotated tag. Renovate keeps these digests current.
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  schedule:
+    # Weekly, offset from CodeQL's Monday 04:27 slot to avoid contention.
+    - cron: '41 5 * * 1'  # Mondays 05:41 UTC
+  workflow_dispatch:
+
+# Least-privilege default; jobs widen scope only where required.
+permissions:
+  contents: read
+
+jobs:
+  pip-audit:
+    name: pip-audit (lockfile CVEs)
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false   # this job never uses git creds
+
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: '3.11'
+
+    - name: Install pip-audit
+      run: |
+        python -m pip install --upgrade pip
+        pip install pip-audit
+
+    - name: Audit hash-pinned lockfile
+      # --require-hashes matches how requirements/lock.txt is consumed in
+      # build.yml/test, so the audited set is exactly what ships.
+      # This is a gate (hard fail). If a transitive advisory has no fix and
+      # is not exploitable in a desktop context, document it and add:
+      #   --ignore-vuln GHSA-xxxx-xxxx-xxxx
+      run: pip-audit --require-hashes -r requirements/lock.txt --desc
+
+  zizmor:
+    name: zizmor (workflow security)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # upload SARIF to code scanning
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false   # this job never uses git creds
+
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: '3.11'
+
+    - name: Install zizmor
+      run: |
+        python -m pip install --upgrade pip
+        pip install zizmor
+
+    - name: Run zizmor (gate)
+      # Human-readable output to the log; non-zero exit on findings fails the
+      # job. Online audits use the read-only job token.
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: zizmor .github/workflows/
+
+    - name: Generate SARIF
+      # Re-run for code scanning. Skipped on fork PRs: their token is
+      # read-only, so the SARIF upload below cannot succeed there anyway.
+      if: always() && github.event.pull_request.head.repo.fork != true
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: zizmor --format sarif .github/workflows/ > zizmor.sarif || true
+
+    - name: Upload SARIF to code scanning
+      if: always() && github.event.pull_request.head.repo.fork != true
+      uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+      with:
+        sarif_file: zizmor.sarif
+        category: zizmor
+
+  scorecard:
+    name: OpenSSF Scorecard
+    runs-on: ubuntu-latest
+    # No value on PRs (fork tokens cannot publish results). Run on the default
+    # branch, the weekly schedule, and manual dispatch only.
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    permissions:
+      contents: read
+      security-events: write   # upload SARIF to code scanning
+      id-token: write          # publish_results provenance
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+
+    - name: Run Scorecard analysis
+      uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+      with:
+        results_file: scorecard.sarif
+        results_format: sarif
+        # The job token covers most checks. A repo-scoped PAT in
+        # SCORECARD_TOKEN additionally enables the Branch-Protection and
+        # Webhooks checks; optional.
+        repo_token: ${{ secrets.SCORECARD_TOKEN || github.token }}
+        # Publishes the score to the public OpenSSF API / badge.
+        publish_results: true
+
+    - name: Upload Scorecard SARIF to code scanning
+      uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+      with:
+        sarif_file: scorecard.sarif
+        category: scorecard
