@@ -51,15 +51,14 @@ jobs:
         echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
         echo "Prerelease: $IS_PRERELEASE"
 
-        # Tag-exists logic (unchanged): manual trigger forces re-release; otherwise skip.
+        # Immutable releases: a version is published exactly once. If the tag
+        # already exists the release is frozen (release immutability + the
+        # protect-tags ruleset) and CANNOT be regenerated - not even via a
+        # manual workflow_dispatch. To ship anything, bump __version__ so a
+        # NEW version/tag is cut.
         if git rev-parse "$TAG" >/dev/null 2>&1; then
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Tag $TAG exists but manual trigger — will force re-release"
-            echo "should_release=true" >> $GITHUB_OUTPUT
-          else
-            echo "Tag $TAG already exists — skipping release"
-            echo "should_release=false" >> $GITHUB_OUTPUT
-          fi
+          echo "::notice::Tag $TAG already exists - releases are immutable. Bump __version__ to publish a new release."
+          echo "should_release=false" >> $GITHUB_OUTPUT
         else
           echo "Tag $TAG does not exist — will release"
           echo "should_release=true" >> $GITHUB_OUTPUT
@@ -388,30 +387,19 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-    - name: Delete existing release (if re-releasing)
-      # Removes only the GitHub Release object + its assets, NOT the git tag.
-      # Tags are immutable (see next step): a re-release regenerates assets
-      # against the SAME existing tag/commit.
-      if: github.event_name == 'workflow_dispatch'
-      run: |
-        VERSION="${{ needs.check-version.outputs.version }}"
-        gh release delete "$VERSION" --yes 2>/dev/null || true
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Create immutable tag if absent
-      # Immutable-tag policy: a version tag is created exactly once and is
-      # NEVER moved or force-pushed (the `protect-tags` ruleset blocks
-      # force-push/deletion on v*). If the tag already exists (manual
-      # re-release of the same version), it is left untouched and we only
-      # regenerate the Release assets above. To ship changed code, bump
-      # __version__ so a NEW tag is created instead of moving an old one.
+      # Immutable-release policy: a version is published EXACTLY ONCE. The
+      # release assets are frozen by GitHub release immutability and the tag
+      # by the protect-tags ruleset; neither can be regenerated. check-version
+      # only sets should_release=true when the tag is absent, so the "exists"
+      # branch below is just a defensive guard against partial-failure reruns.
+      # To ship anything, bump __version__ (a NEW version/tag).
       run: |
         VERSION="${{ needs.check-version.outputs.version }}"
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null 2>&1; then
-          echo "Tag $VERSION already exists - leaving it immutable; re-releasing assets only."
+          echo "Tag $VERSION already exists - immutable, nothing to do."
         else
           git tag -a "$VERSION" -m "Release $VERSION"
           git push origin "refs/tags/$VERSION"
