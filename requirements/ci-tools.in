@@ -1,0 +1,24 @@
+# Input for the hash-pinned CI tooling lockfile.
+#
+# These are CI-only tools (linters + security scanners). They are NEVER
+# bundled into the PyInstaller EXE, so this is separate from the runtime
+# lock (requirements/lock.txt, compiled from pyproject.toml).
+#
+# Pinning + hashing them satisfies OpenSSF Scorecard Pinned-Dependencies and
+# stops a compromised tool release from tampering with CI.
+#
+# Regenerate the lock after editing this file (run on Linux — CI tooling jobs
+# all run on ubuntu-latest):
+#
+#   pip install pip-tools
+#   pip-compile --generate-hashes \
+#       --output-file=requirements/ci-tools.txt requirements/ci-tools.in
+#
+# Renovate's lock-file maintenance keeps requirements/ci-tools.txt current the
+# same way it does requirements/lock.txt.
+
+pip
+ruff
+black
+pip-audit
+zizmor
