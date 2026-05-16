@@ -40,8 +40,10 @@ jobs:
           exit 1
         fi
 
-        # Mark as prerelease if 0.x.x or has a pre-release suffix (e.g. -beta.1, -rc.1)
-        if [[ "$VERSION" =~ ^0\. ]] || [[ "$VERSION" == *-* ]]; then
+        # Prerelease ONLY when the version carries an explicit pre-release
+        # suffix (e.g. 1.2.0-rc.1, 0.9.0-beta.2). A plain version - including
+        # pre-1.0 like 0.9.0 - is a full release and becomes "Latest".
+        if [[ "$VERSION" == *-* ]]; then
           IS_PRERELEASE=true
         else
           IS_PRERELEASE=false
@@ -463,5 +465,9 @@ jobs:
           artifacts/*
         draft: false
         prerelease: ${{ needs.check-version.outputs.is_prerelease == 'true' }}
+        # Explicitly flag the newest non-prerelease build as "Latest" so the
+        # repo's Releases page / "latest" API always points here. A prerelease
+        # never becomes Latest.
+        make_latest: ${{ needs.check-version.outputs.is_prerelease == 'true' && 'false' || 'true' }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
