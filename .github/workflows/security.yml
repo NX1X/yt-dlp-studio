@@ -45,6 +45,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false   # this job never uses git creds
 
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -73,6 +75,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false   # this job never uses git creds
 
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -97,7 +101,7 @@ jobs:
       if: always() && github.event.pull_request.head.repo.fork != true
       env:
         GH_TOKEN: ${{ github.token }}
-      run: zizmor -f sarif .github/workflows/ > zizmor.sarif || true
+      run: zizmor --format sarif .github/workflows/ > zizmor.sarif || true
 
     - name: Upload SARIF to code scanning
       if: always() && github.event.pull_request.head.repo.fork != true

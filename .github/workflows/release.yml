@@ -5,10 +5,16 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Least-privilege default; jobs widen scope only where required.
+permissions:
+  contents: read
+
 jobs:
   check-version:
     name: Check for new version
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       should_release: ${{ steps.check.outputs.should_release }}
       version: ${{ steps.check.outputs.version }}
@@ -18,6 +24,7 @@ jobs:
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         fetch-depth: 0
+        persist-credentials: false   # only reads local tags, never pushes
 
     - name: Determine canonical version
       id: check
@@ -70,6 +77,8 @@ jobs:
     needs: [check-version]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -77,6 +86,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false   # tests never push via git
 
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -130,6 +141,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false   # build only; attestation uses OIDC
 
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -257,8 +270,10 @@ jobs:
         subject-path: 'dist/yt-dlp-studio.exe'
 
     - name: Create Windows archive
+      env:
+        VERSION: ${{ needs.check-version.outputs.version }}
       run: |
-        $version = "${{ needs.check-version.outputs.version }}"
+        $version = $env:VERSION
         $archiveName = "yt-dlp-studio-$version-Windows.zip"
         New-Item -ItemType Directory -Force -Path release
         Copy-Item -Path "dist/yt-dlp-studio.exe" -Destination "release/"
@@ -283,8 +298,10 @@ jobs:
         Write-Host "Archive created: $archiveName"
 
     - name: Copy standalone exe for direct download
+      env:
+        VERSION: ${{ needs.check-version.outputs.version }}
       run: |
-        $version = "${{ needs.check-version.outputs.version }}"
+        $version = $env:VERSION
         Copy-Item -Path "dist/yt-dlp-studio.exe" -Destination "YT-DLP Studio.exe"
         Write-Host "Standalone exe: YT-DLP Studio.exe"
 
@@ -306,6 +323,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false   # build only, never pushes via git
 
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -344,8 +363,9 @@ jobs:
         chmod +x dist/yt-dlp-studio
 
     - name: Create Linux archive
+      env:
+        VERSION: ${{ needs.check-version.outputs.version }}
       run: |
-        VERSION="${{ needs.check-version.outputs.version }}"
         mkdir -p release
         cp dist/yt-dlp-studio release/
         chmod +x release/yt-dlp-studio
@@ -384,8 +404,11 @@ jobs:
     permissions:
       contents: write
     steps:
+    # NOTE: this checkout intentionally KEEPS the persisted credential — the
+    # next step pushes the immutable release tag via `git push origin`. Adding
+    # persist-credentials: false here would break tag publishing.
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 # zizmor: ignore[artipacked]
 
     - name: Create immutable tag if absent
       # Immutable-release policy: a version is published EXACTLY ONCE. The
@@ -394,8 +417,9 @@ jobs:
       # only sets should_release=true when the tag is absent, so the "exists"
       # branch below is just a defensive guard against partial-failure reruns.
       # To ship anything, bump __version__ (a NEW version/tag).
+      env:
+        VERSION: ${{ needs.check-version.outputs.version }}
       run: |
-        VERSION="${{ needs.check-version.outputs.version }}"
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null 2>&1; then
@@ -415,8 +439,11 @@ jobs:
     - name: List artifacts
       run: ls -la artifacts/
 
+    # Deliberately use the pinned, SHA-locked action rather than a `gh release`
+    # script step: it is part of the audited/attested release path and Renovate
+    # tracks its digest. Replacing it with raw gh is out of scope here.
     - name: Create Release
-      uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+      uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0 # zizmor: ignore[superfluous-actions]
       with:
         tag_name: ${{ needs.check-version.outputs.version }}
         name: yt-dlp-studio ${{ needs.check-version.outputs.version }}
