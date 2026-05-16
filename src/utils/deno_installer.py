@@ -107,10 +107,11 @@ def ensure_deno_installed() -> Path | None:
         zip_path.unlink()
 
         if system != "Windows":
-            # The downloaded Deno binary must be executable to run. 0o755 is the
-            # standard executable mode (rwxr-xr-x): owner-writable only, not
-            # group/world-writable, so this is not an over-permissive mask.
-            os.chmod(binary_path, 0o755)  # noqa: S103
+            # The downloaded Deno binary must be executable to run. It lives in
+            # a per-user app directory and is only ever invoked (via subprocess)
+            # by the same user who installed it, so 0o700 (rwx------) is
+            # sufficient: no group/world read or execute on a downloaded binary.
+            os.chmod(binary_path, 0o700)
 
         if not binary_path.exists():
             logger.error("Deno extraction completed but binary not found at expected path")
