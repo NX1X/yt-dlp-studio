@@ -142,6 +142,7 @@ You may obtain a copy at https://www.apache.org/licenses/LICENSE-2.0.
 - **PySide6** - LGPL v3
 - **yt-dlp** - The Unlicense (Public Domain)
 - **FFmpeg** - LGPL/GPL depending on build
+- **Deno** - MIT License
 
 These components retain their original licenses and are not relicensed under
 Apache-2.0 by inclusion in this project. See [LICENSE](LICENSE) for the full
@@ -155,6 +156,7 @@ Built with and thanks to these open source projects:
 
 - **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - the video downloader engine (Unlicense)
 - **[FFmpeg](https://ffmpeg.org/)** - multimedia processing (LGPL/GPL)
+- **[Deno](https://deno.land/)** - JavaScript runtime for YouTube JS challenges (MIT)
 - **[Python](https://www.python.org/)** - programming language (PSF License)
 - **[PySide6/Qt6](https://www.qt.io/qt-for-python)** - GUI framework (LGPL)
 - **[PyInstaller](https://pyinstaller.org/)** - executable bundler (GPL)

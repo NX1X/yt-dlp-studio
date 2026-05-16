@@ -27,9 +27,8 @@ jobs:
         python-version: '3.11'
 
     - name: Install linting tools
-      run: |
-        python -m pip install --upgrade pip
-        pip install ruff black
+      # Hash-pinned CI tooling (see requirements/ci-tools.in).
+      run: python -m pip install --require-hashes -r requirements/ci-tools.txt
 
     - name: Run ruff linter
       run: ruff check src/ tests/ launcher.py --output-format=github

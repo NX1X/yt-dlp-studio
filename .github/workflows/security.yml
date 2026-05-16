@@ -54,9 +54,8 @@ jobs:
         python-version: '3.11'
 
     - name: Install pip-audit
-      run: |
-        python -m pip install --upgrade pip
-        pip install pip-audit
+      # Hash-pinned CI tooling (see requirements/ci-tools.in).
+      run: python -m pip install --require-hashes -r requirements/ci-tools.txt
 
     - name: Audit hash-pinned lockfile
       # --require-hashes matches how requirements/lock.txt is consumed in
@@ -84,9 +83,8 @@ jobs:
         python-version: '3.11'
 
     - name: Install zizmor
-      run: |
-        python -m pip install --upgrade pip
-        pip install zizmor
+      # Hash-pinned CI tooling (see requirements/ci-tools.in).
+      run: python -m pip install --require-hashes -r requirements/ci-tools.txt
 
     - name: Run zizmor (gate)
       # Human-readable output to the log; non-zero exit on findings fails the
