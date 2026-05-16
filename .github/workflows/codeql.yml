@@ -46,18 +46,21 @@ jobs:
       uses: github/codeql-action/init@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
       with:
         languages: python
+        # Python is interpreted: no compilation, extract the source directly.
+        build-mode: none
         # security-extended adds higher-recall security queries on top of the
         # default suite (slightly slower, acceptable for a weekly + PR cadence).
         queries: security-extended
-        # No build step needed for Python; analyze the source tree directly.
+        # Exclude the huge vendored yt-dlp tree, the venv, and non-shipping
+        # code. Only paths-ignore (no paths whitelist) — a whitelist plus
+        # ignore list is brittle and can yield "no source found" errors.
         config: |
-          paths:
-            - src
-            - launcher.py
           paths-ignore:
-            - tests
             - vendor
             - venv
+            - build
+            - dist
+            - tests
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
