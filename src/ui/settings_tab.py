@@ -6,6 +6,7 @@ Provides interface for configuring application settings.
 
 import subprocess
 import sys
+from datetime import datetime, timezone
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
@@ -285,6 +286,7 @@ For detailed credits and acknowledgments, see the <b>About</b> tab.
         config = self.config_manager.get_config()
         self.output_input.setText(config.output_directory)
         self.quality_combo.setCurrentText(config.default_quality)
+        self.auto_update_checkbox.setChecked(config.check_updates_on_startup)
         logger.debug("Settings loaded into UI")
 
     def _browse_directory(self) -> None:
@@ -334,7 +336,11 @@ For detailed credits and acknowledgments, see the <b>About</b> tab.
 
         # Save other settings
         old_output_dir = self.config_manager.get_config().output_directory
-        success = self.config_manager.update_config(output_directory=output_dir, default_quality=default_quality)
+        success = self.config_manager.update_config(
+            output_directory=output_dir,
+            default_quality=default_quality,
+            check_updates_on_startup=self.auto_update_checkbox.isChecked(),
+        )
 
         if success:
             logger.info("Settings saved successfully")
@@ -374,34 +380,52 @@ For detailed credits and acknowledgments, see the <b>About</b> tab.
             QMessageBox.information(self, tr("dialog_settings_reset"), tr("msg_all_settings_reset"))
 
     def _check_for_updates(self) -> None:
-        """Check for application updates (v1.7.0)."""
-        from ..backend.update_checker import UpdateChecker
-        from ..ui.update_dialog import UpdateDialog
+        """Check for application updates without blocking the UI thread."""
+        from ..ui.update_dialog import UpdateCheckThread
 
         self.check_update_button.setEnabled(False)
         self.check_update_button.setText(tr("button_checking"))
 
-        try:
-            checker = UpdateChecker()
-            update_available, release_info = checker.check_for_updates()
+        # Keep a reference so the thread is not garbage collected mid-run.
+        self._update_check_thread = UpdateCheckThread(self)
+        self._update_check_thread.check_complete.connect(self._on_update_check_finished)
+        self._update_check_thread.start()
 
-            if update_available and release_info:
-                logger.info(f"Update available: {release_info['version']}")
-                # Show update dialog
-                dialog = UpdateDialog(release_info, self)
-                dialog.exec()
-            else:
-                logger.info("No updates available")
-                QMessageBox.information(
-                    self, tr("dialog_no_updates"), tr("msg_already_latest_version", version=APP_VERSION)
+    def _on_update_check_finished(self, result) -> None:
+        """
+        Handle a manual update check result.
+
+        A manual check is an explicit user action, so it always surfaces an
+        available update even if that version was previously skipped.
+        """
+        from ..ui.update_dialog import UpdateDialog
+
+        self.check_update_button.setEnabled(True)
+        self.check_update_button.setText(tr("button_check_for_updates_now"))
+
+        if result.error:
+            logger.error(f"Update check failed: {result.error}")
+            if result.error == "rate_limited":
+                QMessageBox.warning(
+                    self, tr("dialog_update_check_failed"), tr("msg_update_check_rate_limited")
                 )
+            else:
+                QMessageBox.warning(
+                    self, tr("dialog_update_check_failed"), tr("msg_update_check_failed", error=result.error)
+                )
+            return
 
-        except Exception as e:
-            logger.error(f"Update check failed: {e}")
-            QMessageBox.warning(self, tr("dialog_update_check_failed"), tr("msg_update_check_failed", error=str(e)))
-        finally:
-            self.check_update_button.setEnabled(True)
-            self.check_update_button.setText(tr("button_check_for_updates_now"))
+        self.config_manager.update_config(last_update_check=datetime.now(timezone.utc).isoformat())
+
+        if result.update_available and result.release_info:
+            logger.info(f"Update available: {result.release_info['version']}")
+            dialog = UpdateDialog(result.release_info, self, self.config_manager)
+            dialog.exec()
+        else:
+            logger.info("No updates available")
+            QMessageBox.information(
+                self, tr("dialog_no_updates"), tr("msg_already_latest_version", version=APP_VERSION)
+            )
 
     def _toggle_theme(self) -> None:
         """Toggle between dark and light themes (v2.0.0 - moved from menu bar)."""

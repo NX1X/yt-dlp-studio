@@ -70,7 +70,62 @@ class MainWindow(QMainWindow):
         self._apply_theme()
         self._apply_rtl_layout()
         self._restore_window_state()
+        self._maybe_check_updates_on_startup()
         logger.info("MainWindow initialized")
+
+    def _maybe_check_updates_on_startup(self) -> None:
+        """
+        Run a silent background update check at launch, if opted in.
+
+        Skips entirely unless the user enabled it, and throttles to at most
+        one check per 24h. Failures stay silent (logged only). A dialog is
+        shown only for a genuinely new release the user has not skipped.
+        """
+        config = self.config_manager.get_config()
+        if not config.check_updates_on_startup:
+            return
+
+        if config.last_update_check:
+            try:
+                from datetime import datetime, timezone
+
+                last = datetime.fromisoformat(config.last_update_check)
+                if (datetime.now(timezone.utc) - last).total_seconds() < 24 * 3600:
+                    logger.debug("Skipping startup update check (checked within 24h)")
+                    return
+            except ValueError:
+                pass  # malformed timestamp -> just check again
+
+        from .update_dialog import UpdateCheckThread
+
+        logger.info("Running silent startup update check")
+        self._startup_update_thread = UpdateCheckThread(self)
+        self._startup_update_thread.check_complete.connect(self._on_startup_update_check)
+        self._startup_update_thread.start()
+
+    def _on_startup_update_check(self, result) -> None:
+        """Surface the update dialog only for a new, non-skipped release."""
+        from datetime import datetime, timezone
+
+        if result.error:
+            logger.info(f"Startup update check failed silently: {result.error}")
+            return
+
+        self.config_manager.update_config(last_update_check=datetime.now(timezone.utc).isoformat())
+
+        if not (result.update_available and result.release_info):
+            return
+
+        config = self.config_manager.get_config()
+        new_version = result.release_info.get("version", "")
+        if new_version and new_version == config.skipped_update_version:
+            logger.info(f"Skipping prompt for user-skipped version {new_version}")
+            return
+
+        from .update_dialog import UpdateDialog
+
+        logger.info(f"Startup check found update: {new_version}")
+        UpdateDialog(result.release_info, self, self.config_manager).exec()
 
     def _setup_ui(self) -> None:
         """Set up the main window UI."""

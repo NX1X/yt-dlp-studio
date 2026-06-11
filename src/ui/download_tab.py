@@ -1062,13 +1062,22 @@ class DownloadTab(QWidget):
         self.show_info_button.setText(tr("button_show_info"))
         logger.debug("Playlist worker finished")
 
-    def _on_playlist_videos_selected(self, video_urls: list, quality: str) -> None:
+    def _on_playlist_videos_selected(
+        self,
+        video_urls: list,
+        quality: str,
+        subtitle_langs: list | None = None,
+    ) -> None:
         """
         Handle selected videos from playlist dialog.
 
         Args:
-            video_urls: List of selected video URLs
-            quality: Selected quality
+            video_urls: List of selected video URLs.
+            quality: Selected quality.
+            subtitle_langs: Subtitle language codes chosen in the playlist
+                dialog. Empty list (or None for older callers) means the
+                playlist did not override subtitles - fall back to the
+                download tab's own subtitle settings.
         """
         if not video_urls:
             self.log_widget.append_warning("No videos selected from playlist")
@@ -1083,6 +1092,19 @@ class DownloadTab(QWidget):
             self.log_widget.append_error(f"{tr('error_invalid_directory')}: {error}")
             return
 
+        # Resolve subtitle settings. A non-empty `subtitle_langs` from the
+        # playlist dialog overrides whatever the download tab has set;
+        # otherwise we inherit the tab's settings as before.
+        playlist_subs = list(subtitle_langs or [])
+        if playlist_subs:
+            download_subtitles = True
+            subtitle_languages_str = ",".join(playlist_subs)
+            selected_subtitle_codes = playlist_subs
+        else:
+            download_subtitles = self.subtitles_checkbox.isChecked()
+            subtitle_languages_str = self.subtitle_langs_input.text().strip() or "en"
+            selected_subtitle_codes = self.selected_subtitle_codes
+
         # Add each video to queue with v1.7.0 options
         added_count = 0
         audio_only = quality == tr("quality_audio_only")  # playlist dialog uses translated "Audio Only"
@@ -1093,12 +1115,12 @@ class DownloadTab(QWidget):
                 quality=quality,
                 audio_only=audio_only,
                 download_thumbnail=self.thumbnail_checkbox.isChecked(),
-                download_subtitles=self.subtitles_checkbox.isChecked(),
-                subtitle_languages=self.subtitle_langs_input.text().strip() or "en",
+                download_subtitles=download_subtitles,
+                subtitle_languages=subtitle_languages_str,
                 speed_limit=self.speed_limit_spinbox.value(),
                 video_container=VIDEO_CONTAINER_FORMATS.get(self.container_combo.currentText()),
                 audio_format=AUDIO_FORMATS.get(self.audio_format_combo.currentText(), "mp3"),
-                selected_subtitles=self.selected_subtitle_codes,  # v2.0.0
+                selected_subtitles=selected_subtitle_codes,  # v2.0.0
                 download_metadata=self.metadata_checkbox.isChecked(),  # v2.1.0
                 download_comments=self.comments_checkbox.isChecked(),  # v2.0.0
                 auto_number_duplicates=True,  # v2.1.0 - always enabled
@@ -1106,7 +1128,12 @@ class DownloadTab(QWidget):
             self.queue_manager.add_task(task)
             added_count += 1
 
-        self.log_widget.append_success(f"Added {added_count} videos to queue")
+        if playlist_subs:
+            self.log_widget.append_success(
+                f"Added {added_count} videos to queue (subtitles: {', '.join(playlist_subs)})"
+            )
+        else:
+            self.log_widget.append_success(f"Added {added_count} videos to queue")
 
         # Clear URL input
         self.url_input.clear()

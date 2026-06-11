@@ -20,7 +20,7 @@ APP_NXTOOLS_WEBSITE = "https://nx1xlab.dev/nxtools"
 APP_DESCRIPTION = "A user-friendly GUI for yt-dlp video downloader"
 
 # yt-dlp Engine Information
-YTDLP_VERSION = "2026.02.04"  # Version of bundled yt-dlp
+YTDLP_VERSION = "2026.06.09"  # Version of bundled yt-dlp
 YTDLP_ENGINE_DIR = "vendor/yt_dlp_engine"
 
 # File Names
