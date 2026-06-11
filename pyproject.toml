@@ -55,7 +55,10 @@ classifiers = [
 
 dependencies = [
     "PySide6>=6.6.0",
-    "requests>=2.31.0",
+    # Pin >=2.33.0 to pick up CVE-2024-35195 (Session.verify=False persistence),
+    # CVE-2024-47081 (.netrc credential leak via crafted URL), and
+    # CVE-2026-25645 (insecure temp-file reuse in extract_zipped_paths).
+    "requests>=2.33.0",
     "packaging>=23.0",
     "plyer>=2.1.0",
     # yt-dlp's external JavaScript solver. Ships the JS challenge solver
@@ -76,7 +79,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.4.0",
+    # Pin >=9.0.3 for CVE-2025-71176 (vulnerable tmpdir handling).
+    "pytest>=9.0.3",
     "pytest-qt>=4.2.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.8.0,<0.13",
