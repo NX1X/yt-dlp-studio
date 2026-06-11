@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import platform
+import re
 import sys
 import threading
 import traceback
@@ -44,6 +45,62 @@ logger = get_logger()
 CRASH_DIR = APP_DATA_DIR / "crashes"
 LOG_TAIL_LINES = 200
 MAX_CRASH_FILES = 20
+
+_REDACTED = "[REDACTED]"
+
+# Patterns that catch the most common ways a credential ends up in a
+# Python traceback, exception message, or log line:
+#   1. Userinfo embedded in a URL: https://user:pass@host/...
+#   2. Common key=value patterns for password/token/cookie/api-key,
+#      with either '=' or ':' as the separator.
+#   3. Authorization: Bearer <token> headers.
+#   4. AWS-style access key IDs (visible in tracebacks from boto3-like code).
+_SECRET_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (
+        re.compile(r"(?P<scheme>https?://)[^/@\s]+:[^/@\s]+@", re.IGNORECASE),
+        rf"\g<scheme>{_REDACTED}@",
+    ),
+    # `Bearer <token>` / `Basic <token>` - the bearer keyword is followed by
+    # whitespace, not a `:` or `=` separator, so it needs its own rule.
+    # Handled before the generic key=value pattern so the latter does not
+    # half-match and leave the token visible.
+    (
+        re.compile(
+            r"(?P<keyword>\b(?:Bearer|Basic))\s+(?P<val>[A-Za-z0-9._\-+/=]{8,})",
+            re.IGNORECASE,
+        ),
+        rf"\g<keyword> {_REDACTED}",
+    ),
+    (
+        re.compile(
+            r"(?P<key>(?:api[_-]?key|password|passwd|secret|token|cookie|authorization))"
+            r"(?P<sep>\s*[:=]\s*)"
+            r"(?P<val>['\"]?[^\s'\",;]+['\"]?)",
+            re.IGNORECASE,
+        ),
+        rf"\g<key>\g<sep>{_REDACTED}",
+    ),
+    (
+        re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+        _REDACTED,
+    ),
+)
+
+
+def _scrub_secrets(text: str) -> str:
+    """Replace anything that looks like a credential with ``[REDACTED]``.
+
+    Applied to crash-report fields the user is expected to attach to a bug
+    report (exception_message, traceback, every log_tail line). Best effort -
+    designed to catch the obvious cases that tests caught in real logs, not
+    to be a comprehensive DLP filter.
+    """
+    if not text:
+        return text
+    for pattern, replacement in _SECRET_PATTERNS:
+        text = pattern.sub(replacement, text)
+    return text
+
 
 _installed = False
 
@@ -69,11 +126,15 @@ def _build_report(
         "machine": platform.machine(),
         "frozen": bool(getattr(sys, "frozen", False)),
         "exception_type": f"{exc_type.__module__}.{exc_type.__name__}",
-        "exception_message": str(exc_value),
-        "traceback": "".join(traceback.format_exception(exc_type, exc_value, exc_tb)),
+        # exception_message, traceback, and log_tail are scrubbed because
+        # users are expected to attach this JSON to a public bug report.
+        "exception_message": _scrub_secrets(str(exc_value)),
+        "traceback": _scrub_secrets(
+            "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+        ),
     }
 
-    report["log_tail"] = _read_log_tail()
+    report["log_tail"] = [_scrub_secrets(line) for line in _read_log_tail()]
     return report
 
 
