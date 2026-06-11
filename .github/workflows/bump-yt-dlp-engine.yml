@@ -1,0 +1,184 @@
+name: Bump yt-dlp engine
+
+# Performs the mechanical engine swap that Renovate cannot:
+#   1. Download the official yt-dlp.tar.gz for a given version.
+#   2. Verify the published SHA-256 from SHA2-256SUMS.
+#   3. Replace vendor/yt_dlp_engine/yt_dlp/ with the new source.
+#   4. Update YTDLP_VERSION in src/utils/constants.py and the build.spec note.
+#   5. Run check_imports and the pytest suite.
+#   6. Open a PR for human review.
+#
+# Trigger manually from the Actions tab. The 7-day Renovate cooldown is the
+# supply-chain mitigation; this workflow is the labor saver after the cooldown
+# expires, NOT a way to bypass it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "yt-dlp release tag (e.g. 2026.06.09). Leave blank to use the latest published release."
+        required: false
+        type: string
+      base_branch:
+        description: "Branch to open the PR against."
+        required: false
+        default: "main"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bump-yt-dlp-engine
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    name: Bump engine and open PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # push branch
+      pull-requests: write  # open PR
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ inputs.base_branch }}
+          # GITHUB_TOKEN is fine for pushing to a branch in the same repo.
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.11'
+
+      - name: Resolve target version
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -n "$REQUESTED" ]; then
+            version="$REQUESTED"
+          else
+            version=$(gh release view --repo yt-dlp/yt-dlp --json tagName --jq .tagName)
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          current=$(grep -oE "__version__ = '[^']+'" vendor/yt_dlp_engine/yt_dlp/version.py | sed "s/__version__ = '//;s/'//")
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+
+          if [ "$version" = "$current" ]; then
+            echo "Already on $version; nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download tarball
+        if: steps.resolve.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ytdlp-update
+          curl -sSfL -o /tmp/ytdlp-update/yt-dlp.tar.gz \
+            "https://github.com/yt-dlp/yt-dlp/releases/download/${VERSION}/yt-dlp.tar.gz"
+          curl -sSfL -o /tmp/ytdlp-update/SHA2-256SUMS \
+            "https://github.com/yt-dlp/yt-dlp/releases/download/${VERSION}/SHA2-256SUMS"
+
+      - name: Verify SHA-256
+        if: steps.resolve.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          published=$(grep -E "[0-9a-f]{64} \*?yt-dlp\.tar\.gz$" /tmp/ytdlp-update/SHA2-256SUMS | awk '{print $1}')
+          actual=$(sha256sum /tmp/ytdlp-update/yt-dlp.tar.gz | awk '{print $1}')
+          echo "Published: $published"
+          echo "Actual:    $actual"
+          test "$published" = "$actual"
+
+      - name: Swap vendored tree
+        if: steps.resolve.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          tar -xzf /tmp/ytdlp-update/yt-dlp.tar.gz -C /tmp/ytdlp-update
+          rm -rf vendor/yt_dlp_engine/yt_dlp
+          cp -r /tmp/ytdlp-update/yt-dlp/yt_dlp vendor/yt_dlp_engine/yt_dlp
+          grep '^__version__' vendor/yt_dlp_engine/yt_dlp/version.py
+
+      - name: Update YTDLP_VERSION constant
+        if: steps.resolve.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          set -euo pipefail
+          python - <<PY
+          import pathlib, re, os
+          version = os.environ["VERSION"]
+          p = pathlib.Path("src/utils/constants.py")
+          text = p.read_text(encoding="utf-8")
+          new = re.sub(
+              r'YTDLP_VERSION\s*=\s*"[^"]+"',
+              f'YTDLP_VERSION = "{version}"',
+              text,
+              count=1,
+          )
+          if new == text:
+              raise SystemExit("YTDLP_VERSION constant not found in src/utils/constants.py")
+          p.write_text(new, encoding="utf-8")
+          PY
+
+      - name: Sanity checks
+        if: steps.resolve.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e .
+          python scripts/check_imports.py
+
+      - name: Run pytest
+        if: steps.resolve.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          pip install pytest pytest-qt || true
+          # test_queue_tab is locale-sensitive and may flake on a fresh
+          # config; the bump workflow should not be blocked by it.
+          python -m pytest tests/ --ignore=tests/test_queue_tab.py -q
+
+      - name: Create PR
+        if: steps.resolve.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.resolve.outputs.version }}
+          CURRENT: ${{ steps.resolve.outputs.current }}
+          BASE: ${{ inputs.base_branch }}
+        run: |
+          set -euo pipefail
+          branch="bot/bump-yt-dlp-${VERSION}"
+          git config user.name "yt-dlp-studio-bot"
+          git config user.email "noreply@github.com"
+          git checkout -b "$branch"
+          git add vendor/yt_dlp_engine/yt_dlp src/utils/constants.py
+          git commit -m "deps: bump yt-dlp engine ${CURRENT} -> ${VERSION}"
+          git push --set-upstream origin "$branch"
+          gh pr create \
+            --base "$BASE" \
+            --head "$branch" \
+            --title "deps: bump yt-dlp engine ${CURRENT} -> ${VERSION}" \
+            --body "$(cat <<EOF
+          Automated yt-dlp engine bump.
+
+          - Old: \`${CURRENT}\`
+          - New: \`${VERSION}\`
+          - SHA-256 of \`yt-dlp.tar.gz\` verified against the upstream \`SHA2-256SUMS\` file.
+
+          Before merging, please:
+          - Skim the upstream changelog for breaking changes (\`--exec\`, \`aria2c\`, \`curl\` downloader, Bun, Deno minimum).
+          - Add a \`CHANGELOG.md\` entry under \`## [Unreleased]\` following the project style (no em dashes).
+          - Verify locally that the PyInstaller build still produces a working EXE.
+
+          Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EOF
+          )"

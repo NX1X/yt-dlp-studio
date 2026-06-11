@@ -45,6 +45,48 @@ except ImportError as e:
     raise ImportError("Could not import yt-dlp. Please ensure yt_dlp_engine is properly set up.") from e
 
 
+# Resolve the impersonation target once. yt-dlp wants an ImpersonateTarget
+# instance, not a string. We default to "chrome" because YouTube has the
+# best behavior with a Chrome fingerprint (no 429 on subtitle endpoints
+# in practice). If curl_cffi is not installed the import below will fail,
+# in which case we simply do not pass `impersonate` to yt-dlp and the
+# original "no impersonate target is available" warning resurfaces.
+try:
+    from yt_dlp.networking.impersonate import ImpersonateTarget
+
+    _DEFAULT_IMPERSONATE_TARGET: "ImpersonateTarget | None" = ImpersonateTarget.from_str("chrome")
+    logger.info(f"Impersonation target resolved: {_DEFAULT_IMPERSONATE_TARGET}")
+except Exception as e:
+    _DEFAULT_IMPERSONATE_TARGET = None
+    logger.warning(f"Could not resolve impersonation target ({e}); falling back to no impersonation.")
+
+
+def _make_subtitles_non_fatal(ydl: "YoutubeDL") -> None:
+    """Patch a YoutubeDL instance so subtitle download failures cannot abort the video.
+
+    yt-dlp's ``_write_subtitles`` raises ``DownloadError`` whenever a subtitle HTTP
+    request fails (e.g. HTTP 429 from YouTube's per-IP rate limiter). With
+    ``ignoreerrors='only_download'`` this still propagates and aborts the whole
+    video. Setting ``ignoreerrors=True`` would silence the subtitle error but
+    also mask real video download errors, which we want to surface.
+
+    This wraps the instance method so a subtitle failure becomes a warning,
+    returns ``[]``, and lets the video download proceed.
+    """
+    _original_write_subtitles = ydl._write_subtitles
+
+    def _safe_write_subtitles(info_dict, filename):
+        try:
+            return _original_write_subtitles(info_dict, filename)
+        except Exception as e:
+            ydl.report_warning(
+                f"Subtitle download failed ({e}); continuing without subtitles."
+            )
+            return []
+
+    ydl._write_subtitles = _safe_write_subtitles
+
+
 class YtDlpWrapper:
     """
     Wrapper for yt-dlp functionality.
@@ -205,7 +247,7 @@ class YtDlpWrapper:
             "no_warnings": True,
             "extract_flat": False,
             "skip_download": True,
-            "noplaylist": True,  # Never process the full playlist — only the single video
+            "noplaylist": True,  # Never process the full playlist - only the single video
         }
 
         # Set FFmpeg location if found
@@ -216,6 +258,12 @@ class YtDlpWrapper:
         deno_path = self._get_deno_location()
         if deno_path:
             ydl_opts["js_runtimes"] = {"deno": {"path": deno_path}}
+
+        # Browser impersonation (curl_cffi). Set when available so YouTube
+        # treats us like a real browser and stops 429'ing subtitle/metadata
+        # endpoints.
+        if _DEFAULT_IMPERSONATE_TARGET is not None:
+            ydl_opts["impersonate"] = _DEFAULT_IMPERSONATE_TARGET
 
         try:
             with YoutubeDL(ydl_opts) as ydl:
@@ -269,6 +317,12 @@ class YtDlpWrapper:
         deno_path = self._get_deno_location()
         if deno_path:
             ydl_opts["js_runtimes"] = {"deno": {"path": deno_path}}
+
+        # Browser impersonation (curl_cffi). Subtitle listings are an HTTPS
+        # endpoint that is particularly aggressive about rate-limiting clients
+        # that do not impersonate a browser.
+        if _DEFAULT_IMPERSONATE_TARGET is not None:
+            ydl_opts["impersonate"] = _DEFAULT_IMPERSONATE_TARGET
 
         try:
             with YoutubeDL(ydl_opts) as ydl:
@@ -461,8 +515,13 @@ class YtDlpWrapper:
             "quiet": False,
             "no_warnings": False,
             "windowsfilenames": True,  # Use Windows-safe filenames (removes invalid characters)
-            "ignoreerrors": "only_download",  # Continue if subtitles/metadata fail, but stop on video download errors
-            "noplaylist": True,  # Never download a full playlist — always download the single video
+            # IMPORTANT: yt-dlp's "only_download" does NOT silence subtitle errors.
+            # YoutubeDL._write_subtitles raises DownloadError unless ignoreerrors is
+            # literally True, which would also mask real video download errors. We
+            # keep "only_download" here and instead wrap _write_subtitles below so
+            # that a subtitle HTTP 429 cannot abort the video download itself.
+            "ignoreerrors": "only_download",
+            "noplaylist": True,  # Never download a full playlist - always download the single video
         }
 
         # Handle duplicate files
@@ -487,7 +546,17 @@ class YtDlpWrapper:
         if deno_path:
             ydl_opts["js_runtimes"] = {"deno": {"path": deno_path}}
 
-        # Set video container format if specified (only for video downloads — not audio-only)
+        # Browser impersonation (curl_cffi). Without this, YouTube's
+        # subtitle and comments endpoints return HTTP 429 on what looks like
+        # an automated client, which in turn would have aborted the whole
+        # video download (see ignoreerrors comment above).
+        if _DEFAULT_IMPERSONATE_TARGET is not None:
+            ydl_opts["impersonate"] = _DEFAULT_IMPERSONATE_TARGET
+            logger.info(f"✓ Browser impersonation enabled: {_DEFAULT_IMPERSONATE_TARGET}")
+        else:
+            logger.warning("⚠ Browser impersonation unavailable (curl_cffi missing); some endpoints may 429")
+
+        # Set video container format if specified (only for video downloads - not audio-only)
         if video_container is not None and not audio_only:
             ydl_opts["merge_output_format"] = video_container
             logger.info(f"✓ Video container format set: {video_container}")
@@ -517,7 +586,11 @@ class YtDlpWrapper:
 
             ydl_opts["subtitleslangs"] = langs
             ydl_opts["subtitlesformat"] = "srt"
-            logger.info(f"✓ Subtitle download enabled: {len(langs)} languages")
+            # YouTube rate-limits subtitle requests aggressively without browser
+            # impersonation. Sleeping ~2s between subtitle downloads avoids the
+            # HTTP 429 cascade that would otherwise abort the video download.
+            ydl_opts["sleep_interval_subtitles"] = 2
+            logger.info(f"✓ Subtitle download enabled: {len(langs)} languages (2s spacing)")
 
         # Metadata download (v2.0.0)
         if download_metadata:
@@ -544,6 +617,17 @@ class YtDlpWrapper:
             logger.info("✓ Comments download enabled (will be saved as .txt file)")
         else:
             logger.info("Comments download: disabled")
+
+        # When subtitles AND comments are both enabled, the comment phase
+        # burns through YouTube's per-IP rate-limit budget BEFORE the
+        # subtitle HTTP request goes out, so the subtitle download gets
+        # 429'd even with Chrome impersonation. Adding a 1s gap between
+        # every API request pre-empts that 429 cascade. It costs ~10-30s
+        # extra during the comment phase but lets subtitles actually land.
+        # Single-flag scenarios do not need this (no rate-limit pressure).
+        if download_subtitles and (download_comments or download_metadata):
+            ydl_opts["sleep_interval_requests"] = 1
+            logger.info("✓ Inter-request spacing: 1s (subtitles + comments/metadata combo)")
 
         # Build postprocessors list
         logger.info("\n[STEP 3/5] Configuring postprocessors...")
@@ -602,6 +686,11 @@ class YtDlpWrapper:
                 if self._download_cancelled:
                     logger.info("Download cancelled before starting")
                     return False
+
+                # Make subtitle write failures non-fatal so a YouTube 429 on
+                # subtitles cannot abort the video download.
+                if download_subtitles:
+                    _make_subtitles_non_fatal(ydl)
 
                 logger.info("✓ yt-dlp initialized successfully")
                 logger.info(f"✓ Starting download from: {url}")

@@ -22,6 +22,9 @@ class AppConfig:
         window_width: Last window width (for saving window size)
         window_height: Last window height
         last_url: Last URL entered (for convenience)
+        check_updates_on_startup: Run a silent update check at launch
+        skipped_update_version: Release version the user chose to skip
+        last_update_check: ISO timestamp of the last successful update check
     """
 
     output_directory: str
@@ -29,6 +32,9 @@ class AppConfig:
     window_width: int = 900
     window_height: int = 700
     last_url: str = ""
+    check_updates_on_startup: bool = False
+    skipped_update_version: str = ""
+    last_update_check: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         """

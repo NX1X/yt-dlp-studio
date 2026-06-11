@@ -15,6 +15,7 @@ src_path = Path(__file__).parent / "src"
 sys.path.insert(0, str(src_path))
 
 from src.app import App
+from src.utils.crash_handler import install_crash_handler
 from src.utils.logger import get_logger
 
 logger = get_logger()
@@ -26,6 +27,8 @@ def main():
 
     Creates and runs the application.
     """
+    install_crash_handler()
+
     try:
         # Create app
         app = App()

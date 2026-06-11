@@ -58,6 +58,20 @@ dependencies = [
     "requests>=2.31.0",
     "packaging>=23.0",
     "plyer>=2.1.0",
+    # yt-dlp's external JavaScript solver. Ships the JS challenge solver
+    # scripts that the vendored yt-dlp engine needs to handle YouTube's
+    # anti-bot challenges. Without it, yt-dlp 2026.06.09+ either warns and
+    # silently drops formats or asks the user to allow remote_components
+    # downloads at runtime. Bundling avoids that runtime fetch.
+    "yt-dlp-ejs>=0.8.0",
+    # Browser-impersonation HTTP client. Lets yt-dlp's networking layer
+    # mimic Chrome/Firefox/Safari TLS+JA3 fingerprints, which is how
+    # YouTube and other sites decide whether to rate-limit or block a
+    # request. Without it, yt-dlp's extractor warns
+    # "no impersonate target is available" and subtitle/metadata
+    # endpoints frequently return HTTP 429. The cp310-abi3 wheel is
+    # ~1.7 MB and works on every supported CPython (3.10 through 3.14).
+    "curl_cffi>=0.15.0",
 ]
 
 [project.optional-dependencies]
