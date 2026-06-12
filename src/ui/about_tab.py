@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QScrollArea,
-    QTextBrowser,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -168,7 +168,7 @@ class AboutTab(QWidget):
         body = (
             f"<p><b>{APP_NAME}</b> {tr('about_description')}</p>"
         )
-        text = self._make_textbrowser(body, max_height=80)
+        text = self._make_rich_label(body, max_height=80)
         layout.addWidget(text)
         return group
 
@@ -192,7 +192,7 @@ class AboutTab(QWidget):
         )
         body = f'<table style="border-spacing: 0;">{body_rows}</table>'
 
-        text = self._make_textbrowser(body, max_height=140)
+        text = self._make_rich_label(body, max_height=140)
         layout.addWidget(text)
         return group
 
@@ -209,7 +209,7 @@ class AboutTab(QWidget):
             f"<p><b>{tr('label_support_development')}</b><br>{coffee_line}<br>"
             f'<a href="{BUYMEACOFFEE_URL}" style="color: {_LINK_COLOR};">{BUYMEACOFFEE_URL}</a></p>'
         )
-        text = self._make_textbrowser(body, max_height=160)
+        text = self._make_rich_label(body, max_height=160)
         layout.addWidget(text)
 
         # GitHub button (live, no longer commented out).
@@ -256,7 +256,7 @@ class AboutTab(QWidget):
             f'<a href="https://upx.github.io/" style="color: {_LINK_COLOR};">https://upx.github.io/</a></p>'
             f"<p><i>{tr('text_credits_thanks')}</i></p>"
         )
-        text = self._make_textbrowser(body, max_height=380)
+        text = self._make_rich_label(body, max_height=380)
         layout.addWidget(text)
         return group
 
@@ -299,7 +299,7 @@ class AboutTab(QWidget):
             ],
         )
 
-        text = self._make_textbrowser(
+        text = self._make_rich_label(
             general + download_tab_shortcuts + queue_tab_shortcuts, max_height=300
         )
         layout.addWidget(text)
@@ -307,27 +307,48 @@ class AboutTab(QWidget):
 
     # ----------------------------------------------------------- helpers
 
-    def _make_textbrowser(self, body_html: str, *, max_height: int) -> QTextBrowser:
-        """Wrap an HTML body in a QTextBrowser with palette-friendly defaults.
+    def _make_rich_label(self, body_html: str, *, max_height: int = 0) -> QLabel:
+        """Render an HTML block as a QLabel that grows to fit its content.
 
-        Sets `dir="rtl"` on the root when the active UI language is Hebrew
+        Replaces the previous QTextBrowser-based helper, which always shows
+        an internal scrollbar when the body exceeds the widget height. A
+        QLabel with word wrap sizes to its preferred height, so the outer
+        QScrollArea handles the scroll just once for the whole tab.
+
+        Sets ``dir="rtl"`` on the root when the active UI language is Hebrew
         so internal tables flow in the natural reading direction. Drops all
-        hardcoded text colours so Qt's palette can pick the right shade
-        per theme.
+        hardcoded text colours so Qt's palette can pick the right shade per
+        theme; only the link colour is hardcoded because Qt's mini-CSS does
+        not support ``palette()`` lookups for ``<a>`` styling.
+
+        Args:
+            body_html: The HTML body to render.
+            max_height: Ignored. Accepted for API compatibility with the old
+                helper so callers do not need a parallel migration. Kept as a
+                no-op so we can re-introduce a per-block height cap later
+                without touching every call site.
         """
+        del max_height  # explicit no-op
+
         tm = get_translation_manager()
         is_rtl = tm.get_language() == "he"
         dir_attr = "rtl" if is_rtl else "ltr"
-        html = (
-            f'<div dir="{dir_attr}">'
-            f'{body_html}'
-            '</div>'
+        html = f'<div dir="{dir_attr}">{body_html}</div>'
+
+        label = QLabel(html)
+        label.setTextFormat(Qt.RichText)
+        label.setWordWrap(True)
+        # Allow clicking links + selecting text without making the label
+        # editable. TextBrowserInteraction is what QTextBrowser uses by
+        # default.
+        label.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        label.setOpenExternalLinks(True)
+        # Grow to fit content; the outer QScrollArea provides overflow.
+        label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        label.setAlignment(
+            Qt.AlignRight | Qt.AlignTop if is_rtl else Qt.AlignLeft | Qt.AlignTop
         )
-        browser = QTextBrowser()
-        browser.setOpenExternalLinks(True)
-        browser.setHtml(html)
-        browser.setMaximumHeight(max_height)
-        return browser
+        return label
 
     def _open_github(self) -> None:
         QDesktopServices.openUrl(QUrl(GITHUB_URL))
