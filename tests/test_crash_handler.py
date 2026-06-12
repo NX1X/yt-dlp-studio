@@ -14,9 +14,16 @@ from src.utils import crash_handler
 
 @pytest.fixture
 def isolated_crash_dir(tmp_path, monkeypatch):
-    """Redirect crash reports to a temporary directory for each test."""
+    """Redirect crash reports to a temporary directory for each test.
+
+    Also stubs ``_show_crash_dialog`` to a no-op so the test process does NOT
+    pop a modal Qt MessageBox (the test runner has a live QApplication
+    instance via pytest-qt, so without this stub every test that calls
+    ``_handle`` would block waiting for user input).
+    """
     crash_dir = tmp_path / "crashes"
     monkeypatch.setattr(crash_handler, "CRASH_DIR", crash_dir)
+    monkeypatch.setattr(crash_handler, "_show_crash_dialog", lambda path: None)
     yield crash_dir
 
 

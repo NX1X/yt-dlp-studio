@@ -4,6 +4,7 @@ Queue tab UI for YT-DLP Studio.
 Displays and manages the download queue.
 """
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QGroupBox,
@@ -11,6 +12,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QPushButton,
+    QStackedLayout,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -92,7 +94,7 @@ class QueueTab(QWidget):
                 tr("col_progress"),
                 tr("col_speed"),
                 tr("col_output"),
-                "Actions",
+                tr("col_actions"),
             ]
         )
 
@@ -111,7 +113,29 @@ class QueueTab(QWidget):
         self.queue_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.queue_table.setSelectionMode(QTableWidget.SingleSelection)
 
-        queue_layout.addWidget(self.queue_table)
+        # Empty-state placeholder. Swapped in for the table whenever the
+        # queue is empty so a first-time user sees a hint instead of a
+        # blank grid. The translation keys queue_empty / queue_empty_hint
+        # were previously declared but never rendered.
+        self._empty_state_widget = QWidget()
+        empty_layout = QVBoxLayout(self._empty_state_widget)
+        empty_layout.setAlignment(Qt.AlignCenter)
+        self._empty_title = QLabel(tr("queue_empty"))
+        self._empty_title.setAlignment(Qt.AlignCenter)
+        self._empty_title.setStyleSheet("font-size: 14px; font-weight: bold;")
+        self._empty_hint = QLabel(tr("queue_empty_hint"))
+        self._empty_hint.setAlignment(Qt.AlignCenter)
+        self._empty_hint.setStyleSheet("color: palette(mid);")
+        empty_layout.addWidget(self._empty_title)
+        empty_layout.addWidget(self._empty_hint)
+
+        # QStackedLayout swaps between the table (index 0) and the empty
+        # state (index 1) depending on rowCount.
+        self._queue_stack = QStackedLayout()
+        self._queue_stack.addWidget(self.queue_table)
+        self._queue_stack.addWidget(self._empty_state_widget)
+
+        queue_layout.addLayout(self._queue_stack)
         queue_group.setLayout(queue_layout)
         main_layout.addWidget(queue_group)
 
@@ -211,6 +235,10 @@ class QueueTab(QWidget):
         """Connect queue manager signals."""
         self.queue_manager.queue_updated.connect(self._refresh_queue)
         self.queue_manager.task_progress.connect(self._on_task_progress)
+        # Render the empty-state placeholder immediately on first display so
+        # the user is not staring at a blank table before the first
+        # queue_updated signal fires.
+        self._refresh_queue()
 
     def _refresh_queue(self) -> None:
         """Refresh the queue display."""
@@ -225,6 +253,9 @@ class QueueTab(QWidget):
         # Update table
         tasks = self.queue_manager.get_all_tasks()
         self.queue_table.setRowCount(len(tasks))
+        # Swap to the empty-state placeholder when there are no tasks; the
+        # table (index 0) shows otherwise.
+        self._queue_stack.setCurrentIndex(0 if tasks else 1)
 
         for row, task in enumerate(tasks):
             # Video Name (v1.7.0) - show filename or "Fetching..." if not available
