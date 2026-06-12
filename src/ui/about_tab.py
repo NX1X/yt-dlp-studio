@@ -1,253 +1,334 @@
 """
 About tab for YT-DLP Studio.
 
-Displays application information, credits, and keyboard shortcuts.
+Displays application information, system component versions, credits, and
+keyboard shortcuts. Replaces the previous dark-theme-only HTML colours
+with palette-aware styling so the tab reads correctly under both light
+and dark themes, and runs every user-facing string through ``tr()`` so
+the Hebrew runtime no longer sees English islands.
 """
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QScrollArea, QTextBrowser, QVBoxLayout, QWidget
+from __future__ import annotations
 
-from ..utils.constants import APP_DESCRIPTION, APP_NAME, APP_VERSION
+import subprocess
+import sys
+
+from PySide6.QtCore import Qt, QUrl
+from PySide6.QtGui import QDesktopServices, QFont
+from PySide6.QtWidgets import (
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QTextBrowser,
+    QVBoxLayout,
+    QWidget,
+)
+
+from ..backend.yt_dlp_wrapper import YtDlpWrapper
+from ..utils.constants import APP_NAME, APP_VERSION
 from ..utils.logger import get_logger
-from ..utils.translations import tr
+from ..utils.translations import get_translation_manager, tr
 
 logger = get_logger()
+
+GITHUB_URL = "https://github.com/NX1X/yt-dlp-studio"
+NXTOOLS_URL = "https://nx1xlab.dev/nxtools"
+BUYMEACOFFEE_URL = "https://buymeacoffee.com/nx1x"
+
+# Single accent colour that is visible on both the dark and light themes
+# (Qt's mini-CSS in QTextBrowser does NOT support palette() so we cannot
+# defer to the theme manager). A medium blue with high contrast against
+# both white and near-black backgrounds.
+_LINK_COLOR = "#1976d2"
+
+
+def _detect_ffmpeg_version() -> str:
+    """Return a short FFmpeg version string or a translated fallback.
+
+    Used by the System Information group. Never raises - callers can
+    drop the return value straight into the UI.
+    """
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-version"], capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            first_line = result.stdout.split("\n")[0]
+            if "version" in first_line:
+                parts = first_line.split()
+                if len(parts) >= 3:
+                    return parts[2]
+        return tr("text_ffmpeg_unknown")
+    except FileNotFoundError:
+        return tr("text_ffmpeg_not_found")
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Error getting FFmpeg version: {e}")
+        return tr("text_ffmpeg_error")
+
+
+def _detect_python_version() -> str:
+    return f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+
+
+def _detect_pyside_version() -> str:
+    try:
+        from PySide6 import __version__ as pyside_version
+
+        return pyside_version
+    except Exception:  # noqa: BLE001
+        return tr("text_version_unknown")
+
+
+def _detect_ytdlp_version() -> str:
+    try:
+        return YtDlpWrapper.get_ytdlp_version()
+    except Exception:  # noqa: BLE001
+        return tr("text_version_unknown")
 
 
 class AboutTab(QWidget):
     """About tab displaying application information."""
 
     def __init__(self):
-        """Initialize the About tab."""
         super().__init__()
         self._setup_ui()
         logger.debug("AboutTab initialized")
 
-    def _setup_ui(self):
-        """Set up the About tab UI."""
-        # Create scroll area for content
+    # ------------------------------------------------------------------ UI
+
+    def _setup_ui(self) -> None:
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
 
-        # Main content widget
         content_widget = QWidget()
         layout = QVBoxLayout(content_widget)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
 
-        # Application Title
-        title_label = QLabel(f"{APP_NAME}")
+        # Header: title + version + description.
+        layout.addWidget(self._build_header())
+        layout.addSpacing(10)
+
+        # System information (moved from Settings tab).
+        layout.addWidget(self._build_system_info_group())
+
+        # Plain-language "what is this?" group.
+        layout.addWidget(self._build_details_group())
+
+        # Developer / NXtools section + GitHub button.
+        layout.addWidget(self._build_developer_group())
+
+        # Credits (open-source dependencies).
+        layout.addWidget(self._build_credits_group())
+
+        # Keyboard shortcuts cheat-sheet.
+        layout.addWidget(self._build_shortcuts_group())
+
+        layout.addStretch()
+
+        scroll.setWidget(content_widget)
+
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.addWidget(scroll)
+        self.setLayout(main_layout)
+
+    def _build_header(self) -> QWidget:
+        """Title + version + one-line description block."""
+        container = QWidget()
+        v = QVBoxLayout(container)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(6)
+
+        title_label = QLabel(APP_NAME)
         title_font = QFont()
         title_font.setPointSize(24)
         title_font.setBold(True)
         title_label.setFont(title_font)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title_label)
+        v.addWidget(title_label)
 
-        # Version
         version_label = QLabel(f"{tr('label_current_version')} {APP_VERSION}")
         version_font = QFont()
         version_font.setPointSize(12)
         version_label.setFont(version_font)
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        version_label.setStyleSheet("color: #888;")
-        layout.addWidget(version_label)
+        # No inline color: Qt's palette handles secondary text contrast.
+        v.addWidget(version_label)
 
-        layout.addSpacing(10)
+        return container
 
-        # Description
-        desc_label = QLabel(APP_DESCRIPTION)
-        desc_label.setWordWrap(True)
-        desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        desc_label.setStyleSheet("color: #aaa; font-size: 11pt;")
-        layout.addWidget(desc_label)
+    def _build_details_group(self) -> QGroupBox:
+        group = QGroupBox(tr("group_about_details"))
+        layout = QVBoxLayout(group)
 
-        layout.addSpacing(20)
+        body = (
+            f"<p><b>{APP_NAME}</b> {tr('about_description')}</p>"
+        )
+        text = self._make_textbrowser(body, max_height=80)
+        layout.addWidget(text)
+        return group
 
-        # Details Group (v3.0.0 - simplified)
-        details_group = QGroupBox("Details")
-        details_layout = QVBoxLayout()
+    def _build_system_info_group(self) -> QGroupBox:
+        """Concrete software-stack version data. Moved from Settings tab."""
+        group = QGroupBox(tr("group_about_system_info"))
+        layout = QVBoxLayout(group)
 
-        details_text = QTextBrowser()
-        details_text.setOpenExternalLinks(False)
-        details_text.setMaximumHeight(100)
-        details_text.setHtml(f"""
-        <div style="color: #ccc;">
-        <p><b>{APP_NAME}</b> is a user-friendly graphical interface for yt-dlp,
-        making it easy to download videos from YouTube.</p>
-        <p style="color: #888; font-size: 10pt;">
-        For detailed version information and technical details, see the Settings tab.</p>
-        </div>
-        """)
-        details_layout.addWidget(details_text)
+        rows = [
+            (tr("label_app_version"), APP_VERSION),
+            (tr("label_yt_dlp_version"), _detect_ytdlp_version()),
+            (tr("label_ffmpeg_version"), _detect_ffmpeg_version()),
+            (tr("label_python_version"), _detect_python_version()),
+            (tr("label_pyside_version"), _detect_pyside_version()),
+        ]
 
-        details_group.setLayout(details_layout)
-        layout.addWidget(details_group)
+        body_rows = "".join(
+            f'<tr><td style="padding: 4px 16px 4px 0;"><b>{label}</b></td>'
+            f'<td style="padding: 4px 0;">{value}</td></tr>'
+            for label, value in rows
+        )
+        body = f'<table style="border-spacing: 0;">{body_rows}</table>'
 
-        # About the Developer Group (v3.0.0 - renamed from NXtools Info)
-        developer_group = QGroupBox("About the Developer")
-        nxtools_layout = QVBoxLayout()
+        text = self._make_textbrowser(body, max_height=140)
+        layout.addWidget(text)
+        return group
 
-        nxtools_text = QTextBrowser()
-        nxtools_text.setOpenExternalLinks(True)
-        nxtools_text.setMaximumHeight(120)
-        nxtools_text.setHtml("""
-        <p style="color: #ccc;">
-        This tool is part of <b>NXtools</b> - a collection of productivity tools.<br><br>
-        <b>Website:</b> <a href="https://nx1xlab.dev/nxtools" style="color: #58a6ff;">https://nx1xlab.dev/nxtools</a><br><br>
-        <b>Support Development:</b><br>
-        If you find this tool useful, consider buying me a coffee!<br>
-        <a href="https://buymeacoffee.com/nx1x" style="color: #58a6ff;">Buy Me a Coffee</a>
-        </p>
-        """)
-        nxtools_layout.addWidget(nxtools_text)
+    def _build_developer_group(self) -> QGroupBox:
+        group = QGroupBox(tr("group_about_developer"))
+        layout = QVBoxLayout(group)
 
-        developer_group.setLayout(nxtools_layout)
-        layout.addWidget(developer_group)
+        intro = tr("text_about_developer_intro")
+        coffee_line = tr("text_buy_me_a_coffee_blurb")
+        body = (
+            f"<p>{intro}</p>"
+            f"<p><b>{tr('label_website')}</b> "
+            f'<a href="{NXTOOLS_URL}" style="color: {_LINK_COLOR};">{NXTOOLS_URL}</a></p>'
+            f"<p><b>{tr('label_support_development')}</b><br>{coffee_line}<br>"
+            f'<a href="{BUYMEACOFFEE_URL}" style="color: {_LINK_COLOR};">{BUYMEACOFFEE_URL}</a></p>'
+        )
+        text = self._make_textbrowser(body, max_height=160)
+        layout.addWidget(text)
 
-        # Credits Group
-        credits_group = QGroupBox(tr("label_credits"))
-        credits_layout = QVBoxLayout()
+        # GitHub button (live, no longer commented out).
+        button_row = QHBoxLayout()
+        github_button = QPushButton(tr("button_view_on_github"))
+        github_button.setToolTip(tr("tooltip_view_on_github"))
+        github_button.setProperty("buttonStyle", "secondary")
+        github_button.clicked.connect(self._open_github)
+        button_row.addStretch()
+        button_row.addWidget(github_button)
+        button_row.addStretch()
+        layout.addLayout(button_row)
 
-        credits_text = QTextBrowser()
-        credits_text.setOpenExternalLinks(True)
-        credits_text.setMaximumHeight(450)
+        return group
 
-        # Get Python version
-        import sys
+    def _build_credits_group(self) -> QGroupBox:
+        group = QGroupBox(tr("label_credits"))
+        layout = QVBoxLayout(group)
 
-        python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+        body = (
+            f"<p>{tr('text_credits_description')}</p>"
+            f"<h3>{tr('header_credits_core_deps')}</h3>"
+            "<p><b>yt-dlp</b><br>"
+            "License: Unlicense<br>"
+            f'<a href="https://github.com/yt-dlp/yt-dlp" style="color: {_LINK_COLOR};">'
+            "https://github.com/yt-dlp/yt-dlp</a></p>"
+            "<p><b>FFmpeg</b><br>"
+            "License: LGPL 2.1+ / GPL 2+<br>"
+            f'<a href="https://ffmpeg.org/" style="color: {_LINK_COLOR};">https://ffmpeg.org/</a></p>'
+            f"<h3>{tr('header_credits_dev_framework')}</h3>"
+            f"<p><b>Python {_detect_python_version()}</b><br>"
+            "License: PSF<br>"
+            f'<a href="https://www.python.org/" style="color: {_LINK_COLOR};">https://www.python.org/</a></p>'
+            "<p><b>PySide6 (Qt6)</b><br>"
+            "License: LGPL<br>"
+            f'<a href="https://www.qt.io/qt-for-python" style="color: {_LINK_COLOR};">'
+            "https://www.qt.io/qt-for-python</a></p>"
+            f"<h3>{tr('header_credits_build_dist')}</h3>"
+            "<p><b>PyInstaller</b><br>"
+            "License: GPL<br>"
+            f'<a href="https://pyinstaller.org/" style="color: {_LINK_COLOR};">https://pyinstaller.org/</a></p>'
+            "<p><b>UPX</b><br>"
+            "License: GPL<br>"
+            f'<a href="https://upx.github.io/" style="color: {_LINK_COLOR};">https://upx.github.io/</a></p>'
+            f"<p><i>{tr('text_credits_thanks')}</i></p>"
+        )
+        text = self._make_textbrowser(body, max_height=380)
+        layout.addWidget(text)
+        return group
 
-        credits_text.setHtml(f"""
-        <div style="color: #ccc;">
-        <p>{tr('text_credits_description')}</p>
+    def _build_shortcuts_group(self) -> QGroupBox:
+        group = QGroupBox(tr("shortcuts_title"))
+        layout = QVBoxLayout(group)
 
-        <h3 style="color: #58a6ff; margin-top: 15px;">Core Dependencies</h3>
+        def _section(title: str, rows: list[tuple[str, str]]) -> str:
+            row_html = "".join(
+                f'<tr><td style="padding: 4px 16px 4px 0;"><b>{key}</b></td>'
+                f'<td style="padding: 4px 0;">{action}</td></tr>'
+                for key, action in rows
+            )
+            return f"<h3>{title}</h3><table style='border-spacing: 0;'>{row_html}</table>"
 
-        <p><b>yt-dlp</b> - Video downloader engine<br>
-        <span style="color: #888; font-size: 10pt;">Video/audio downloader engine</span><br>
-        License: Unlicense<br>
-        <a href="https://github.com/yt-dlp/yt-dlp" style="color: #58a6ff;">https://github.com/yt-dlp/yt-dlp</a></p>
+        general = _section(
+            tr("shortcuts_general"),
+            [
+                ("Ctrl+Q", tr("shortcut_quit_app")),
+                ("F1", tr("shortcut_show_help")),
+                ("Esc", tr("shortcut_close_dialogs")),
+            ],
+        )
+        download_tab_shortcuts = _section(
+            tr("shortcuts_download_tab"),
+            [
+                ("Ctrl+V", tr("shortcut_paste_url")),
+                ("Enter", tr("shortcut_start_download")),
+                ("Ctrl+Shift+I", tr("shortcut_show_video_info")),
+                ("Ctrl+D", tr("shortcut_download_now")),
+                ("Ctrl+Shift+Q", tr("shortcut_add_to_queue")),
+            ],
+        )
+        queue_tab_shortcuts = _section(
+            tr("shortcuts_queue_tab"),
+            [
+                ("Delete", tr("shortcut_remove_task")),
+                ("Ctrl+Up", tr("shortcut_move_task_up")),
+                ("Ctrl+Down", tr("shortcut_move_task_down")),
+            ],
+        )
 
-        <p><b>FFmpeg</b> - Multimedia processing framework<br>
-        <span style="color: #888; font-size: 10pt;">Handles video/audio conversion, merging, and post-processing</span><br>
-        License: LGPL 2.1+ / GPL 2+<br>
-        <a href="https://ffmpeg.org/" style="color: #58a6ff;">https://ffmpeg.org/</a></p>
+        text = self._make_textbrowser(
+            general + download_tab_shortcuts + queue_tab_shortcuts, max_height=300
+        )
+        layout.addWidget(text)
+        return group
 
-        <h3 style="color: #58a6ff; margin-top: 15px;">Development Framework</h3>
+    # ----------------------------------------------------------- helpers
 
-        <p><b>Python {python_version}</b> - Programming language<br>
-        <span style="color: #888; font-size: 10pt;">Application runtime environment</span><br>
-        License: PSF License<br>
-        <a href="https://www.python.org/" style="color: #58a6ff;">https://www.python.org/</a></p>
+    def _make_textbrowser(self, body_html: str, *, max_height: int) -> QTextBrowser:
+        """Wrap an HTML body in a QTextBrowser with palette-friendly defaults.
 
-        <p><b>PySide6 (Qt6)</b> - GUI framework<br>
-        <span style="color: #888; font-size: 10pt;">Cross-platform user interface and application framework</span><br>
-        License: LGPL<br>
-        <a href="https://www.qt.io/qt-for-python" style="color: #58a6ff;">https://www.qt.io/qt-for-python</a></p>
+        Sets `dir="rtl"` on the root when the active UI language is Hebrew
+        so internal tables flow in the natural reading direction. Drops all
+        hardcoded text colours so Qt's palette can pick the right shade
+        per theme.
+        """
+        tm = get_translation_manager()
+        is_rtl = tm.get_language() == "he"
+        dir_attr = "rtl" if is_rtl else "ltr"
+        html = (
+            f'<div dir="{dir_attr}">'
+            f'{body_html}'
+            '</div>'
+        )
+        browser = QTextBrowser()
+        browser.setOpenExternalLinks(True)
+        browser.setHtml(html)
+        browser.setMaximumHeight(max_height)
+        return browser
 
-        <h3 style="color: #58a6ff; margin-top: 15px;">Build & Distribution</h3>
-
-        <p><b>PyInstaller</b> - Executable bundler<br>
-        <span style="color: #888; font-size: 10pt;">Packages Python applications into standalone executables</span><br>
-        License: GPL<br>
-        <a href="https://pyinstaller.org/" style="color: #58a6ff;">https://pyinstaller.org/</a></p>
-
-        <p><b>UPX</b> - Executable compressor<br>
-        <span style="color: #888; font-size: 10pt;">Reduces executable file size</span><br>
-        License: GPL<br>
-        <a href="https://upx.github.io/" style="color: #58a6ff;">https://upx.github.io/</a></p>
-
-        <p style="margin-top: 20px; padding: 10px; background-color: #1a1a1a; border-left: 3px solid #58a6ff;">
-        <b>Thank you</b> to all the developers and contributors of these amazing open source projects!
-        This application would not be possible without your dedication and hard work. ❤️
-        </p>
-        </div>
-        """)
-        credits_layout.addWidget(credits_text)
-
-        credits_group.setLayout(credits_layout)
-        layout.addWidget(credits_group)
-
-        # Keyboard Shortcuts Group
-        shortcuts_group = QGroupBox(tr("shortcuts_title"))
-        shortcuts_layout = QVBoxLayout()
-
-        shortcuts_text = QTextBrowser()
-        shortcuts_text.setOpenExternalLinks(False)
-        shortcuts_text.setMaximumHeight(300)
-        shortcuts_text.setHtml(f"""
-        <h3>{tr('shortcuts_general')}</h3>
-        <table style="color: #ccc; width: 100%;">
-        <tr><td style="padding: 4px;"><b>Ctrl+Q</b></td><td style="padding: 4px;">{tr('shortcut_quit_app')}</td></tr>
-        <tr><td style="padding: 4px;"><b>F1</b></td><td style="padding: 4px;">{tr('shortcut_show_help')}</td></tr>
-        <tr><td style="padding: 4px;"><b>Esc</b></td><td style="padding: 4px;">{tr('shortcut_close_dialogs')}</td></tr>
-        </table>
-
-        <h3>{tr('shortcuts_download_tab')}</h3>
-        <table style="color: #ccc; width: 100%;">
-        <tr><td style="padding: 4px;"><b>Ctrl+V</b></td><td style="padding: 4px;">{tr('shortcut_paste_url')}</td></tr>
-        <tr><td style="padding: 4px;"><b>Enter</b></td><td style="padding: 4px;">{tr('shortcut_start_download')}</td></tr>
-        <tr><td style="padding: 4px;"><b>Ctrl+Shift+I</b></td><td style="padding: 4px;">{tr('shortcut_show_video_info')}</td></tr>
-        <tr><td style="padding: 4px;"><b>Ctrl+D</b></td><td style="padding: 4px;">{tr('shortcut_download_now')}</td></tr>
-        <tr><td style="padding: 4px;"><b>Ctrl+Shift+Q</b></td><td style="padding: 4px;">{tr('shortcut_add_to_queue')}</td></tr>
-        </table>
-
-        <h3>{tr('shortcuts_queue_tab')}</h3>
-        <table style="color: #ccc; width: 100%;">
-        <tr><td style="padding: 4px;"><b>Delete</b></td><td style="padding: 4px;">{tr('shortcut_remove_task')}</td></tr>
-        <tr><td style="padding: 4px;"><b>Ctrl+Up</b></td><td style="padding: 4px;">{tr('shortcut_move_task_up')}</td></tr>
-        <tr><td style="padding: 4px;"><b>Ctrl+Down</b></td><td style="padding: 4px;">{tr('shortcut_move_task_down')}</td></tr>
-        </table>
-        """)
-        shortcuts_layout.addWidget(shortcuts_text)
-
-        shortcuts_group.setLayout(shortcuts_layout)
-        layout.addWidget(shortcuts_group)
-
-        # Links
-        links_layout = QHBoxLayout()
-        links_layout.addStretch()
-
-        # GitHub button (placeholder - add when repo is public)
-        # github_btn = QPushButton(tr('button_view_on_github'))
-        # github_btn.clicked.connect(self._open_github)
-        # links_layout.addWidget(github_btn)
-
-        # Documentation button (placeholder)
-        # docs_btn = QPushButton(tr('button_documentation'))
-        # docs_btn.clicked.connect(self._open_docs)
-        # links_layout.addWidget(docs_btn)
-
-        links_layout.addStretch()
-        layout.addLayout(links_layout)
-
-        layout.addStretch()
-
-        # Set scroll area content
-        scroll.setWidget(content_widget)
-
-        # Main layout
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(scroll)
-
-        self.setLayout(main_layout)
-
-    def _open_github(self):
-        """Open GitHub repository in browser."""
-        from PySide6.QtCore import QUrl
-        from PySide6.QtGui import QDesktopServices
-
-        QDesktopServices.openUrl(QUrl("https://github.com/NX1X/yt-dlp-studio"))
+    def _open_github(self) -> None:
+        QDesktopServices.openUrl(QUrl(GITHUB_URL))
         logger.debug("Opened GitHub repository")
-
-    def _open_docs(self):
-        """Open documentation in browser."""
-        from PySide6.QtCore import QUrl
-        from PySide6.QtGui import QDesktopServices
-
-        QDesktopServices.openUrl(QUrl("https://your-docs-url.com"))
-        logger.debug("Opened documentation")
