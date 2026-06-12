@@ -9,15 +9,20 @@ name: Security
 # What this file adds:
 #   - pip-audit .... KNOWN CVEs in the hash-pinned lockfile (Socket does not
 #                    cover published CVEs; this closes that gap)
-#   - osv-scanner .. cross-ecosystem advisory scan over pyproject.toml +
-#                    requirements/lock.txt, using the OSV database (broader
-#                    coverage than pip-audit alone; e.g. catches malicious-
-#                    package advisories like the npm Shai-Hulud worm even
-#                    though we are Python-only, in case a transitive ever
-#                    pulls a non-pip manifest)
 #   - zizmor ....... static security audit of the workflow files themselves
 #                    (template injection, over-broad permissions, unpinned refs)
 #   - Scorecard .... weekly OpenSSF repo-posture score, uploaded to code scanning
+#
+# Previously this file also ran `google/osv-scanner-action`. It was removed in
+# 0.1.2 because (a) v2.3.5+ ships as a reusable workflow whose `action.yml`
+# lacks a `runs:` block, so calling it as a step (which preserved our
+# `harden-runner` egress allowlist for the same job) is no longer possible
+# without restructuring the job and losing the egress lock; (b) its advisory
+# coverage substantially overlaps `pip-audit` (lockfile CVEs) and Socket
+# (malicious / behavioral package risk), so dropping it is a duplication
+# cleanup, not a coverage regression; (c) Renovate's OSV vulnerability alerts
+# (see .github/renovate.json5 `osvVulnerabilityAlerts`) already surface OSV
+# advisories on this repo independent of the scanner action.
 #
 # Threat model note: GUI-only desktop app with no public service. The value is
 # catching a compromised/ vulnerable dependency or a CI misconfiguration before
@@ -90,67 +95,6 @@ jobs:
       # is not exploitable in a desktop context, document it and add:
       #   --ignore-vuln GHSA-xxxx-xxxx-xxxx
       run: pip-audit --require-hashes -r requirements/lock.txt --desc
-
-  osv-scanner:
-    name: osv-scanner (cross-ecosystem advisories)
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write   # upload SARIF to code scanning
-    steps:
-    - name: Harden runner
-      # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
-      # osv-scanner queries the OSV database (api.osv.dev). The SARIF upload
-      # via the action's own logic targets api.github.com. ghcr.io is
-      # required because google/osv-scanner-action runs scanning inside a
-      # pre-built container pulled at job start.
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-      with:
-        egress-policy: block
-        disable-sudo: true
-        allowed-endpoints: >
-          api.github.com:443
-          api.osv.dev:443
-          codeload.github.com:443
-          ghcr.io:443
-          github.com:443
-          objects.githubusercontent.com:443
-          pkg-containers.githubusercontent.com:443
-          raw.githubusercontent.com:443
-          results-receiver.actions.githubusercontent.com:443
-          *.blob.core.windows.net:443
-
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      with:
-        persist-credentials: false   # this job never uses git creds
-
-    - name: Run osv-scanner
-      # Scans pyproject.toml + requirements/lock.txt against the OSV
-      # database. Complements pip-audit (which only sees lock.txt) by also
-      # checking the top-level pyproject manifest and any future non-pip
-      # manifest. The vendored yt-dlp tree has no manifest of its own, so
-      # it is not scanned here (the runtime tree IS exercised by pip-audit).
-      # SARIF output goes to code scanning so findings show up alongside
-      # CodeQL / zizmor / scorecard.
-      uses: google/osv-scanner-action@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
-      with:
-        scan-args: |-
-          --output=osv-scanner.sarif
-          --format=sarif
-          --lockfile=requirements/lock.txt
-          --lockfile=requirements/ci-tools.txt
-          ./pyproject.toml
-      # Don't fail the job on findings here — the SARIF upload below is the
-      # signal. pip-audit remains the hard gate for the runtime lockfile.
-      continue-on-error: true
-
-    - name: Upload osv-scanner SARIF
-      if: always() && github.event.pull_request.head.repo.fork != true
-      uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
-      with:
-        sarif_file: osv-scanner.sarif
-        category: osv-scanner
 
   zizmor:
     name: zizmor (workflow security)
