@@ -209,6 +209,46 @@ def _handle(
     if path is not None:
         logger.critical("Crash report written to %s", path)
 
+    _show_crash_dialog(path)
+
+
+def _show_crash_dialog(path: Path | None) -> None:
+    """Best-effort native dialog so the user knows a crash report was saved.
+
+    Skipped silently when:
+    - PySide6 is not importable (e.g. during early startup).
+    - No ``QApplication`` instance exists yet.
+    - The current thread is not the Qt main thread (Qt forbids creating a
+      widget off the GUI thread; the user will still see the report path in
+      the log file, and the next-run will pick it up from the crashes/ dir).
+
+    The handler itself must never raise, so the whole body is wrapped in a
+    broad ``except`` that just logs and returns.
+    """
+    try:
+        from PySide6.QtCore import QThread
+        from PySide6.QtWidgets import QApplication, QMessageBox
+
+        from .translations import tr
+
+        qapp = QApplication.instance()
+        if qapp is None:
+            return
+        if QThread.currentThread() != qapp.thread():
+            # Background-thread crash. Showing a QMessageBox from here would
+            # itself crash. Skip - the log file and the JSON report are the
+            # user's recovery surfaces.
+            return
+
+        if path is not None:
+            body = tr("dialog_crash_body").format(path=str(path))
+        else:
+            body = tr("dialog_crash_body_no_path")
+
+        QMessageBox.critical(None, tr("dialog_crash_title"), body)
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Could not show crash dialog: {e}")
+
 
 def _sys_excepthook(
     exc_type: type[BaseException],

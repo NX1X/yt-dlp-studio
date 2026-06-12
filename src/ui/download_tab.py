@@ -27,6 +27,7 @@ from ..backend.download_worker import DownloadWorker
 from ..backend.format_handler import FormatHandler
 from ..backend.playlist_worker import PlaylistWorker
 from ..backend.queue_manager import QueueManager
+from ..backend.subtitle_list_worker import SubtitleListWorker
 from ..backend.video_info_worker import VideoInfoWorker
 from ..backend.yt_dlp_wrapper import YtDlpWrapper
 from ..models.download_task import DownloadTask
@@ -77,7 +78,12 @@ class DownloadTab(QWidget):
         self.current_worker: DownloadWorker | None = None
         self.info_worker: VideoInfoWorker | None = None
         self.playlist_worker: PlaylistWorker | None = None
+        self.subtitle_list_worker: SubtitleListWorker | None = None
         self.selected_subtitle_codes: list = []  # v2.0.0: Store selected subtitle language codes
+        # Stable boolean tracked alongside the (translated) Download Type
+        # combo. Always update via _on_download_type_changed; consult here
+        # instead of comparing currentText() against an English literal.
+        self._is_audio_mode: bool = False
         self._setup_ui()
         self._setup_shortcuts()
         self._load_config()
@@ -167,14 +173,19 @@ class DownloadTab(QWidget):
 
         input_layout.addLayout(url_layout)
 
-        # v3.0.0: Download Type selection (Video or Audio)
+        # v3.0.0: Download Type selection (Video or Audio).
+        # We use addItem(label, userData) so the localized display string and
+        # the stable internal key ("video" / "audio") are tracked separately;
+        # downstream branches consult `currentData()`, never `currentText()`,
+        # so translating the labels cannot break audio-mode detection.
         type_layout = QHBoxLayout()
-        type_label = QLabel("Download Type:")
+        type_label = QLabel(tr("label_download_type"))
         type_label.setMinimumWidth(80)
         self.download_type_combo = QComboBox()
-        self.download_type_combo.addItems(["Video", "Audio Only"])
+        self.download_type_combo.addItem(tr("download_type_video"), "video")
+        self.download_type_combo.addItem(tr("download_type_audio"), "audio")
         self.download_type_combo.currentTextChanged.connect(self._on_download_type_changed)
-        self.download_type_combo.setToolTip("Choose whether to download video or extract audio only")
+        self.download_type_combo.setToolTip(tr("tooltip_download_type"))
         type_layout.addWidget(type_label)
         type_layout.addWidget(self.download_type_combo)
         input_layout.addLayout(type_layout)
@@ -189,28 +200,30 @@ class DownloadTab(QWidget):
         quality_layout.addWidget(self.quality_combo)
         input_layout.addLayout(quality_layout)
 
-        # v2.0.0: Video Container Format selection (only visible for video downloads)
+        # v2.0.0: Video Container Format selection (only visible for video downloads).
+        # The combo items themselves stay English - they are technical container
+        # names (MP4, MKV, WebM) that international users recognize. Only the
+        # label and tooltip get translated.
         self.container_layout = QHBoxLayout()
-        self.container_label = QLabel("Video Format:")
+        self.container_label = QLabel(tr("label_video_format"))
         self.container_label.setMinimumWidth(80)
         self.container_combo = QComboBox()
         self.container_combo.addItems(list(VIDEO_CONTAINER_FORMATS.keys()))
         self.container_combo.setCurrentText(DEFAULT_VIDEO_CONTAINER)
-        self.container_combo.setToolTip("Choose video container format (MP4 recommended for compatibility)")
+        self.container_combo.setToolTip(tr("tooltip_video_format"))
         self.container_layout.addWidget(self.container_label)
         self.container_layout.addWidget(self.container_combo)
         input_layout.addLayout(self.container_layout)
 
-        # v2.0.0: Audio Format selection (only visible for audio downloads)
+        # v2.0.0: Audio Format selection (only visible for audio downloads).
+        # Same English-stays-English principle as the video container combo.
         self.audio_format_layout = QHBoxLayout()
-        self.audio_format_label = QLabel("Audio Format:")
+        self.audio_format_label = QLabel(tr("label_audio_format"))
         self.audio_format_label.setMinimumWidth(80)
         self.audio_format_combo = QComboBox()
         self.audio_format_combo.addItems(list(AUDIO_FORMATS.keys()))
         self.audio_format_combo.setCurrentText(DEFAULT_AUDIO_FORMAT)
-        self.audio_format_combo.setToolTip(
-            "Choose audio format for audio-only downloads (MP3 recommended for compatibility)"
-        )
+        self.audio_format_combo.setToolTip(tr("tooltip_audio_format"))
         self.audio_format_layout.addWidget(self.audio_format_label)
         self.audio_format_layout.addWidget(self.audio_format_combo)
         input_layout.addLayout(self.audio_format_layout)
@@ -284,11 +297,11 @@ class DownloadTab(QWidget):
         options_layout.addWidget(self.subtitle_langs_input)
 
         # v2.0.0: Select Subtitles button
-        self.select_subs_button = QPushButton("Select Subs")
+        self.select_subs_button = QPushButton(tr("button_select_subs"))
         self.select_subs_button.setEnabled(False)
         self.select_subs_button.setMinimumWidth(100)
         self.select_subs_button.clicked.connect(self._on_select_subtitles_clicked)
-        self.select_subs_button.setToolTip("Fetch and select specific subtitle languages")
+        self.select_subs_button.setToolTip(tr("tooltip_select_subs"))
         self.select_subs_button.setStyleSheet("""
             QPushButton {
                 background-color: #4a4a4a;
@@ -564,19 +577,31 @@ class DownloadTab(QWidget):
     def _update_quality_options(self) -> None:
         """
         Update quality dropdown and show/hide format options based on download type.
-        v3.0.0: Separate video and audio quality options for better UX
+
+        v3.0.0: Separate video and audio quality options for better UX.
+
+        Each combo entry stores its stable English key as userData so callers
+        can look it up in QUALITY_OPTIONS / AUDIO_QUALITY_MAP via
+        ``currentData()`` regardless of which UI language is active. Never
+        check ``currentText()`` against a hardcoded string here.
         """
-        download_type = self.download_type_combo.currentText()
-        is_audio = download_type == "Audio Only"
+        self._is_audio_mode = self.download_type_combo.currentData() == "audio"
 
         # Clear and update quality combo
         self.quality_combo.clear()
 
-        if is_audio:
-            # Show audio quality options only
-            audio_qualities = ["Best Quality", "Audio 320kbps", "Audio 256kbps", "Audio 192kbps", "Audio 128kbps"]
-            self.quality_combo.addItems(audio_qualities)
-            self.quality_combo.setCurrentText("Best Quality")  # Default
+        if self._is_audio_mode:
+            # Show audio quality options only. (label, internal_key)
+            audio_qualities = [
+                (tr("quality_best"), "Best Quality"),
+                (tr("quality_audio_320"), "Audio 320kbps"),
+                (tr("quality_audio_256"), "Audio 256kbps"),
+                (tr("quality_audio_192"), "Audio 192kbps"),
+                (tr("quality_audio_128"), "Audio 128kbps"),
+            ]
+            for label, key in audio_qualities:
+                self.quality_combo.addItem(label, key)
+            self.quality_combo.setCurrentIndex(0)  # Default to Best Quality
 
             # Hide video format, show audio format
             self.container_label.setVisible(False)
@@ -587,19 +612,20 @@ class DownloadTab(QWidget):
             if hasattr(self, "log_widget"):
                 self.log_widget.append_info("Audio-only mode: Select quality and audio format")
         else:
-            # Show video quality options only
+            # Show video quality options only. (label, internal_key)
             video_qualities = [
-                "Best Quality",
-                "8K (4320p)",
-                "4K (2160p)",
-                "2K (1440p)",
-                "1080p (Full HD)",
-                "720p (HD)",
-                "480p (SD)",
-                "360p",
+                (tr("quality_best"), "Best Quality"),
+                ("8K (4320p)", "8K (4320p)"),
+                ("4K (2160p)", "4K (2160p)"),
+                ("2K (1440p)", "2K (1440p)"),
+                (tr("quality_1080p"), "1080p (Full HD)"),
+                (tr("quality_720p"), "720p (HD)"),
+                (tr("quality_480p"), "480p (SD)"),
+                ("360p", "360p"),
             ]
-            self.quality_combo.addItems(video_qualities)
-            self.quality_combo.setCurrentText("Best Quality")  # Default
+            for label, key in video_qualities:
+                self.quality_combo.addItem(label, key)
+            self.quality_combo.setCurrentIndex(0)  # Default to Best Quality
 
             # Show video format, hide audio format
             self.container_label.setVisible(True)
@@ -666,7 +692,9 @@ class DownloadTab(QWidget):
         # Get inputs
         url = self.url_input.text().strip()
         output_dir = self.output_input.text().strip()
-        quality = self.quality_combo.currentText()
+        # currentData() returns the stable English key, currentText() returns
+        # the translated label - we need the key for QUALITY_OPTIONS lookup.
+        quality = self.quality_combo.currentData() or self.quality_combo.currentText()
 
         # Validate URL
         is_valid, error = Validators.is_valid_url(url)
@@ -704,7 +732,7 @@ class DownloadTab(QWidget):
         self.config_manager.update_config(last_url=url)
 
         # Determine if this is an audio-only download (v3.0.0: from download type)
-        audio_only = self.download_type_combo.currentText() == "Audio Only"
+        audio_only = self._is_audio_mode
 
         # Check for duplicate download (same URL + quality + format)
         if self.queue_manager.is_duplicate_task(url, quality, audio_only):
@@ -752,7 +780,7 @@ class DownloadTab(QWidget):
         # Get inputs
         url = self.url_input.text().strip()
         output_dir = self.output_input.text().strip()
-        quality = self.quality_combo.currentText()
+        quality = self.quality_combo.currentData() or self.quality_combo.currentText()
 
         # Validate URL
         is_valid, error = Validators.is_valid_url(url)
@@ -772,7 +800,7 @@ class DownloadTab(QWidget):
         self.config_manager.update_config(last_url=url)
 
         # Determine if this is an audio-only download (v3.0.0: from download type)
-        audio_only = self.download_type_combo.currentText() == "Audio Only"
+        audio_only = self._is_audio_mode
 
         # Create download task with v2.1.0 options
         task = DownloadTask(
@@ -1156,7 +1184,14 @@ class DownloadTab(QWidget):
         self.select_subs_button.setEnabled(enabled)  # v2.0.0: Enable/disable button
 
     def _on_select_subtitles_clicked(self) -> None:
-        """Handle Select Subtitles button click (v2.0.0)."""
+        """Handle Select Subtitles button click (v2.0.0).
+
+        Dispatches the yt-dlp subtitle enumeration to a ``SubtitleListWorker``
+        QThread so the 2-10 second network call does NOT freeze the Qt event
+        loop. Results return via ``_on_subtitle_list_fetched`` /
+        ``_on_subtitle_list_failed``; until then the button is disabled and
+        shows the translated "Fetching…" label.
+        """
         url = self.url_input.text().strip()
 
         # Validate URL
@@ -1166,47 +1201,58 @@ class DownloadTab(QWidget):
             self.log_widget.append_error(f"{tr('error_invalid_url')}: {error}")
             return
 
-        # Disable button and show fetching state
+        # If a previous fetch is still running, ignore the second click.
+        if self.subtitle_list_worker is not None and self.subtitle_list_worker.isRunning():
+            return
+
         self.select_subs_button.setEnabled(False)
-        self.select_subs_button.setText("Fetching...")
+        self.select_subs_button.setText(tr("text_fetching_subs"))
         self.log_widget.append_info(f"Fetching available subtitles for: {url}")
 
-        try:
-            # Fetch available subtitles
-            wrapper = YtDlpWrapper()
-            available_subs = wrapper.get_available_subtitles(url)
+        self.subtitle_list_worker = SubtitleListWorker(url, parent=self)
+        self.subtitle_list_worker.subtitles_fetched.connect(self._on_subtitle_list_fetched)
+        self.subtitle_list_worker.fetch_failed.connect(self._on_subtitle_list_failed)
+        self.subtitle_list_worker.finished.connect(self._on_subtitle_list_finished)
+        self.subtitle_list_worker.start()
 
-            if not available_subs:
-                QMessageBox.information(
-                    self, "No Subtitles Available", "This video doesn't have any subtitles available."
+    def _on_subtitle_list_fetched(self, available_subs: dict) -> None:
+        """Worker thread succeeded; open the selection dialog on the UI thread."""
+        if not available_subs:
+            QMessageBox.information(
+                self,
+                tr("dialog_no_subs_available"),
+                tr("msg_no_subs_available"),
+            )
+            self.log_widget.append_warning("No subtitles found for this video")
+            return
+
+        dialog = SubtitleSelectionDialog(available_subs, self)
+        if dialog.exec():
+            selected = dialog.get_selected_languages()
+            self.selected_subtitle_codes = selected
+
+            if selected:
+                self.subtitle_langs_input.setText(",".join(selected))
+                self.log_widget.append_success(
+                    f"Selected {len(selected)} subtitle languages: {', '.join(selected)}"
                 )
-                self.log_widget.append_warning("No subtitles found for this video")
             else:
-                # Show subtitle selection dialog
-                dialog = SubtitleSelectionDialog(available_subs, self)
-                if dialog.exec():
-                    selected = dialog.get_selected_languages()
-                    self.selected_subtitle_codes = selected
+                self.subtitle_langs_input.setText("")
+                self.log_widget.append_info("No subtitles selected")
 
-                    if selected:
-                        # Update the subtitle languages input
-                        self.subtitle_langs_input.setText(",".join(selected))
-                        self.log_widget.append_success(
-                            f"Selected {len(selected)} subtitle languages: {', '.join(selected)}"
-                        )
-                    else:
-                        self.subtitle_langs_input.setText("")
-                        self.log_widget.append_info("No subtitles selected")
+    def _on_subtitle_list_failed(self, error_msg: str) -> None:
+        """Worker thread reported an error; surface it to the user."""
+        logger.error(f"Subtitle fetch failed: {error_msg}")
+        QMessageBox.critical(self, tr("error_generic"), error_msg)
+        self.log_widget.append_error(error_msg)
 
-        except Exception as e:
-            logger.error(f"Failed to fetch subtitles: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to fetch subtitles:\n{str(e)}")
-            self.log_widget.append_error(f"Error fetching subtitles: {e}")
-
-        finally:
-            # Re-enable button
-            self.select_subs_button.setEnabled(True)
-            self.select_subs_button.setText("Select Subs")
+    def _on_subtitle_list_finished(self) -> None:
+        """Restore the button label and detach the worker so it can be reused."""
+        self.select_subs_button.setEnabled(True)
+        self.select_subs_button.setText(tr("button_select_subs"))
+        if self.subtitle_list_worker is not None:
+            self.subtitle_list_worker.deleteLater()
+            self.subtitle_list_worker = None
 
     def _on_batch_input_clicked(self) -> None:
         """Handle batch input button click (v1.7.0)."""
@@ -1220,7 +1266,7 @@ class DownloadTab(QWidget):
                 return
 
             output_dir = self.output_input.text().strip()
-            quality = self.quality_combo.currentText()
+            quality = self.quality_combo.currentData() or self.quality_combo.currentText()
 
             # Validate directory
             is_valid, error = Validators.is_valid_directory(output_dir)
@@ -1231,7 +1277,7 @@ class DownloadTab(QWidget):
 
             # Add each URL to queue with current settings
             added_count = 0
-            audio_only = self.download_type_combo.currentText() == "Audio Only"
+            audio_only = self._is_audio_mode
             for url in urls:
                 task = DownloadTask(
                     url=url,

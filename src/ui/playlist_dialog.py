@@ -135,10 +135,13 @@ class PlaylistDialog(QDialog):
         info_group = QGroupBox(tr("group_playlist_information"))
         info_layout = QVBoxLayout()
 
-        # Title
+        # Title. The inline `color: #ffffff` was invisible in light theme and
+        # bypassed the QSS theme system. Rely on the default palette and use
+        # an object name so the theme can target it.
         title_label = QLabel(f"<b>{self.playlist_info.title}</b>")
         title_label.setWordWrap(True)
-        title_label.setStyleSheet("font-size: 14px; color: #ffffff;")
+        title_label.setObjectName("playlistTitleLabel")
+        title_label.setStyleSheet("font-size: 14px;")
         info_layout.addWidget(title_label)
 
         # Stats row
@@ -178,7 +181,15 @@ class PlaylistDialog(QDialog):
         # Videos table
         self.videos_table = QTableWidget()
         self.videos_table.setColumnCount(5)
-        self.videos_table.setHorizontalHeaderLabels(["Select", "#", "Title", "Duration", "Uploader"])
+        self.videos_table.setHorizontalHeaderLabels(
+            [
+                tr("col_select"),
+                tr("col_index"),
+                tr("col_title"),
+                tr("col_duration"),
+                tr("col_uploader"),
+            ]
+        )
 
         # Set column widths
         header = self.videos_table.horizontalHeader()
@@ -209,25 +220,13 @@ class PlaylistDialog(QDialog):
         cancel_button.clicked.connect(self.reject)
         button_layout.addWidget(cancel_button)
 
-        download_button = QPushButton("Add to Queue")
+        # Object name ties this button to the primary-button QSS selector in
+        # the theme, replacing the inline blue stylesheet that duplicated
+        # rules already defined globally.
+        download_button = QPushButton(tr("button_add_to_queue"))
         download_button.setMinimumWidth(150)
+        download_button.setObjectName("primaryButton")
         download_button.clicked.connect(self._on_download_clicked)
-        download_button.setStyleSheet("""
-            QPushButton {
-                background-color: #0e639c;
-                color: white;
-                border: none;
-                border-radius: 3px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #1177bb;
-            }
-            QPushButton:pressed {
-                background-color: #0d5689;
-            }
-        """)
         button_layout.addWidget(download_button)
 
         main_layout.addLayout(button_layout)
@@ -253,6 +252,14 @@ class PlaylistDialog(QDialog):
             self._on_subtitles_toggled
         )
         group_layout.addWidget(self.subtitles_enabled_checkbox)
+
+        # Override-behavior hint sits right under the toggle so the user can
+        # see WHY this section exists even before they tick the box.
+        hint_label = QLabel(tr("label_playlist_subtitle_override_hint"))
+        hint_label.setWordWrap(True)
+        hint_label.setObjectName("hintLabel")
+        hint_label.setStyleSheet("color: palette(mid); font-style: italic;")
+        group_layout.addWidget(hint_label)
 
         # Language picker - 2-column grid keeps the dialog compact.
         langs_label = QLabel(tr("label_playlist_subtitle_languages"))
@@ -291,9 +298,15 @@ class PlaylistDialog(QDialog):
 
         parent_layout.addWidget(group)
 
-    def _on_subtitles_toggled(self, state: int) -> None:
-        """Enable or disable the language picker based on the master toggle."""
-        enabled = state == Qt.Checked.value
+    def _on_subtitles_toggled(self, _state: int) -> None:
+        """Enable or disable the language picker based on the master toggle.
+
+        Reads the checkbox state directly via ``isChecked()`` rather than
+        interpreting the ``stateChanged`` signal payload, which is a plain
+        ``int`` today but is documented to change across PySide6 versions
+        (some versions emit a ``Qt.CheckState`` enum).
+        """
+        enabled = self.subtitles_enabled_checkbox.isChecked()
         for widget in self._subtitle_dependent_widgets:
             widget.setEnabled(enabled)
 
