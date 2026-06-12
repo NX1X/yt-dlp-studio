@@ -20,6 +20,24 @@ jobs:
       version: ${{ steps.check.outputs.version }}
       is_prerelease: ${{ steps.check.outputs.is_prerelease }}
     steps:
+    - name: Harden runner
+      # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
+      # Tightest list in this workflow: only checkout (with full history),
+      # local-only python script, and a `git ls-remote --tags origin` to
+      # decide release immutability. Everything contacts github.com.
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: block
+        disable-sudo: true
+        allowed-endpoints: >
+          api.github.com:443
+          codeload.github.com:443
+          github.com:443
+          objects.githubusercontent.com:443
+          raw.githubusercontent.com:443
+          results-receiver.actions.githubusercontent.com:443
+          *.blob.core.windows.net:443
+
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
@@ -84,6 +102,29 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
+    - name: Harden runner
+      # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
+      # Mirrors build.yml's test job: pip from PyPI, Linux leg uses apt for
+      # xvfb/EGL/dbus libs (so disable-sudo MUST be false).
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: block
+        disable-sudo: false                # Linux leg runs `sudo apt-get`
+        allowed-endpoints: >
+          api.github.com:443
+          azure.archive.ubuntu.com:80
+          codeload.github.com:443
+          esm.ubuntu.com:443
+          files.pythonhosted.org:443
+          github.com:443
+          objects.githubusercontent.com:443
+          packages.microsoft.com:443
+          pypi.org:443
+          raw.githubusercontent.com:443
+          results-receiver.actions.githubusercontent.com:443
+          security.ubuntu.com:80
+          *.blob.core.windows.net:443
+
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
@@ -139,6 +180,31 @@ jobs:
       FFMPEG_VERSION: "8.1.1"
       FFMPEG_SHA256: "7a6c3e86f54b0dd3bceff31f81bf3b70397171fcf35d1a13b9ed9cbf1040fc18"
     steps:
+    - name: Harden runner
+      # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
+      # Mirrors build.yml's build-windows: PyPI for python deps, github.com +
+      # objects.githubusercontent.com for Deno/FFmpeg release downloads, and
+      # the four Sigstore endpoints (incl. sigstore.github.com) for the
+      # attest-build-provenance step.
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: block
+        disable-sudo: true                 # Windows; no sudo step
+        allowed-endpoints: >
+          api.github.com:443
+          codeload.github.com:443
+          files.pythonhosted.org:443
+          fulcio.sigstore.dev:443
+          github.com:443
+          objects.githubusercontent.com:443
+          pypi.org:443
+          raw.githubusercontent.com:443
+          rekor.sigstore.dev:443
+          results-receiver.actions.githubusercontent.com:443
+          sigstore.github.com:443
+          tuf-repo-cdn.sigstore.dev:443
+          *.blob.core.windows.net:443
+
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
@@ -321,6 +387,31 @@ jobs:
     permissions:
       contents: write
     steps:
+    - name: Harden runner
+      # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
+      # Job is currently `if: false` so this never runs, but the policy is
+      # in place so re-enabling Linux support does not silently regress the
+      # baseline. Mirrors the Linux test allowlist plus PyInstaller wheel
+      # fetches (no Sigstore yet — this job has no attestation step).
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: block
+        disable-sudo: false                # `sudo apt-get` for EGL/dbus libs
+        allowed-endpoints: >
+          api.github.com:443
+          azure.archive.ubuntu.com:80
+          codeload.github.com:443
+          esm.ubuntu.com:443
+          files.pythonhosted.org:443
+          github.com:443
+          objects.githubusercontent.com:443
+          packages.microsoft.com:443
+          pypi.org:443
+          raw.githubusercontent.com:443
+          results-receiver.actions.githubusercontent.com:443
+          security.ubuntu.com:80
+          *.blob.core.windows.net:443
+
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
@@ -404,6 +495,27 @@ jobs:
     permissions:
       contents: write
     steps:
+    - name: Harden runner
+      # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
+      # This job pushes the immutable release tag via `git push` (covered by
+      # github.com) and uses softprops/action-gh-release for the release +
+      # asset upload. uploads.github.com is the multipart PUT endpoint for
+      # release assets and is required ONLY by this job — without it the
+      # release object is created but file uploads silently fail.
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: block
+        disable-sudo: true
+        allowed-endpoints: >
+          api.github.com:443
+          codeload.github.com:443
+          github.com:443
+          objects.githubusercontent.com:443
+          raw.githubusercontent.com:443
+          results-receiver.actions.githubusercontent.com:443
+          uploads.github.com:443
+          *.blob.core.windows.net:443
+
     # NOTE: this checkout intentionally KEEPS the persisted credential — the
     # next step pushes the immutable release tag via `git push origin`. Adding
     # persist-credentials: false here would break tag publishing.

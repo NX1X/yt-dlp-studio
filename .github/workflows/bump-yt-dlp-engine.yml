@@ -41,6 +41,54 @@ jobs:
       pull-requests: write  # open PR
 
     steps:
+      - name: Harden runner
+        # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
+        # This job calls `gh release view` (api.github.com), curls the
+        # yt-dlp tarball + SHA2-256SUMS from github.com release URLs (which
+        # redirect to objects.githubusercontent.com), `pip install -e .`
+        # without --require-hashes (so PyPI/pythonhosted are needed), and
+        # finally `git push` + `gh pr create`. All hosts are covered by the
+        # baseline + pypi entries below; no Sigstore endpoints (no
+        # attestation step in this job).
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: block
+          disable-sudo: true              # no sudo step
+          allowed-endpoints: >
+            api.github.com:443
+            codeload.github.com:443
+            files.pythonhosted.org:443
+            github.com:443
+            objects.githubusercontent.com:443
+            pypi.org:443
+            raw.githubusercontent.com:443
+            results-receiver.actions.githubusercontent.com:443
+            *.blob.core.windows.net:443
+
+      - name: Validate workflow inputs
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          REQUESTED_BASE: ${{ inputs.base_branch }}
+        run: |
+          set -euo pipefail
+          # base_branch must look like a normal git branch name. Reject
+          # `refs/pull/*/head` and other non-branch refs so a maintainer
+          # cannot accidentally point this workflow at a PR head ref.
+          if ! [[ "$REQUESTED_BASE" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$ ]]; then
+            echo "ERROR: base_branch must match ^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}\$, got: $REQUESTED_BASE"
+            exit 1
+          fi
+          # version (when supplied) must match the yt-dlp release tag
+          # pattern YYYY.MM.DD. This is also the only value that gets
+          # interpolated into constants.py below, so the regex doubles as
+          # a Python-string-escape sanity guard.
+          if [ -n "$REQUESTED_VERSION" ]; then
+            if ! [[ "$REQUESTED_VERSION" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{2}$ ]]; then
+              echo "ERROR: version must match YYYY.MM.DD, got: $REQUESTED_VERSION"
+              exit 1
+            fi
+          fi
+
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -65,6 +113,14 @@ jobs:
           else
             version=$(gh release view --repo yt-dlp/yt-dlp --json tagName --jq .tagName)
           fi
+          # Re-validate even when resolved from the GitHub API. The first
+          # workflow step rejects malformed user input; this rejects an
+          # unexpected tag shape from upstream (defence in depth before we
+          # interpolate $version into constants.py via Python).
+          if ! [[ "$version" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{2}$ ]]; then
+            echo "ERROR: resolved version must match YYYY.MM.DD, got: $version"
+            exit 1
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
           current=$(grep -oE "__version__ = '[^']+'" vendor/yt_dlp_engine/yt_dlp/version.py | sed "s/__version__ = '//;s/'//")
@@ -88,12 +144,73 @@ jobs:
             "https://github.com/yt-dlp/yt-dlp/releases/download/${VERSION}/yt-dlp.tar.gz"
           curl -sSfL -o /tmp/ytdlp-update/SHA2-256SUMS \
             "https://github.com/yt-dlp/yt-dlp/releases/download/${VERSION}/SHA2-256SUMS"
+          # GPG detached signature over SHA2-256SUMS. Verified in the next step
+          # against the bundled trust anchor (.github/trust/yt-dlp-public-key.asc).
+          curl -sSfL -o /tmp/ytdlp-update/SHA2-256SUMS.sig \
+            "https://github.com/yt-dlp/yt-dlp/releases/download/${VERSION}/SHA2-256SUMS.sig"
+
+      - name: Verify GPG signature on SHA2-256SUMS
+        if: steps.resolve.outputs.skip != 'true'
+        # Independent trust anchor: we verify that SHA2-256SUMS was signed by
+        # the yt-dlp release key (Simon Sawicki, fingerprint pinned below). The
+        # subsequent "Verify SHA-256" step then chains tarball -> SHA2-256SUMS,
+        # so a compromise of the GitHub release page alone (without the
+        # corresponding private key) cannot smuggle a tampered tarball past
+        # this workflow.
+        #
+        # Trust anchor: .github/trust/yt-dlp-public-key.asc, committed at the
+        # moment of bundling (cross-checked against
+        # https://github.com/yt-dlp/yt-dlp/raw/master/public.key on the same
+        # date). If yt-dlp rotates their signing key upstream, this step will
+        # fail and a maintainer must replace the .asc + the EXPECTED_FPR
+        # constant in the same commit, providing a deliberate audit trail.
+        env:
+          EXPECTED_FPR: "AC0CBBE6848D6A873464AF4E57CF65933B5A7581"
+        run: |
+          set -euo pipefail
+          # Ephemeral keyring per run; never persisted, never reused.
+          export GNUPGHOME
+          GNUPGHOME=$(mktemp -d)
+          chmod 700 "$GNUPGHOME"
+
+          # Confirm the bundled key's fingerprint matches the pinned constant
+          # BEFORE importing into the active keyring. Defends against a
+          # silently-replaced .asc file in this repo.
+          actual_fpr=$(gpg --show-keys --with-colons --with-fingerprint \
+            .github/trust/yt-dlp-public-key.asc \
+            | awk -F: '$1 == "fpr" {print $10; exit}')
+          if [ "$actual_fpr" != "$EXPECTED_FPR" ]; then
+            echo "ERROR: bundled key fingerprint mismatch."
+            echo "  Expected: $EXPECTED_FPR"
+            echo "  Actual:   $actual_fpr"
+            echo "If yt-dlp rotated their signing key, update both the .asc"
+            echo "file and EXPECTED_FPR in this workflow in the same commit."
+            exit 1
+          fi
+
+          gpg --batch --import .github/trust/yt-dlp-public-key.asc
+          gpg --batch --verify \
+            /tmp/ytdlp-update/SHA2-256SUMS.sig \
+            /tmp/ytdlp-update/SHA2-256SUMS
+          echo "GPG signature on SHA2-256SUMS verified against $EXPECTED_FPR"
 
       - name: Verify SHA-256
         if: steps.resolve.outputs.skip != 'true'
         run: |
           set -euo pipefail
           published=$(grep -E "[0-9a-f]{64} \*?yt-dlp\.tar\.gz$" /tmp/ytdlp-update/SHA2-256SUMS | awk '{print $1}')
+          # Explicit guard: if upstream renamed the asset or a MITM stripped
+          # the line, $published is empty and the equality check below would
+          # still reject (test "" = "<hex>"), but the failure mode would be
+          # opaque. Fail loudly here instead.
+          if [ -z "$published" ]; then
+            echo "ERROR: yt-dlp.tar.gz hash not found in SHA2-256SUMS"
+            exit 1
+          fi
+          if ! [[ "$published" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "ERROR: published hash is not 64 hex chars: $published"
+            exit 1
+          fi
           actual=$(sha256sum /tmp/ytdlp-update/yt-dlp.tar.gz | awk '{print $1}')
           echo "Published: $published"
           echo "Actual:    $actual"
@@ -132,19 +249,29 @@ jobs:
 
       - name: Sanity checks
         if: steps.resolve.outputs.skip != 'true'
+        # Hash-pinned install path. requirements/lock.txt is compiled from
+        # pyproject.toml runtime deps with --generate-hashes, so the entire
+        # runtime tree (PySide6, requests, curl_cffi, etc.) is fetched only
+        # if every wheel hash matches the lockfile. `.[dev]` then layers
+        # pytest/pytest-qt/etc on top using the lockfile as a constraint set,
+        # so a Shai-Hulud-class pypi attack cannot downgrade or substitute
+        # a transitive dep that has already been pinned. This mirrors the
+        # pattern used by build.yml/test and release.yml/test.
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
-          pip install -e .
+          pip install --require-hashes -r requirements/lock.txt
+          pip install -e .[dev]
           python scripts/check_imports.py
 
       - name: Run pytest
         if: steps.resolve.outputs.skip != 'true'
+        # pytest / pytest-qt / pytest-cov are installed by the `[dev]` extra
+        # in the previous step; no further unhashed install needed here.
+        # test_queue_tab is locale-sensitive and may flake on a fresh
+        # config; the bump workflow should not be blocked by it.
         run: |
           set -euo pipefail
-          pip install pytest pytest-qt || true
-          # test_queue_tab is locale-sensitive and may flake on a fresh
-          # config; the bump workflow should not be blocked by it.
           python -m pytest tests/ --ignore=tests/test_queue_tab.py -q
 
       - name: Create PR
