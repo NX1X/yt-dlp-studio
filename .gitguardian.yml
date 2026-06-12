@@ -1,0 +1,20 @@
+# GitGuardian / ggshield configuration
+# Docs: https://docs.gitguardian.com/ggshield-docs/reference/configuration
+#
+# tests/test_crash_handler.py contains synthetic strings (fake GitHub
+# tokens, fake AWS access key IDs, fake Stripe-style keys, URLs with
+# fake passwords) that exist ONLY to drive the `_scrub_secrets()` test
+# fixtures in src/utils/crash_handler.py. They are not real secrets and
+# have never been valid against any service. They are committed
+# deliberately because the redaction tests must demonstrate that those
+# exact patterns are caught and replaced with `[REDACTED]` before any
+# crash report is written to disk.
+#
+# Suppressing scanning on this single test file avoids the recurring
+# GitGuardian "Pull Request Alerts" failure on every push of this branch
+# without disabling the scanner anywhere else in the repo.
+
+version: 2
+secret:
+  ignored-paths:
+    - tests/test_crash_handler.py

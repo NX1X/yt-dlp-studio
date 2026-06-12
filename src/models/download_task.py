@@ -154,7 +154,5 @@ class DownloadTask:
     def __repr__(self) -> str:
         """String representation for debugging."""
         return (
-            f"DownloadTask(url={self.url[:50]}..., "
-            f"status={self.status.value}, "
-            f"progress={self.progress_percent:.1f}%)"
+            f"DownloadTask(url={self.url[:50]}..., status={self.status.value}, progress={self.progress_percent:.1f}%)"
         )

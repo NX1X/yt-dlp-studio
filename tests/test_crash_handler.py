@@ -203,9 +203,7 @@ def test_scrub_secrets_handles_empty_and_none_like():
 
 def test_build_report_redacts_exception_message(isolated_crash_dir):
     """The exception message goes verbatim into the JSON report; scrub it."""
-    exc_type, exc_value, exc_tb = _make_exc_info(
-        RuntimeError("auth failed with token=ghp_secrettokenvalue123")
-    )
+    exc_type, exc_value, exc_tb = _make_exc_info(RuntimeError("auth failed with token=ghp_secrettokenvalue123"))
     report = crash_handler._build_report(exc_type, exc_value, exc_tb, origin="test")
 
     assert "ghp_secrettokenvalue123" not in report["exception_message"]
@@ -258,6 +256,7 @@ def test_threading_excepthook_writes_report(isolated_crash_dir, monkeypatch):
     crash_handler.install_crash_handler()
 
     try:
+
         def boom():
             raise ValueError("thread boom")
 

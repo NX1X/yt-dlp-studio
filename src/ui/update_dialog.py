@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from ..backend.update_checker import DownloadResult, UpdateCheckResult, UpdateChecker
+from ..backend.update_checker import DownloadResult, UpdateChecker, UpdateCheckResult
 from ..utils.logger import get_logger
 from ..utils.translations import tr
 

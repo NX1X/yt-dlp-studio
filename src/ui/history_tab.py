@@ -146,11 +146,11 @@ class HistoryTab(QWidget):
         # Get statistics
         stats = self.history_manager.get_statistics()
         stats_text = f"""
-        <b>{tr('stat_total_downloads')}:</b> {stats['total_downloads']}<br>
-        <b>{tr('stat_completed')}:</b> {stats['completed']} | <b>{tr('stat_failed')}:</b> {stats['failed']} | <b>{tr('stat_cancelled')}:</b> {stats['cancelled']}<br>
-        <b>{tr('stat_success_rate')}:</b> {stats['success_rate']:.1f}%<br>
-        <b>{tr('stat_total_downloaded')}:</b> {FileHelper.format_size(stats['total_size_bytes'])}<br>
-        <b>{tr('stat_average_speed')}:</b> {FileHelper.format_size(int(stats['average_speed_bps']))}/s
+        <b>{tr("stat_total_downloads")}:</b> {stats["total_downloads"]}<br>
+        <b>{tr("stat_completed")}:</b> {stats["completed"]} | <b>{tr("stat_failed")}:</b> {stats["failed"]} | <b>{tr("stat_cancelled")}:</b> {stats["cancelled"]}<br>
+        <b>{tr("stat_success_rate")}:</b> {stats["success_rate"]:.1f}%<br>
+        <b>{tr("stat_total_downloaded")}:</b> {FileHelper.format_size(stats["total_size_bytes"])}<br>
+        <b>{tr("stat_average_speed")}:</b> {FileHelper.format_size(int(stats["average_speed_bps"]))}/s
         """
         self.stats_label.setText(stats_text)
 

@@ -7,8 +7,6 @@ touch the network; the actual download path is exercised manually in CI.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from src.utils import deno_installer
@@ -31,9 +29,7 @@ def test_deno_urls_cover_supported_platforms(system, machine, expected_in_url):
 
 def test_deno_urls_pin_to_release_tag():
     """Every URL must point at the release tag for the pinned version."""
-    expected_prefix = (
-        f"https://github.com/denoland/deno/releases/download/v{deno_installer.DENO_VERSION}/"
-    )
+    expected_prefix = f"https://github.com/denoland/deno/releases/download/v{deno_installer.DENO_VERSION}/"
     for url in deno_installer._DENO_URLS.values():
         assert url.startswith(expected_prefix), url
 
