@@ -79,9 +79,7 @@ def _make_subtitles_non_fatal(ydl: "YoutubeDL") -> None:
         try:
             return _original_write_subtitles(info_dict, filename)
         except Exception as e:
-            ydl.report_warning(
-                f"Subtitle download failed ({e}); continuing without subtitles."
-            )
+            ydl.report_warning(f"Subtitle download failed ({e}); continuing without subtitles.")
             return []
 
     ydl._write_subtitles = _safe_write_subtitles

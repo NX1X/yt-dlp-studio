@@ -54,10 +54,8 @@ def test_curl_cffi_is_available():
     """
     from yt_dlp.dependencies import curl_cffi as curl_cffi_flag
 
-    assert curl_cffi_flag is not None, (
-        "curl_cffi is not importable. Re-add 'curl_cffi>=0.15.0' to "
-        "pyproject.toml dependencies."
-    )
+    _ASSERT_MSG = "curl_cffi is not importable. Re-add 'curl_cffi>=0.15.0' to pyproject.toml dependencies."
+    assert curl_cffi_flag is not None, _ASSERT_MSG
 
     # The impersonation request handler must enumerate Chrome targets.
     from yt_dlp.networking._curlcffi import CurlCFFIRH
@@ -194,7 +192,9 @@ def test_initial_state():
 
 
 def test_progress_callback_is_stored():
-    sentinel = lambda payload: None
+    def sentinel(_payload):
+        return None
+
     w = YtDlpWrapper(progress_callback=sentinel)
     assert w.progress_callback is sentinel
 

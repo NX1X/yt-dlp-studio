@@ -4,7 +4,7 @@ Settings tab UI for YT-DLP Studio.
 Provides interface for configuring application settings.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
@@ -192,9 +192,7 @@ class SettingsTab(QWidget):
             copy_button = QPushButton(tr("button_copy"))
             copy_button.setToolTip(tr("tooltip_copy_path"))
             copy_button.setProperty("buttonStyle", "secondary")
-            copy_button.clicked.connect(
-                lambda _checked=False, p=path_value: self._copy_path(p)
-            )
+            copy_button.clicked.connect(lambda _checked=False, p=path_value: self._copy_path(p))
             row.addWidget(label)
             row.addWidget(path_field)
             row.addWidget(copy_button)
@@ -351,16 +349,14 @@ class SettingsTab(QWidget):
         if result.error:
             logger.error(f"Update check failed: {result.error}")
             if result.error == "rate_limited":
-                QMessageBox.warning(
-                    self, tr("dialog_update_check_failed"), tr("msg_update_check_rate_limited")
-                )
+                QMessageBox.warning(self, tr("dialog_update_check_failed"), tr("msg_update_check_rate_limited"))
             else:
                 QMessageBox.warning(
                     self, tr("dialog_update_check_failed"), tr("msg_update_check_failed", error=result.error)
                 )
             return
 
-        self.config_manager.update_config(last_update_check=datetime.now(timezone.utc).isoformat())
+        self.config_manager.update_config(last_update_check=datetime.now(UTC).isoformat())
 
         if result.update_available and result.release_info:
             logger.info(f"Update available: {result.release_info['version']}")

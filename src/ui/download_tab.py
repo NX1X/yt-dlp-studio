@@ -29,7 +29,6 @@ from ..backend.playlist_worker import PlaylistWorker
 from ..backend.queue_manager import QueueManager
 from ..backend.subtitle_list_worker import SubtitleListWorker
 from ..backend.video_info_worker import VideoInfoWorker
-from ..backend.yt_dlp_wrapper import YtDlpWrapper
 from ..models.download_task import DownloadTask
 from ..utils.constants import AUDIO_FORMATS, DEFAULT_AUDIO_FORMAT, DEFAULT_VIDEO_CONTAINER, VIDEO_CONTAINER_FORMATS
 from ..utils.error_handler import ErrorHandler
@@ -1233,9 +1232,7 @@ class DownloadTab(QWidget):
 
             if selected:
                 self.subtitle_langs_input.setText(",".join(selected))
-                self.log_widget.append_success(
-                    f"Selected {len(selected)} subtitle languages: {', '.join(selected)}"
-                )
+                self.log_widget.append_success(f"Selected {len(selected)} subtitle languages: {', '.join(selected)}")
             else:
                 self.subtitle_langs_input.setText("")
                 self.log_widget.append_info("No subtitles selected")

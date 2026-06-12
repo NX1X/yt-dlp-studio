@@ -51,9 +51,7 @@ def _detect_ffmpeg_version() -> str:
     drop the return value straight into the UI.
     """
     try:
-        result = subprocess.run(
-            ["ffmpeg", "-version"], capture_output=True, text=True, timeout=5
-        )
+        result = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True, timeout=5)
         if result.returncode == 0:
             first_line = result.stdout.split("\n")[0]
             if "version" in first_line:
@@ -165,9 +163,7 @@ class AboutTab(QWidget):
         group = QGroupBox(tr("group_about_details"))
         layout = QVBoxLayout(group)
 
-        body = (
-            f"<p><b>{APP_NAME}</b> {tr('about_description')}</p>"
-        )
+        body = f"<p><b>{APP_NAME}</b> {tr('about_description')}</p>"
         text = self._make_rich_label(body, max_height=80)
         layout.addWidget(text)
         return group
@@ -186,8 +182,7 @@ class AboutTab(QWidget):
         ]
 
         body_rows = "".join(
-            f'<tr><td style="padding: 4px 16px 4px 0;"><b>{label}</b></td>'
-            f'<td style="padding: 4px 0;">{value}</td></tr>'
+            f'<tr><td style="padding: 4px 16px 4px 0;"><b>{label}</b></td><td style="padding: 4px 0;">{value}</td></tr>'
             for label, value in rows
         )
         body = f'<table style="border-spacing: 0;">{body_rows}</table>'
@@ -299,9 +294,7 @@ class AboutTab(QWidget):
             ],
         )
 
-        text = self._make_rich_label(
-            general + download_tab_shortcuts + queue_tab_shortcuts, max_height=300
-        )
+        text = self._make_rich_label(general + download_tab_shortcuts + queue_tab_shortcuts, max_height=300)
         layout.addWidget(text)
         return group
 
@@ -345,9 +338,7 @@ class AboutTab(QWidget):
         label.setOpenExternalLinks(True)
         # Grow to fit content; the outer QScrollArea provides overflow.
         label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
-        label.setAlignment(
-            Qt.AlignRight | Qt.AlignTop if is_rtl else Qt.AlignLeft | Qt.AlignTop
-        )
+        label.setAlignment(Qt.AlignRight | Qt.AlignTop if is_rtl else Qt.AlignLeft | Qt.AlignTop)
         return label
 
     def _open_github(self) -> None:

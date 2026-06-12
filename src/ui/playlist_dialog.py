@@ -241,16 +241,10 @@ class PlaylistDialog(QDialog):
         group_layout = QVBoxLayout(group)
 
         # Master toggle for the whole section. Off by default.
-        self.subtitles_enabled_checkbox = QCheckBox(
-            tr("checkbox_playlist_download_subtitles")
-        )
-        self.subtitles_enabled_checkbox.setToolTip(
-            tr("tooltip_playlist_download_subtitles")
-        )
+        self.subtitles_enabled_checkbox = QCheckBox(tr("checkbox_playlist_download_subtitles"))
+        self.subtitles_enabled_checkbox.setToolTip(tr("tooltip_playlist_download_subtitles"))
         self.subtitles_enabled_checkbox.setChecked(False)
-        self.subtitles_enabled_checkbox.stateChanged.connect(
-            self._on_subtitles_toggled
-        )
+        self.subtitles_enabled_checkbox.stateChanged.connect(self._on_subtitles_toggled)
         group_layout.addWidget(self.subtitles_enabled_checkbox)
 
         # Override-behavior hint sits right under the toggle so the user can
@@ -280,9 +274,7 @@ class PlaylistDialog(QDialog):
         other_label = QLabel(tr("label_playlist_subtitle_other"))
         other_label.setEnabled(False)
         self.subtitle_other_input = QLineEdit()
-        self.subtitle_other_input.setPlaceholderText(
-            tr("placeholder_playlist_subtitle_other")
-        )
+        self.subtitle_other_input.setPlaceholderText(tr("placeholder_playlist_subtitle_other"))
         self.subtitle_other_input.setToolTip(tr("tooltip_playlist_subtitle_other"))
         self.subtitle_other_input.setEnabled(False)
         other_row.addWidget(other_label)
@@ -321,11 +313,7 @@ class PlaylistDialog(QDialog):
         if not self.subtitles_enabled_checkbox.isChecked():
             return []
 
-        selected_keys = [
-            key
-            for key, checkbox in self.subtitle_lang_checkboxes.items()
-            if checkbox.isChecked()
-        ]
+        selected_keys = [key for key, checkbox in self.subtitle_lang_checkboxes.items() if checkbox.isChecked()]
         return _collect_subtitle_languages(selected_keys, self.subtitle_other_input.text())
 
     def _populate_videos(self) -> None:

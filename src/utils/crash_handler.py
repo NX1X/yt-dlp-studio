@@ -32,7 +32,7 @@ import re
 import sys
 import threading
 import traceback
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
 from typing import Any
@@ -115,7 +115,7 @@ def _build_report(
 ) -> dict[str, Any]:
     """Assemble a JSON-serializable crash record."""
     report: dict[str, Any] = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "origin": origin,
         "thread": thread_name or threading.current_thread().name,
         "app_version": APP_VERSION,
@@ -129,9 +129,7 @@ def _build_report(
         # exception_message, traceback, and log_tail are scrubbed because
         # users are expected to attach this JSON to a public bug report.
         "exception_message": _scrub_secrets(str(exc_value)),
-        "traceback": _scrub_secrets(
-            "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
-        ),
+        "traceback": _scrub_secrets("".join(traceback.format_exception(exc_type, exc_value, exc_tb))),
     }
 
     report["log_tail"] = [_scrub_secrets(line) for line in _read_log_tail()]
@@ -160,10 +158,14 @@ def _prune_old_crashes() -> None:
         for old in files[:-MAX_CRASH_FILES]:
             try:
                 old.unlink()
-            except OSError:
-                pass
-    except Exception:
-        pass
+            except OSError as e:
+                # Best-effort prune; a held file lock or permission denial
+                # must not stop newer crash reports from being written.
+                logger.debug(f"Could not unlink old crash report {old}: {e}")
+    except Exception as e:  # noqa: BLE001
+        # Whole sweep failed - the directory may not exist yet (first crash).
+        # Logged at debug only because we are not the source of the error.
+        logger.debug(f"Crash report prune skipped: {e}")
 
 
 def _write_report(report: dict[str, Any]) -> Path | None:

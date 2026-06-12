@@ -16,7 +16,6 @@ from src.ui.playlist_dialog import (
     _parse_extra_subtitle_codes,
 )
 
-
 # ---------- _parse_extra_subtitle_codes ----------
 
 

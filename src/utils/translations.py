@@ -68,7 +68,7 @@ TRANSLATIONS = {
         "quality_audio_128": "Audio 128kbps",
         "dialog_no_subs_available": "No Subtitles Available",
         "msg_no_subs_available": "This video doesn't have any subtitles available.",
-        "tooltip_select_subs": "Fetch and select specific subtitle languages",
+        # tooltip_select_subs lives lower in this dict; do not redeclare here.
         "text_fetching_subs": "Fetching…",
         "tooltip_paste": "Paste URL from clipboard (Ctrl+V)",
         "tooltip_open_dir": "Open download directory in file explorer",
@@ -130,7 +130,7 @@ TRANSLATIONS = {
         "label_website": "Website:",
         "label_support_development": "Support development:",
         "text_buy_me_a_coffee_blurb": "If you find this tool useful, consider buying me a coffee!",
-        "button_view_on_github": "View on GitHub",
+        # button_view_on_github lives lower in this dict; do not redeclare here.
         "tooltip_view_on_github": "Open the project repository in your browser",
         "header_credits_core_deps": "Core dependencies",
         "header_credits_dev_framework": "Development framework",
@@ -582,7 +582,7 @@ TRANSLATIONS = {
         "quality_audio_128": "אודיו 128kbps",
         "dialog_no_subs_available": "אין כתוביות זמינות",
         "msg_no_subs_available": "לסרטון זה אין כתוביות זמינות.",
-        "tooltip_select_subs": "טען ובחר שפות כתוביות ספציפיות",
+        # tooltip_select_subs lives lower in this dict; do not redeclare here.
         "text_fetching_subs": "טוען…",
         "tooltip_paste": "הדבק URL מהלוח (Ctrl+V)",
         "tooltip_open_dir": "פתח תיקיית הורדות במנהל הקבצים",
@@ -644,7 +644,7 @@ TRANSLATIONS = {
         "label_website": "אתר:",
         "label_support_development": "תמיכה בפיתוח:",
         "text_buy_me_a_coffee_blurb": "אם מצאת את הכלי מועיל, שקול לקנות לי קפה!",
-        "button_view_on_github": "צפה ב-GitHub",
+        # button_view_on_github lives lower in this dict; do not redeclare here.
         "tooltip_view_on_github": "פתח את מאגר הפרויקט בדפדפן",
         "header_credits_core_deps": "תלויות מרכזיות",
         "header_credits_dev_framework": "סביבת פיתוח",
