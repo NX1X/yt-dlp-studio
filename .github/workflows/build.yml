@@ -153,7 +153,15 @@ jobs:
     name: Build Windows Executable
     needs: [lint, test]
     runs-on: windows-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+    # Run on direct pushes to main/dev AND on every pull request, so
+    # PyInstaller-only regressions (missing hidden imports, broken bundle
+    # paths, vendored-engine path math that only matters under _MEIPASS)
+    # surface in the PR instead of after merge. PR builds upload an
+    # artifact for manual smoke testing but are NOT promoted to releases.
+    if: >
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/dev'
     permissions:
       contents: read
       id-token: write       # OIDC token for Sigstore signing
