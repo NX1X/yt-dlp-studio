@@ -213,10 +213,11 @@ def test_build_report_redacts_exception_message(isolated_crash_dir):
 def test_build_report_redacts_traceback(isolated_crash_dir):
     """A URL with embedded credentials in the traceback must be redacted."""
     try:
-        # NOSONAR(python:S2068): synthetic URL with fake credentials, exists
-        # only to verify the secret scrubber catches URL userinfo before the
-        # traceback is written to a crash report.
-        url = "https://alice:hunter2@example.com/data"  # NOSONAR
+        # Synthetic URL with fake credentials, exists only to verify the
+        # secret scrubber catches URL userinfo before the traceback is
+        # written to a crash report. NOSONAR comment uses Sonar's
+        # documented syntax: `# NOSONAR <ruleId>` (no parens, no colon).
+        url = "https://alice:hunter2@example.com/data"  # NOSONAR python:S2068
         raise ValueError(f"fetch failed for {url}")
     except ValueError:
         exc_type, exc_value, exc_tb = sys.exc_info()
