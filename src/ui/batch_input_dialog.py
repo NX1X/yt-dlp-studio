@@ -60,9 +60,7 @@ class BatchInputDialog(QDialog):
         # Text area for URLs
         self.url_text = QTextEdit()
         self.url_text.setPlaceholderText(
-            "https://youtube.com/watch?v=...\n"
-            "https://youtube.com/watch?v=...\n"
-            "https://youtube.com/playlist?list=..."
+            "https://youtube.com/watch?v=...\nhttps://youtube.com/watch?v=...\nhttps://youtube.com/playlist?list=..."
         )
         layout.addWidget(self.url_text)
 

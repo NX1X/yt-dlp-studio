@@ -67,7 +67,7 @@ class SubtitleSelectionDialog(QDialog):
 
         # Description
         desc_label = QLabel(
-            "Select the subtitle languages you want to download.\n" "Note: Some languages may be auto-generated."
+            "Select the subtitle languages you want to download.\nNote: Some languages may be auto-generated."
         )
         desc_label.setWordWrap(True)
         desc_label.setStyleSheet("color: #888;")

@@ -29,7 +29,7 @@ This tool is part of **[NXTools](https://nx1xlab.dev/nxtools)** by **NX1X** - a 
 
 ---
 
-## 💡 Why I Built This
+## 💡 I Built This
 
 I was looking for a feature-rich, modern tool to download videos from YouTube
 and other sites. yt-dlp is an awesome tool, but it's command-line only, so a lot
