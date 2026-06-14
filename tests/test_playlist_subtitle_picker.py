@@ -94,7 +94,7 @@ def test_collect_handles_extras_only():
 
 def test_hebrew_choice_maps_to_both_codes():
     """The Hebrew preset is the only multi-code mapping; protect it explicitly."""
-    he = dict((key, codes) for key, _, codes in _SUBTITLE_LANGUAGE_CHOICES)
+    he = {key: codes for key, _, codes in _SUBTITLE_LANGUAGE_CHOICES}
     assert he["he"] == ("he", "iw")
 
 

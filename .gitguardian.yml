@@ -16,5 +16,8 @@
 
 version: 2
 secret:
-  ignored-paths:
+  # Both `ignored-paths` (hyphenated) and `ignored_paths` (underscored)
+  # used to be accepted; ggshield 1.51.0 emits a deprecation warning on
+  # the hyphenated form. Use underscored.
+  ignored_paths:
     - tests/test_crash_handler.py

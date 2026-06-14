@@ -74,6 +74,15 @@ _(no entries yet)_
 
 - All ruff and black checks pass on the lint + format job, including the four `F601` duplicate-key violations introduced in earlier i18n passes (`button_view_on_github`, `tooltip_select_subs`) which have been resolved.
 - `tests/test_crash_handler.py` contains synthetic strings (fake GitHub tokens, fake AWS access keys, URLs with fake passwords) that drive the `_scrub_secrets()` test fixtures. New `.gitguardian.yml` excludes that single file from scanning so the GitGuardian "Pull Request Alerts" check stops failing on every push without disabling the scanner anywhere else in the repo.
+- New `sonar-project.properties` excludes `vendor/`, `docs-internal/`, `venv/`, `build/`, `dist/` from SonarCloud analysis. Without it, SonarCloud scanned the entire vendored yt-dlp tree and reported ~260 issues we cannot act on (mostly `python:S1192` string-duplication across 1000+ upstream extractors). After the exclusion, only ~14 findings on code we actually own remain, and those are addressed below.
+- `.gitguardian.yml` `ignored-paths` key migrated to `ignored_paths` (hyphenated form is deprecated in ggshield 1.51.0).
+- Fixed seven actionable SonarCloud findings:
+  - `python:S8572` in `src/utils/crash_handler.py` (×2), `src/ui/about_tab.py`, and `src/ui/update_dialog.py`: `logger.error(f"...{e}")` inside `except` blocks replaced with `logger.exception("...")` so the traceback is captured automatically.
+  - `python:S5869` in `src/utils/crash_handler.py:69`: the Bearer/Basic-token character class `[A-Za-z0-9._\-+/=]` rewritten as `[A-Za-z0-9._+/=-]` (literal `-` at the end, no escape) so Sonar's regex parser stops flagging `_\-+` as an overlap candidate. Identical char set, cleaner notation.
+  - `python:S7494` in `tests/test_playlist_subtitle_picker.py:97`: `dict((k, v) for ...)` → `{k: v for ...}`.
+  - `python:S7498` in `tests/test_yt_dlp_wrapper.py:310`: `dict(url=..., output_dir=..., ...)` constructor → `{"url": ..., "output_dir": ..., ...}` literal.
+- Defused six SonarCloud `python:S5443` warnings on `/tmp/...` mock paths in `tests/test_yt_dlp_wrapper.py` by changing the test data to relative paths (`video.mp4`, `video.en.srt`). The values are opaque mock arguments to a monkey-patched `_write_subtitles`, never touch the filesystem; `/tmp` was a stylistic choice that tripped Sonar's publicly-writable-directory heuristic.
+- One remaining `python:S2068` finding in `tests/test_crash_handler.py:216` (the `"https://alice:hunter2@example.com/data"` test fixture) suppressed inline with `# NOSONAR` plus an explanatory comment - the URL is the regression input for the secret-scrubber's userinfo-in-URL pattern and cannot be changed without defeating the test.
 
 ### Notes for maintainer
 

@@ -225,7 +225,7 @@ def test_make_subtitles_non_fatal_swallows_exceptions():
     ydl = _FakeYDL(boom)
     _make_subtitles_non_fatal(ydl)
 
-    result = ydl._write_subtitles({"id": "abc"}, "/tmp/foo.mp4")
+    result = ydl._write_subtitles({"id": "abc"}, "video.mp4")
 
     assert result == [], "wrapped _write_subtitles must return an empty list on failure"
     assert len(ydl.warnings) == 1
@@ -237,7 +237,7 @@ def test_make_subtitles_non_fatal_passes_through_success():
     """If subtitles download successfully the wrapper must return the originals."""
     from src.backend.yt_dlp_wrapper import _make_subtitles_non_fatal
 
-    expected = [("/tmp/foo.en.srt", "/tmp/foo.en.srt")]
+    expected = [("video.en.srt", "video.en.srt")]
 
     def ok(info_dict, filename):
         return expected
@@ -245,7 +245,7 @@ def test_make_subtitles_non_fatal_passes_through_success():
     ydl = _FakeYDL(ok)
     _make_subtitles_non_fatal(ydl)
 
-    assert ydl._write_subtitles({"id": "abc"}, "/tmp/foo.mp4") is expected
+    assert ydl._write_subtitles({"id": "abc"}, "video.mp4") is expected
     assert ydl.warnings == []
 
 
@@ -262,10 +262,10 @@ def test_make_subtitles_non_fatal_preserves_original_signature():
 
     ydl = _FakeYDL(capture)
     _make_subtitles_non_fatal(ydl)
-    ydl._write_subtitles({"id": "xyz"}, "/tmp/path.mp4")
+    ydl._write_subtitles({"id": "xyz"}, "video.mp4")
 
     assert seen["info_dict"] == {"id": "xyz"}
-    assert seen["filename"] == "/tmp/path.mp4"
+    assert seen["filename"] == "video.mp4"
 
 
 # ---------- sleep_interval_requests wiring (rate-limit defence) ----------
@@ -307,23 +307,23 @@ def _run_download_with_capture(monkeypatch, **kwargs):
     _CapturingYDL.captured = {}
     monkeypatch.setattr(mod, "YoutubeDL", _CapturingYDL)
 
-    defaults = dict(
-        url="https://example.com/video",
-        output_dir=".",
-        format_string="best",
-        audio_only=False,
-        audio_quality="192",
-        download_thumbnail=False,
-        download_subtitles=False,
-        subtitle_languages="en",
-        speed_limit=0,
-        video_container=None,
-        audio_format="mp3",
-        selected_subtitles=None,
-        download_metadata=False,
-        download_comments=False,
-        auto_number_duplicates=True,
-    )
+    defaults = {
+        "url": "https://example.com/video",
+        "output_dir": ".",
+        "format_string": "best",
+        "audio_only": False,
+        "audio_quality": "192",
+        "download_thumbnail": False,
+        "download_subtitles": False,
+        "subtitle_languages": "en",
+        "speed_limit": 0,
+        "video_container": None,
+        "audio_format": "mp3",
+        "selected_subtitles": None,
+        "download_metadata": False,
+        "download_comments": False,
+        "auto_number_duplicates": True,
+    }
     defaults.update(kwargs)
 
     wrapper = mod.YtDlpWrapper()

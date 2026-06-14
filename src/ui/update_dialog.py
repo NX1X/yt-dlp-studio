@@ -41,8 +41,8 @@ class UpdateCheckThread(QThread):
     def run(self):
         try:
             result = UpdateChecker().check_for_updates()
-        except Exception as e:  # defensive: never let the thread crash silently
-            logger.error(f"Update check thread error: {e}")
+        except Exception:  # noqa: BLE001 - defensive: never let the thread crash silently
+            logger.exception("Update check thread error")
             result = UpdateCheckResult(error="unknown")
         self.check_complete.emit(result)
 
