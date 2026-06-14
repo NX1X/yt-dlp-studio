@@ -64,9 +64,11 @@ _SECRET_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     # whitespace, not a `:` or `=` separator, so it needs its own rule.
     # Handled before the generic key=value pattern so the latter does not
     # half-match and leave the token visible.
+    # Char class places `-` at the end (no escape needed there) so Sonar
+    # S5869 stops seeing `_\-+` as an overlap candidate.
     (
         re.compile(
-            r"(?P<keyword>\b(?:Bearer|Basic))\s+(?P<val>[A-Za-z0-9._\-+/=]{8,})",
+            r"(?P<keyword>\b(?:Bearer|Basic))\s+(?P<val>[A-Za-z0-9._+/=-]{8,})",
             re.IGNORECASE,
         ),
         rf"\g<keyword> {_REDACTED}",
@@ -177,8 +179,10 @@ def _write_report(report: dict[str, Any]) -> Path | None:
         path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
         _prune_old_crashes()
         return path
-    except Exception as e:
-        logger.error(f"Could not write crash report: {e}")
+    except Exception:
+        # Use logger.exception so the traceback is captured automatically;
+        # we don't want to format `{e}` ourselves and lose stack context.
+        logger.exception("Could not write crash report")
         return None
 
 
@@ -248,8 +252,12 @@ def _show_crash_dialog(path: Path | None) -> None:
             body = tr("dialog_crash_body_no_path")
 
         QMessageBox.critical(None, tr("dialog_crash_title"), body)
-    except Exception as e:  # noqa: BLE001
-        logger.error(f"Could not show crash dialog: {e}")
+    except Exception:  # noqa: BLE001
+        # Wrapping the entire dialog path in a broad except is intentional -
+        # this is the crash handler itself, it MUST NOT raise. Use
+        # logger.exception so the traceback is captured (debugging this is
+        # nearly impossible without the stack).
+        logger.exception("Could not show crash dialog")
 
 
 def _sys_excepthook(

@@ -61,8 +61,8 @@ def _detect_ffmpeg_version() -> str:
         return tr("text_ffmpeg_unknown")
     except FileNotFoundError:
         return tr("text_ffmpeg_not_found")
-    except Exception as e:  # noqa: BLE001
-        logger.error(f"Error getting FFmpeg version: {e}")
+    except Exception:  # noqa: BLE001
+        logger.exception("Error getting FFmpeg version")
         return tr("text_ffmpeg_error")
 
 
