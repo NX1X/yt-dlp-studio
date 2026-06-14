@@ -13,6 +13,17 @@ name: Security
 #                    (template injection, over-broad permissions, unpinned refs)
 #   - Scorecard .... weekly OpenSSF repo-posture score, uploaded to code scanning
 #
+# Previously this file also ran `google/osv-scanner-action`. It was removed in
+# 0.1.2 because (a) v2.3.5+ ships as a reusable workflow whose `action.yml`
+# lacks a `runs:` block, so calling it as a step (which preserved our
+# `harden-runner` egress allowlist for the same job) is no longer possible
+# without restructuring the job and losing the egress lock; (b) its advisory
+# coverage substantially overlaps `pip-audit` (lockfile CVEs) and Socket
+# (malicious / behavioral package risk), so dropping it is a duplication
+# cleanup, not a coverage regression; (c) Renovate's OSV vulnerability alerts
+# (see .github/renovate.json5 `osvVulnerabilityAlerts`) already surface OSV
+# advisories on this repo independent of the scanner action.
+#
 # Threat model note: GUI-only desktop app with no public service. The value is
 # catching a compromised/ vulnerable dependency or a CI misconfiguration before
 # it ships inside the signed PyInstaller EXE.
@@ -43,6 +54,26 @@ jobs:
     name: pip-audit (lockfile CVEs)
     runs-on: ubuntu-latest
     steps:
+    - name: Harden runner
+      # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
+      # pip-audit queries two CVE backends — PyPI JSON for package metadata
+      # and api.osv.dev for advisory data. No `deps.dev` (that's Scorecard).
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: block
+        disable-sudo: true
+        allowed-endpoints: >
+          api.github.com:443
+          api.osv.dev:443
+          codeload.github.com:443
+          files.pythonhosted.org:443
+          github.com:443
+          objects.githubusercontent.com:443
+          pypi.org:443
+          raw.githubusercontent.com:443
+          results-receiver.actions.githubusercontent.com:443
+          *.blob.core.windows.net:443
+
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
@@ -72,6 +103,26 @@ jobs:
       contents: read
       security-events: write   # upload SARIF to code scanning
     steps:
+    - name: Harden runner
+      # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
+      # zizmor's online audits hit api.github.com only (to resolve action
+      # SHAs / permissions). SARIF upload via codeql-action/upload-sarif
+      # also goes through api.github.com.
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: block
+        disable-sudo: true
+        allowed-endpoints: >
+          api.github.com:443
+          codeload.github.com:443
+          files.pythonhosted.org:443
+          github.com:443
+          objects.githubusercontent.com:443
+          pypi.org:443
+          raw.githubusercontent.com:443
+          results-receiver.actions.githubusercontent.com:443
+          *.blob.core.windows.net:443
+
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
@@ -122,6 +173,40 @@ jobs:
       security-events: write   # upload SARIF to code scanning
       id-token: write          # publish_results provenance
     steps:
+    - name: Harden runner
+      # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
+      # Scorecard has the widest external surface of any job — it queries
+      # deps.dev, osv.dev, bestpractices.dev, softwareheritage, and pulls
+      # gcr.io/openssf/scorecard via Docker Hub. Flag: this job has the
+      # highest chance of a `block`-mode false positive on first run; if a
+      # check fails on an unlisted endpoint, the harden-runner network log
+      # in the run summary will name it — add it here and rerun (do NOT
+      # flip the policy back to audit).
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: block
+        disable-sudo: true
+        allowed-endpoints: >
+          api.deps.dev:443
+          api.github.com:443
+          api.osv.dev:443
+          api.scorecard.dev:443
+          api.securityscorecards.dev:443
+          archive.softwareheritage.org:443
+          auth.docker.io:443
+          bestpractices.coreinfrastructure.org:443
+          codeload.github.com:443
+          github.com:443
+          index.docker.io:443
+          objects.githubusercontent.com:443
+          production.cloudflare.docker.com:443
+          raw.githubusercontent.com:443
+          registry-1.docker.io:443
+          results-receiver.actions.githubusercontent.com:443
+          storage.googleapis.com:443
+          www.bestpractices.dev:443
+          *.blob.core.windows.net:443
+
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:

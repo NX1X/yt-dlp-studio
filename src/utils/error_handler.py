@@ -262,7 +262,7 @@ class ErrorHandler:
 <p><b>{message}</b></p>
 
 <h4>Suggestions:</h4>
-<p style="color: #cccccc;">{suggestions.replace(chr(10), '<br>')}</p>
+<p style="color: #cccccc;">{suggestions.replace(chr(10), "<br>")}</p>
 
 <hr>
 

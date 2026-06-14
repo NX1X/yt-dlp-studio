@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QStackedLayout,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -78,7 +79,26 @@ class HistoryTab(QWidget):
         self.history_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.history_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.history_table.horizontalHeader().setStretchLastSection(True)
-        history_layout.addWidget(self.history_table)
+
+        # Empty-state placeholder shown when history_manager has zero entries.
+        # Translation keys history_empty / history_empty_hint were previously
+        # declared but never rendered.
+        self._history_empty_widget = QWidget()
+        empty_layout = QVBoxLayout(self._history_empty_widget)
+        empty_layout.setAlignment(Qt.AlignCenter)
+        empty_title = QLabel(tr("history_empty"))
+        empty_title.setAlignment(Qt.AlignCenter)
+        empty_title.setStyleSheet("font-size: 14px; font-weight: bold;")
+        empty_hint = QLabel(tr("history_empty_hint"))
+        empty_hint.setAlignment(Qt.AlignCenter)
+        empty_hint.setStyleSheet("color: palette(mid);")
+        empty_layout.addWidget(empty_title)
+        empty_layout.addWidget(empty_hint)
+
+        self._history_stack = QStackedLayout()
+        self._history_stack.addWidget(self.history_table)
+        self._history_stack.addWidget(self._history_empty_widget)
+        history_layout.addLayout(self._history_stack)
         history_group.setLayout(history_layout)
         main_layout.addWidget(history_group)
 
@@ -126,11 +146,11 @@ class HistoryTab(QWidget):
         # Get statistics
         stats = self.history_manager.get_statistics()
         stats_text = f"""
-        <b>{tr('stat_total_downloads')}:</b> {stats['total_downloads']}<br>
-        <b>{tr('stat_completed')}:</b> {stats['completed']} | <b>{tr('stat_failed')}:</b> {stats['failed']} | <b>{tr('stat_cancelled')}:</b> {stats['cancelled']}<br>
-        <b>{tr('stat_success_rate')}:</b> {stats['success_rate']:.1f}%<br>
-        <b>{tr('stat_total_downloaded')}:</b> {FileHelper.format_size(stats['total_size_bytes'])}<br>
-        <b>{tr('stat_average_speed')}:</b> {FileHelper.format_size(int(stats['average_speed_bps']))}/s
+        <b>{tr("stat_total_downloads")}:</b> {stats["total_downloads"]}<br>
+        <b>{tr("stat_completed")}:</b> {stats["completed"]} | <b>{tr("stat_failed")}:</b> {stats["failed"]} | <b>{tr("stat_cancelled")}:</b> {stats["cancelled"]}<br>
+        <b>{tr("stat_success_rate")}:</b> {stats["success_rate"]:.1f}%<br>
+        <b>{tr("stat_total_downloaded")}:</b> {FileHelper.format_size(stats["total_size_bytes"])}<br>
+        <b>{tr("stat_average_speed")}:</b> {FileHelper.format_size(int(stats["average_speed_bps"]))}/s
         """
         self.stats_label.setText(stats_text)
 
@@ -138,6 +158,9 @@ class HistoryTab(QWidget):
         entries = self.history_manager.get_history(limit=100)
 
         self.history_table.setRowCount(len(entries))
+        # Swap to the empty-state placeholder when history has no entries;
+        # the table (index 0) shows otherwise.
+        self._history_stack.setCurrentIndex(0 if entries else 1)
         for row, entry in enumerate(entries):
             # Date/Time
             date_item = QTableWidgetItem(entry.timestamp.strftime("%Y-%m-%d %H:%M"))

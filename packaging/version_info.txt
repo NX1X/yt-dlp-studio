@@ -10,8 +10,8 @@
 
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(0, 1, 0, 0),
-    prodvers=(0, 1, 0, 0),
+    filevers=(0, 1, 2, 0),
+    prodvers=(0, 1, 2, 0),
     # Contains a bitmask that specifies the valid bits 'flags'
     mask=0x3f,
     # Contains a bitmask that specifies the Boolean attributes of the file.
@@ -35,12 +35,12 @@ VSVersionInfo(
         u'040904B0',
         [StringStruct(u'CompanyName', u'NX1X LAB - NXTools Collection'),
         StringStruct(u'FileDescription', u'YT-DLP Studio - User-friendly GUI for yt-dlp video downloader'),
-        StringStruct(u'FileVersion', u'0.1.0.0'),
+        StringStruct(u'FileVersion', u'0.1.2.0'),
         StringStruct(u'InternalName', u'YT-DLP Studio'),
         StringStruct(u'LegalCopyright', u'Copyright © 2024-2026 NX1X. Part of NXTools collection.'),
         StringStruct(u'OriginalFilename', u'YT-DLP Studio.exe'),
         StringStruct(u'ProductName', u'YT-DLP Studio (NXTools)'),
-        StringStruct(u'ProductVersion', u'0.1.0'),
+        StringStruct(u'ProductVersion', u'0.1.2'),
         StringStruct(u'Comments', u'Download videos from YouTube. Website: https://nx1xlab.dev/nxtools'),
         StringStruct(u'LegalTrademarks', u'Part of NXtools - https://nx1xlab.dev/nxtools')])
       ]),

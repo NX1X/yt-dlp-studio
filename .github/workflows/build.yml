@@ -16,6 +16,29 @@ jobs:
     name: Lint & Format Check
     runs-on: ubuntu-latest
     steps:
+    - name: Harden runner
+      # StepSecurity harden-runner: enforces a per-job network egress allowlist
+      # on the GitHub-hosted runner. `block` mode rejects any outbound call to
+      # a host not listed below; the live network log appears in the job's
+      # "Harden Runner" summary tab. This catches an action or transitive
+      # dependency exfiltrating data or pulling from an unexpected origin.
+      # SHA pinned (Renovate keeps the digest current; matches the repo
+      # convention for every other third-party action).
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: block
+        disable-sudo: true                 # no apt/sudo step in this job
+        allowed-endpoints: >
+          api.github.com:443
+          codeload.github.com:443
+          files.pythonhosted.org:443
+          github.com:443
+          objects.githubusercontent.com:443
+          pypi.org:443
+          raw.githubusercontent.com:443
+          results-receiver.actions.githubusercontent.com:443
+          *.blob.core.windows.net:443
+
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
@@ -45,6 +68,30 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
+    - name: Harden runner
+      # See lint job for rationale. This job runs on both ubuntu and windows
+      # via matrix; the same policy is applied to both. The Linux leg uses
+      # apt (`sudo apt-get`), so disable-sudo MUST be false. Port-80 entries
+      # are for the Ubuntu apt mirror (HTTP-only on the Azure-backed mirror).
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: block
+        disable-sudo: false                # Linux leg runs `sudo apt-get`
+        allowed-endpoints: >
+          api.github.com:443
+          azure.archive.ubuntu.com:80
+          codeload.github.com:443
+          esm.ubuntu.com:443
+          files.pythonhosted.org:443
+          github.com:443
+          objects.githubusercontent.com:443
+          packages.microsoft.com:443
+          pypi.org:443
+          raw.githubusercontent.com:443
+          results-receiver.actions.githubusercontent.com:443
+          security.ubuntu.com:80
+          *.blob.core.windows.net:443
+
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
@@ -106,7 +153,15 @@ jobs:
     name: Build Windows Executable
     needs: [lint, test]
     runs-on: windows-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+    # Run on direct pushes to main/dev AND on every pull request, so
+    # PyInstaller-only regressions (missing hidden imports, broken bundle
+    # paths, vendored-engine path math that only matters under _MEIPASS)
+    # surface in the PR instead of after merge. PR builds upload an
+    # artifact for manual smoke testing but are NOT promoted to releases.
+    if: >
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/dev'
     permissions:
       contents: read
       id-token: write       # OIDC token for Sigstore signing
@@ -123,6 +178,31 @@ jobs:
       FFMPEG_VERSION: "8.1.1"
       FFMPEG_SHA256: "7a6c3e86f54b0dd3bceff31f81bf3b70397171fcf35d1a13b9ed9cbf1040fc18"
     steps:
+    - name: Harden runner
+      # See lint job for rationale. Windows runner, so no apt and disable-sudo
+      # can stay true. Deno/FFmpeg downloads from github.com release URLs
+      # redirect to objects.githubusercontent.com (the GitHub release CDN) -
+      # both already in the baseline. Sigstore endpoints (incl. the often-
+      # missed sigstore.github.com) are required by attest-build-provenance.
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: block
+        disable-sudo: true                 # Windows; no sudo step
+        allowed-endpoints: >
+          api.github.com:443
+          codeload.github.com:443
+          files.pythonhosted.org:443
+          fulcio.sigstore.dev:443
+          github.com:443
+          objects.githubusercontent.com:443
+          pypi.org:443
+          raw.githubusercontent.com:443
+          rekor.sigstore.dev:443
+          results-receiver.actions.githubusercontent.com:443
+          sigstore.github.com:443
+          tuf-repo-cdn.sigstore.dev:443
+          *.blob.core.windows.net:443
+
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:

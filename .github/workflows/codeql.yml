@@ -34,6 +34,27 @@ jobs:
       contents: read
       security-events: write   # upload SARIF results to code scanning
     steps:
+    - name: Harden runner
+      # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
+      # CodeQL needs two non-obvious endpoints beyond the baseline: ghcr.io
+      # and pkg-containers.githubusercontent.com — the `security-extended`
+      # query pack is delivered as an OCI artifact from GitHub Container
+      # Registry. Drop those two if `queries:` is ever removed.
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: block
+        disable-sudo: true                 # no apt step in this job
+        allowed-endpoints: >
+          api.github.com:443
+          codeload.github.com:443
+          ghcr.io:443
+          github.com:443
+          objects.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
+          raw.githubusercontent.com:443
+          results-receiver.actions.githubusercontent.com:443
+          *.blob.core.windows.net:443
+
     - name: Checkout code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:

@@ -4,11 +4,11 @@ Settings tab UI for YT-DLP Studio.
 Provides interface for configuring application settings.
 """
 
-import subprocess
-import sys
+from datetime import UTC, datetime
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QComboBox,
     QFileDialog,
@@ -18,15 +18,14 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
-    QTextBrowser,
     QVBoxLayout,
     QWidget,
 )
 
 from ..backend.config_manager import ConfigManager
 from ..backend.format_handler import FormatHandler
-from ..backend.yt_dlp_wrapper import YtDlpWrapper
-from ..utils.constants import APP_NAME, APP_VERSION
+from ..utils.constants import APP_VERSION, CONFIG_PATH, LOG_PATH
+from ..utils.crash_handler import get_crash_dir
 from ..utils.logger import get_logger
 from ..utils.translations import get_translation_manager, tr
 
@@ -121,30 +120,18 @@ class SettingsTab(QWidget):
         appearance_group = QGroupBox(tr("settings_appearance"))
         appearance_layout = QVBoxLayout()
 
-        # Theme toggle button
+        # Theme toggle button. Inline `background-color: #4a4a4a` was
+        # hardcoded dark-theme grey and bypassed the theme manager - replaced
+        # with the buttonStyle="secondary" property so the QSS in theme.py
+        # picks the right shade for both light and dark.
         theme_button_layout = QHBoxLayout()
         theme_label = QLabel(tr("label_theme"))
         theme_label.setMinimumWidth(180)
         self.toggle_theme_button = QPushButton(tr("button_toggle_theme"))
         self.toggle_theme_button.setMinimumWidth(180)
         self.toggle_theme_button.setToolTip(tr("tooltip_toggle_theme"))
+        self.toggle_theme_button.setProperty("buttonStyle", "secondary")
         self.toggle_theme_button.clicked.connect(self._toggle_theme)
-        self.toggle_theme_button.setStyleSheet("""
-            QPushButton {
-                background-color: #4a4a4a;
-                color: white;
-                border: none;
-                border-radius: 3px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #5a5a5a;
-            }
-            QPushButton:pressed {
-                background-color: #3a3a3a;
-            }
-        """)
         theme_button_layout.addWidget(theme_label)
         theme_button_layout.addWidget(self.toggle_theme_button)
         theme_button_layout.addStretch()
@@ -169,27 +156,13 @@ class SettingsTab(QWidget):
         self.auto_update_checkbox.setToolTip(tr("tooltip_auto_update"))
         features_layout.addWidget(self.auto_update_checkbox)
 
-        # Check for updates button (v1.8.0 - clean, professional)
+        # Check-for-updates button uses the secondary style for the same
+        # palette-aware reason as the theme toggle above.
         update_button_layout = QHBoxLayout()
         self.check_update_button = QPushButton(tr("button_check_update"))
         self.check_update_button.setMinimumWidth(180)
+        self.check_update_button.setProperty("buttonStyle", "secondary")
         self.check_update_button.clicked.connect(self._check_for_updates)
-        self.check_update_button.setStyleSheet("""
-            QPushButton {
-                background-color: #4a4a4a;
-                color: white;
-                border: none;
-                border-radius: 3px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #5a5a5a;
-            }
-            QPushButton:pressed {
-                background-color: #3a3a3a;
-            }
-        """)
         update_button_layout.addWidget(self.check_update_button)
         update_button_layout.addStretch()
         features_layout.addLayout(update_button_layout)
@@ -197,56 +170,36 @@ class SettingsTab(QWidget):
         features_group.setLayout(features_layout)
         main_layout.addWidget(features_group)
 
-        # v0.8.0: Version Information (credits moved to About tab)
-        version_group = QGroupBox(tr("settings_version_info"))
-        version_layout = QVBoxLayout()
+        # Storage group: surfaces the paths a user would typically need to
+        # share when filing a bug report (log file, crash reports directory,
+        # config file). Each row has a Copy button so the user can paste
+        # the path straight into a GitHub issue without hunting for it.
+        # Replaces the old "Version Information" group, which duplicated
+        # content that now lives on the About tab.
+        storage_group = QGroupBox(tr("settings_storage"))
+        storage_layout = QVBoxLayout()
 
-        # Get version information
-        try:
-            ytdlp_version = YtDlpWrapper.get_ytdlp_version()
-        except:
-            ytdlp_version = "Unknown"
+        for label_key, path_value in (
+            (tr("label_log_file_path"), str(LOG_PATH)),
+            (tr("label_crash_dir_path"), str(get_crash_dir())),
+            (tr("label_config_file_path"), str(CONFIG_PATH)),
+        ):
+            row = QHBoxLayout()
+            label = QLabel(label_key)
+            label.setMinimumWidth(180)
+            path_field = QLineEdit(path_value)
+            path_field.setReadOnly(True)
+            copy_button = QPushButton(tr("button_copy"))
+            copy_button.setToolTip(tr("tooltip_copy_path"))
+            copy_button.setProperty("buttonStyle", "secondary")
+            copy_button.clicked.connect(lambda _checked=False, p=path_value: self._copy_path(p))
+            row.addWidget(label)
+            row.addWidget(path_field)
+            row.addWidget(copy_button)
+            storage_layout.addLayout(row)
 
-        try:
-            # Get FFmpeg version
-            ffmpeg_version = self._get_ffmpeg_version()
-        except:
-            ffmpeg_version = "Not Found"
-
-        python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-
-        try:
-            from PySide6 import __version__ as pyside_version
-        except:
-            pyside_version = "Unknown"
-
-        # Create version info text (technical details only)
-        version_info = f"""<b>{APP_NAME} v{APP_VERSION}</b><br>
-<span style="color: #888; font-size: 10pt;">Part of NXTools by NX1X</span><br><br>
-
-<b>Core Components:</b><br>
-<table style="color: #ccc; border-spacing: 0;">
-<tr><td style="padding: 4px 8px;"><b>yt-dlp:</b></td><td style="padding: 4px;">v{ytdlp_version}</td></tr>
-<tr><td style="padding: 4px 8px;"><b>FFmpeg:</b></td><td style="padding: 4px;">{ffmpeg_version}</td></tr>
-<tr><td style="padding: 4px 8px;"><b>Python:</b></td><td style="padding: 4px;">v{python_version}</td></tr>
-<tr><td style="padding: 4px 8px;"><b>PySide6 (Qt):</b></td><td style="padding: 4px;">v{pyside_version}</td></tr>
-</table><br>
-
-<p style="color: #888; font-size: 10pt;">
-For detailed credits and acknowledgments, see the <b>About</b> tab.
-</p>
-"""
-
-        version_text = QTextBrowser()
-        version_text.setReadOnly(True)
-        version_text.setHtml(version_info)
-        version_text.setMinimumHeight(200)
-        version_text.setMaximumHeight(250)
-        version_text.setOpenExternalLinks(True)
-        version_layout.addWidget(version_text)
-
-        version_group.setLayout(version_layout)
-        main_layout.addWidget(version_group)
+        storage_group.setLayout(storage_layout)
+        main_layout.addWidget(storage_group)
 
         # Buttons
         button_layout = QHBoxLayout()
@@ -257,21 +210,12 @@ For detailed credits and acknowledgments, see the <b>About</b> tab.
         self.reset_button.clicked.connect(self._reset_defaults)
         button_layout.addWidget(self.reset_button)
 
+        # Save button uses the default QPushButton style (primary blue
+        # already defined in theme.py); the inline stylesheet here was a
+        # straight duplicate that the theme manager could not override
+        # when switching to light mode.
         self.save_button = QPushButton(tr("button_save_settings"))
         self.save_button.setMinimumWidth(140)
-        self.save_button.setStyleSheet("""
-            QPushButton {
-                background-color: #0e639c;
-                color: white;
-                border: none;
-                border-radius: 3px;
-                font-weight: bold;
-                padding: 5px 15px;
-            }
-            QPushButton:hover {
-                background-color: #1177bb;
-            }
-        """)
         self.save_button.clicked.connect(self._save_settings)
         button_layout.addWidget(self.save_button)
 
@@ -285,6 +229,7 @@ For detailed credits and acknowledgments, see the <b>About</b> tab.
         config = self.config_manager.get_config()
         self.output_input.setText(config.output_directory)
         self.quality_combo.setCurrentText(config.default_quality)
+        self.auto_update_checkbox.setChecked(config.check_updates_on_startup)
         logger.debug("Settings loaded into UI")
 
     def _browse_directory(self) -> None:
@@ -334,7 +279,11 @@ For detailed credits and acknowledgments, see the <b>About</b> tab.
 
         # Save other settings
         old_output_dir = self.config_manager.get_config().output_directory
-        success = self.config_manager.update_config(output_directory=output_dir, default_quality=default_quality)
+        success = self.config_manager.update_config(
+            output_directory=output_dir,
+            default_quality=default_quality,
+            check_updates_on_startup=self.auto_update_checkbox.isChecked(),
+        )
 
         if success:
             logger.info("Settings saved successfully")
@@ -374,34 +323,50 @@ For detailed credits and acknowledgments, see the <b>About</b> tab.
             QMessageBox.information(self, tr("dialog_settings_reset"), tr("msg_all_settings_reset"))
 
     def _check_for_updates(self) -> None:
-        """Check for application updates (v1.7.0)."""
-        from ..backend.update_checker import UpdateChecker
-        from ..ui.update_dialog import UpdateDialog
+        """Check for application updates without blocking the UI thread."""
+        from ..ui.update_dialog import UpdateCheckThread
 
         self.check_update_button.setEnabled(False)
         self.check_update_button.setText(tr("button_checking"))
 
-        try:
-            checker = UpdateChecker()
-            update_available, release_info = checker.check_for_updates()
+        # Keep a reference so the thread is not garbage collected mid-run.
+        self._update_check_thread = UpdateCheckThread(self)
+        self._update_check_thread.check_complete.connect(self._on_update_check_finished)
+        self._update_check_thread.start()
 
-            if update_available and release_info:
-                logger.info(f"Update available: {release_info['version']}")
-                # Show update dialog
-                dialog = UpdateDialog(release_info, self)
-                dialog.exec()
+    def _on_update_check_finished(self, result) -> None:
+        """
+        Handle a manual update check result.
+
+        A manual check is an explicit user action, so it always surfaces an
+        available update even if that version was previously skipped.
+        """
+        from ..ui.update_dialog import UpdateDialog
+
+        self.check_update_button.setEnabled(True)
+        self.check_update_button.setText(tr("button_check_for_updates_now"))
+
+        if result.error:
+            logger.error(f"Update check failed: {result.error}")
+            if result.error == "rate_limited":
+                QMessageBox.warning(self, tr("dialog_update_check_failed"), tr("msg_update_check_rate_limited"))
             else:
-                logger.info("No updates available")
-                QMessageBox.information(
-                    self, tr("dialog_no_updates"), tr("msg_already_latest_version", version=APP_VERSION)
+                QMessageBox.warning(
+                    self, tr("dialog_update_check_failed"), tr("msg_update_check_failed", error=result.error)
                 )
+            return
 
-        except Exception as e:
-            logger.error(f"Update check failed: {e}")
-            QMessageBox.warning(self, tr("dialog_update_check_failed"), tr("msg_update_check_failed", error=str(e)))
-        finally:
-            self.check_update_button.setEnabled(True)
-            self.check_update_button.setText(tr("button_check_for_updates_now"))
+        self.config_manager.update_config(last_update_check=datetime.now(UTC).isoformat())
+
+        if result.update_available and result.release_info:
+            logger.info(f"Update available: {result.release_info['version']}")
+            dialog = UpdateDialog(result.release_info, self, self.config_manager)
+            dialog.exec()
+        else:
+            logger.info("No updates available")
+            QMessageBox.information(
+                self, tr("dialog_no_updates"), tr("msg_already_latest_version", version=APP_VERSION)
+            )
 
     def _toggle_theme(self) -> None:
         """Toggle between dark and light themes (v2.0.0 - moved from menu bar)."""
@@ -421,22 +386,13 @@ For detailed credits and acknowledgments, see the <b>About</b> tab.
         QMessageBox.information(self, tr("dialog_theme_switched"), tr("msg_theme_switched", theme=theme_name))
         logger.info(f"Theme toggled to: {theme_name}")
 
-    def _get_ffmpeg_version(self) -> str:
-        """Get FFmpeg version string."""
-        try:
-            # Try to run ffmpeg -version
-            result = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True, timeout=5)
-            if result.returncode == 0:
-                # Extract version from first line
-                first_line = result.stdout.split("\n")[0]
-                # Example: "ffmpeg version 2024-11-27-git-..."
-                if "version" in first_line:
-                    parts = first_line.split()
-                    if len(parts) >= 3:
-                        return parts[2]  # The version number
-            return "Installed (version unknown)"
-        except FileNotFoundError:
-            return "Not Found in PATH"
-        except Exception as e:
-            logger.error(f"Error getting FFmpeg version: {e}")
-            return "Error detecting version"
+    def _copy_path(self, path: str) -> None:
+        """Copy a path to the clipboard and show a brief confirmation."""
+        clipboard = QApplication.clipboard()
+        if clipboard is None:
+            return
+        clipboard.setText(path)
+        logger.debug(f"Copied path to clipboard: {path}")
+        # Lightweight feedback - we use the status-bar style hint message so
+        # the user gets confirmation without blocking the workflow.
+        QMessageBox.information(self, tr("button_copy"), tr("msg_path_copied"))
