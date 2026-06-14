@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import json
 import platform
-import re
 import sys
 import threading
 import traceback
@@ -39,70 +38,18 @@ from typing import Any
 
 from .constants import APP_DATA_DIR, APP_VERSION, YTDLP_VERSION
 from .logger import get_logger
+from .secret_scrub import scrub_secrets
+
+# Re-exported under the legacy underscore name so older callers and the
+# existing test suite continue to find ``crash_handler._scrub_secrets``.
+# Prefer the public ``src.utils.secret_scrub.scrub_secrets`` in new code.
+_scrub_secrets = scrub_secrets
 
 logger = get_logger()
 
 CRASH_DIR = APP_DATA_DIR / "crashes"
 LOG_TAIL_LINES = 200
 MAX_CRASH_FILES = 20
-
-_REDACTED = "[REDACTED]"
-
-# Patterns that catch the most common ways a credential ends up in a
-# Python traceback, exception message, or log line:
-#   1. Userinfo embedded in a URL: https://user:pass@host/...
-#   2. Common key=value patterns for password/token/cookie/api-key,
-#      with either '=' or ':' as the separator.
-#   3. Authorization: Bearer <token> headers.
-#   4. AWS-style access key IDs (visible in tracebacks from boto3-like code).
-_SECRET_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
-    (
-        re.compile(r"(?P<scheme>https?://)[^/@\s]+:[^/@\s]+@", re.IGNORECASE),
-        rf"\g<scheme>{_REDACTED}@",
-    ),
-    # `Bearer <token>` / `Basic <token>` - the bearer keyword is followed by
-    # whitespace, not a `:` or `=` separator, so it needs its own rule.
-    # Handled before the generic key=value pattern so the latter does not
-    # half-match and leave the token visible.
-    # Char class places `-` at the end (no escape needed there) so Sonar
-    # S5869 stops seeing `_\-+` as an overlap candidate.
-    (
-        re.compile(
-            r"(?P<keyword>\b(?:Bearer|Basic))\s+(?P<val>[A-Za-z0-9._+/=-]{8,})",
-            re.IGNORECASE,
-        ),
-        rf"\g<keyword> {_REDACTED}",
-    ),
-    (
-        re.compile(
-            r"(?P<key>(?:api[_-]?key|password|passwd|secret|token|cookie|authorization))"
-            r"(?P<sep>\s*[:=]\s*)"
-            r"(?P<val>['\"]?[^\s'\",;]+['\"]?)",
-            re.IGNORECASE,
-        ),
-        rf"\g<key>\g<sep>{_REDACTED}",
-    ),
-    (
-        re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
-        _REDACTED,
-    ),
-)
-
-
-def _scrub_secrets(text: str) -> str:
-    """Replace anything that looks like a credential with ``[REDACTED]``.
-
-    Applied to crash-report fields the user is expected to attach to a bug
-    report (exception_message, traceback, every log_tail line). Best effort -
-    designed to catch the obvious cases that tests caught in real logs, not
-    to be a comprehensive DLP filter.
-    """
-    if not text:
-        return text
-    for pattern, replacement in _SECRET_PATTERNS:
-        text = pattern.sub(replacement, text)
-    return text
-
 
 _installed = False
 
