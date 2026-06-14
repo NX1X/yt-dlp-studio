@@ -13,6 +13,17 @@
 # Suppressing scanning on this single test file avoids the recurring
 # GitGuardian "Pull Request Alerts" failure on every push of this branch
 # without disabling the scanner anywhere else in the repo.
+#
+# vendor/** holds the wholesale-vendored upstream yt-dlp engine. Several
+# yt-dlp extractor modules legitimately contain provider-specific API
+# client identifiers - Google Drive / Cybrary / Stacommu / WrestleUniverse
+# YouTube-style API keys, Shahid AWS-shaped mobile-app credentials, etc.
+# These are committed by upstream yt-dlp as the client IDs the
+# extractors use against each provider's public API. They are NOT
+# secrets from this repo and are reproduced verbatim in any vendor sync.
+# Suppressing the entire vendor tree avoids re-flagging them on every
+# engine bump while leaving GitGuardian's coverage in place for code
+# we actually own.
 
 version: 2
 secret:
@@ -21,3 +32,4 @@ secret:
   # the hyphenated form. Use underscored.
   ignored_paths:
     - tests/test_crash_handler.py
+    - vendor/**
