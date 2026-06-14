@@ -3,6 +3,16 @@ Logging configuration for YT-DLP Studio.
 
 This module sets up logging for the entire application.
 Logs are written to both file and console for debugging purposes.
+
+Every log record passes through :class:`SecretScrubbingFormatter` before
+reaching a handler, so URL userinfo (``https://user:pass@host``), Bearer
+or Basic tokens, ``api_key=`` / ``password=`` / ``token=`` / ``cookie=``
+patterns, and AWS-style access key IDs are replaced with ``[REDACTED]``
+before they hit the rolling log file or the console. That defends the
+rolling log file under ``%APPDATA%\\YT-DLP Studio\\yt-dlp-studio.log``
+against credential leakage from ``logger.exception()`` / ``exc_info=``
+traceback content, which is what a user shares when they copy the log
+path from Settings -> Storage and attach it to a GitHub issue.
 """
 
 import logging
@@ -17,6 +27,22 @@ from .constants import (
     LOG_MAX_SIZE,
     LOG_PATH,
 )
+from .secret_scrub import scrub_secrets
+
+
+class SecretScrubbingFormatter(logging.Formatter):
+    """A ``logging.Formatter`` that runs every output line through ``scrub_secrets``.
+
+    Subclassing ``Formatter`` (rather than installing a ``Filter``) catches
+    *everything* the formatter would emit: the message after ``%``-args
+    interpolation, exception tracebacks rendered from ``exc_info=``, and any
+    stack info. A filter, by contrast, only sees ``record.msg`` and
+    ``record.args`` before formatting, so tracebacks would slip through.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:  # noqa: A003
+        formatted = super().format(record)
+        return scrub_secrets(formatted)
 
 
 class Logger:
@@ -61,8 +87,10 @@ class Logger:
         if logger.handlers:
             return logger
 
-        # Create formatters
-        formatter = logging.Formatter(LOG_FORMAT)
+        # Create formatters. Both handlers use the scrubbing formatter so
+        # the rolling log file AND any console output are stripped of
+        # credentials before any line is emitted.
+        formatter = SecretScrubbingFormatter(LOG_FORMAT)
 
         # File handler with rotation
         try:
