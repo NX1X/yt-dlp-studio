@@ -34,12 +34,13 @@ _SECRET_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     # ``Bearer <token>`` / ``Basic <token>`` - the keyword is followed by
     # whitespace, not a ``:`` or ``=`` separator, so it needs its own rule.
     # Handled before the generic key=value pattern so the latter does not
-    # half-match and leave the token visible. Char class places ``-`` at
-    # the end (no escape needed there) so static analysers stop flagging
-    # ``_\-+`` as an overlap candidate.
+    # half-match and leave the token visible. The ``-`` is placed FIRST in
+    # the character class (where it is unambiguously literal regardless of
+    # neighbouring chars); putting it at the end as ``=-`` still made Sonar
+    # S5869 think it might be starting a range.
     (
         re.compile(
-            r"(?P<keyword>\b(?:Bearer|Basic))\s+(?P<val>[A-Za-z0-9._+/=-]{8,})",
+            r"(?P<keyword>\b(?:Bearer|Basic))\s+(?P<val>[-A-Za-z0-9._+/=]{8,})",
             re.IGNORECASE,
         ),
         rf"\g<keyword> {REDACTED}",
