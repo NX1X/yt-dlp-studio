@@ -39,7 +39,7 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         fetch-depth: 0
         persist-credentials: false   # only reads local tags, never pushes
@@ -126,14 +126,14 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # tests never push via git
 
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
       with:
-        python-version: '3.11'
+        python-version: '3.14.6'
 
     - name: Install system dependencies (Linux)
       if: runner.os == 'Linux'
@@ -206,14 +206,14 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # build only; attestation uses OIDC
 
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
       with:
-        python-version: '3.11'
+        python-version: '3.14.6'
 
     - name: Install dependencies
       run: |
@@ -413,14 +413,14 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # build only, never pushes via git
 
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
       with:
-        python-version: '3.11'
+        python-version: '3.14.6'
 
     - name: Install system dependencies
       run: |
@@ -520,7 +520,7 @@ jobs:
     # next step pushes the immutable release tag via `git push origin`. Adding
     # persist-credentials: false here would break tag publishing.
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 # zizmor: ignore[artipacked]
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3 # zizmor: ignore[artipacked]
 
     - name: Create immutable tag if absent
       # Immutable-release policy: a version is published EXACTLY ONCE. The
@@ -555,7 +555,7 @@ jobs:
     # script step: it is part of the audited/attested release path and Renovate
     # tracks its digest. Replacing it with raw gh is out of scope here.
     - name: Create Release
-      uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0 # zizmor: ignore[superfluous-actions]
+      uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1 # zizmor: ignore[superfluous-actions]
       with:
         tag_name: ${{ needs.check-version.outputs.version }}
         name: yt-dlp-studio ${{ needs.check-version.outputs.version }}

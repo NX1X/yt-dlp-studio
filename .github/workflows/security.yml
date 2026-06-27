@@ -75,14 +75,14 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # this job never uses git creds
 
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
       with:
-        python-version: '3.11'
+        python-version: '3.14.6'
 
     - name: Install pip-audit
       # Hash-pinned CI tooling (see requirements/ci-tools.in).
@@ -124,14 +124,14 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # this job never uses git creds
 
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
       with:
-        python-version: '3.11'
+        python-version: '3.14.6'
 
     - name: Install zizmor
       # Hash-pinned CI tooling (see requirements/ci-tools.in).
@@ -154,7 +154,7 @@ jobs:
 
     - name: Upload SARIF to code scanning
       if: always() && github.event.pull_request.head.repo.fork != true
-      uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+      uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
       with:
         sarif_file: zizmor.sarif
         category: zizmor
@@ -208,7 +208,7 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false
 
@@ -225,7 +225,7 @@ jobs:
         publish_results: true
 
     - name: Upload Scorecard SARIF to code scanning
-      uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+      uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
       with:
         sarif_file: scorecard.sarif
         category: scorecard

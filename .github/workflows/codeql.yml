@@ -56,17 +56,17 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # CodeQL only reads source, never pushes
 
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
       with:
-        python-version: '3.11'
+        python-version: '3.14.6'
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+      uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
       with:
         languages: python
         # Python is interpreted: no compilation, extract the source directly.
@@ -86,6 +86,6 @@ jobs:
             - tests
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+      uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
       with:
         category: "/language:python"
