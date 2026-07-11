@@ -208,5 +208,21 @@
       "datasourceTemplate": "github-releases",
       "versioningTemplate": "loose",
     },
+    {
+      // Every `python -m pip install --upgrade pip==X.Y.Z` in every
+      // workflow file. Pinned in 0.1.3 to close Scorecard's
+      // PinnedDependenciesID recurrence; Renovate now bumps the pin
+      // under the standard 14-day cooldown so we do not have to
+      // hand-edit the workflows every few weeks.
+      "customType": "regex",
+      "description": "pip version pinned in workflow `pip install --upgrade pip==X` lines",
+      "managerFilePatterns": ["\\.github/workflows/.*\\.ya?ml$"],
+      "matchStrings": [
+        "pip install --upgrade pip==(?<currentValue>[^\\s\"]+)",
+      ],
+      "depNameTemplate": "pip",
+      "datasourceTemplate": "pypi",
+      "versioningTemplate": "pep440",
+    },
   ],
 }
