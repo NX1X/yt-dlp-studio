@@ -8,10 +8,16 @@
   //     to end-user machines as part of the PyInstaller EXE.
   //   - Lower concern: speed of CVE patching (no live service to exploit).
   //
-  // Therefore: symmetric 7-day cooldown on ALL updates, including CVE
+  // Therefore: symmetric 14-day cooldown on ALL updates, including CVE
   // "fixes" — a malicious release disguised as a security patch is exactly
   // the attack vector we're defending against. Real active exploits can be
   // manually expedited from the Dependency Dashboard issue if needed.
+  //
+  // The window was bumped from 7 to 14 days in 0.1.3 after the msgpack
+  // near-miss and the Shai-Hulud-adjacent posture reviews. A two-week
+  // observation window covers the typical time-to-postmortem for a bad
+  // release without materially delaying legitimate patch adoption for
+  // this desktop-app threat model (no live service under attack).
   // ---------------------------------------------------------------------------
 
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
@@ -26,7 +32,7 @@
   // ----- Cooldown (supply-chain mitigation) ----------------------------------
   // Wait N days after upstream release before opening a PR.
   // Per-package overrides live in packageRules below.
-  "minimumReleaseAge": "7 days",
+  "minimumReleaseAge": "14 days",
 
   // ----- Dependency Dashboard (in-repo issue, NOT an external UI) ------------
   "dependencyDashboard": true,
@@ -54,8 +60,18 @@
     "labels": ["security", "dependencies"],
     "assignees": ["NX1X"],
     "reviewers": ["NX1X"],
-    "minimumReleaseAge": "7 days",
-    "prPriority": 10,             // surface above ordinary updates
+    // Deliberately matches the base 14-day cooldown, not shorter.
+    // Rationale: this project's threat model prioritizes supply-chain
+    // integrity over CVE-patch latency because there is no live service
+    // being actively exploited. A shorter security window here would
+    // widen the window in which a malicious release masquerading as a
+    // patch could slip in and be published inside the signed EXE.
+    "minimumReleaseAge": "14 days",
+    // NOTE: `prPriority` used to live here but Renovate's schema only
+    // allows it inside `packageRules`. It was removed in 0.1.3 (Renovate
+    // was emitting a WARN config warning on every run). Security PRs no
+    // longer need explicit prioritization now that the cooldown matches
+    // the base - they aren't racing anything else through the queue.
   },
   // Pull CVE data from OSV.dev (broader than GitHub Advisory DB alone).
   "osvVulnerabilityAlerts": true,
@@ -124,15 +140,17 @@
     },
 
     // === yt-dlp engine binary (custom manager → github-releases) ===
-    // yt-dlp ships VERY frequently (often daily). 7-day cooldown would mean
-    // we're always weeks behind. 5 days is the compromise.
+    // yt-dlp ships VERY frequently (often daily). The base 14-day cooldown
+    // would mean we're always weeks behind on extractor fixes. 7 days is
+    // the compromise for this specific dependency: fast enough to keep
+    // YouTube extraction working, slow enough to catch a hijacked release.
     {
       "matchDepNames": ["yt-dlp/yt-dlp"],
       "matchDatasources": ["github-releases"],
       "labels": ["dependencies", "yt-dlp-engine", "binary"],
       "commitMessagePrefix": "deps:",
       "commitMessageTopic": "yt-dlp engine",
-      "minimumReleaseAge": "5 days",
+      "minimumReleaseAge": "7 days",
       "prPriority": 5,
     },
 
