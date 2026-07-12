@@ -39,7 +39,7 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         fetch-depth: 0
         persist-credentials: false   # only reads local tags, never pushes
@@ -126,12 +126,12 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # tests never push via git
 
     - name: Set up Python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
         python-version: '3.11'
 
@@ -206,12 +206,12 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # build only; attestation uses OIDC
 
     - name: Set up Python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
         python-version: '3.11'
 
@@ -331,7 +331,7 @@ jobs:
       # Produces a Sigstore-signed SLSA provenance statement binding the
       # exe's SHA-256 to this workflow file at this commit on this runner.
       # Verify with: gh attestation verify dist/yt-dlp-studio.exe --owner NX1X
-      uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+      uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
       with:
         subject-path: 'dist/yt-dlp-studio.exe'
 
@@ -423,12 +423,12 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # build only, never pushes via git
 
     - name: Set up Python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
         python-version: '3.11'
 
@@ -501,7 +501,7 @@ jobs:
       # Sigstore-signed SLSA provenance binding the binary's SHA-256 to this
       # workflow at this commit. Verify with:
       #   gh attestation verify dist/yt-dlp-studio --owner NX1X
-      uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+      uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
       with:
         subject-path: 'dist/yt-dlp-studio'
 
@@ -601,7 +601,7 @@ jobs:
     # next step pushes the immutable release tag via `git push origin`. Adding
     # persist-credentials: false here would break tag publishing.
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 # zizmor: ignore[artipacked]
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3 # zizmor: ignore[artipacked]
 
     - name: Create immutable tag if absent
       # Immutable-release policy: a version is published EXACTLY ONCE. The
@@ -638,6 +638,60 @@ jobs:
     - name: List artifacts
       run: ls -la artifacts/
 
+    - name: Build release notes from CHANGELOG
+      # The GitHub Release body is generated from the version's own CHANGELOG.md
+      # section, so each release shows what actually changed in it - not a
+      # static, identical feature list. Downloads + system requirements +
+      # credits are appended as boilerplate.
+      env:
+        TAG: ${{ needs.check-version.outputs.version }}
+      run: |
+        set -euo pipefail
+        VERSION="${TAG#v}"   # strip the leading v: v0.2.0 -> 0.2.0
+
+        # Extract the lines under "## [VERSION]" up to (but not including) the
+        # next "## [" heading, dropping the "---" section separators.
+        NOTES=$(awk -v hdr="## [${VERSION}]" '
+          index($0, hdr) == 1 { found = 1; next }
+          found && /^## \[/   { exit }
+          found && $0 == "---" { next }
+          found               { print }
+        ' CHANGELOG.md)
+        # Trim leading/trailing blank lines.
+        NOTES="$(printf '%s\n' "$NOTES" | sed -e :a -e '/^\n*$/{$d;N;ba}' -e '/./,$!d')"
+        if [ -z "$NOTES" ]; then
+          echo "::warning::No CHANGELOG.md section found for ${VERSION}; using a fallback body."
+          NOTES="See the [CHANGELOG](https://github.com/NX1X/yt-dlp-studio/blob/main/CHANGELOG.md) for details."
+        fi
+
+        {
+          echo "### Downloads"
+          echo
+          echo "| Platform | File | Notes |"
+          echo "|----------|------|-------|"
+          echo "| **Windows** | \`yt-dlp-studio-...-Windows.zip\` | Includes FFmpeg + Deno. Just extract and run. |"
+          echo "| **Linux** | \`yt-dlp-studio-...-Linux.tar.gz\` | Extract and run \`./install.sh\` to add it to your app menu. Requires system FFmpeg. |"
+          echo
+          echo "### What's changed in ${VERSION}"
+          echo
+          echo "${NOTES}"
+          echo
+          echo "### System requirements"
+          echo
+          echo "**Windows:** Windows 10/11 (64-bit) - no additional software needed."
+          echo
+          echo "**Linux:** 64-bit, glibc 2.35+ (Ubuntu 22.04+, Debian 12+, Fedora 36+, and most 2022-and-later distros). Requires FFmpeg; Deno is auto-downloaded on first run."
+          echo
+          echo "### Credits"
+          echo
+          echo "Part of **NXTools** by **NX1X** - https://nx1xlab.dev/nxtools · Support development: https://buymeacoffee.com/nx1x"
+          echo
+          echo "Full history: [CHANGELOG.md](https://github.com/NX1X/yt-dlp-studio/blob/main/CHANGELOG.md)"
+        } > RELEASE_BODY.md
+
+        echo "----- RELEASE_BODY.md -----"
+        cat RELEASE_BODY.md
+
     # Deliberately use the pinned, SHA-locked action rather than a `gh release`
     # script step: it is part of the audited/attested release path and Renovate
     # tracks its digest. Replacing it with raw gh is out of scope here.
@@ -646,38 +700,7 @@ jobs:
       with:
         tag_name: ${{ needs.check-version.outputs.version }}
         name: yt-dlp-studio ${{ needs.check-version.outputs.version }}
-        body: |
-          ## yt-dlp-studio ${{ needs.check-version.outputs.version }}
-
-          ### Downloads
-
-          | Platform | File | Notes |
-          |----------|------|-------|
-          | **Windows** | `yt-dlp-studio-...-Windows.zip` | Includes FFmpeg + Deno. Just extract and run. |
-          | **Linux** | `yt-dlp-studio-...-Linux.tar.gz` | Extract and run `./install.sh` to add it to your app menu. Requires system FFmpeg (`sudo apt install ffmpeg`). |
-
-          ### Features
-
-          - User-friendly GUI for yt-dlp video downloader
-          - Download from YouTube
-          - Multiple quality options (Best, 8K, 4K, 2K, 1080p, 720p, 480p, 360p)
-          - Audio download support (MP3, FLAC, WAV, M4A, OPUS, Vorbis)
-          - Subtitle, comment, and metadata download
-          - Queue management with concurrent download protection
-          - Download history tracking
-          - Dark/Light theme, Multi-language (English/Hebrew)
-
-          ### System Requirements
-
-          **Windows:** Windows 10/11 (64-bit) - No additional software needed
-
-          **Linux:** 64-bit, glibc 2.31+ (tested on Ubuntu 22.04+). Requires FFmpeg (`sudo apt install ffmpeg`); Deno is auto-downloaded on first run.
-
-          ### Credits
-
-          Part of **NXTools** by **NX1X**
-          - Website: https://nx1xlab.dev/nxtools
-          - Support development: https://buymeacoffee.com/nx1x
+        body_path: RELEASE_BODY.md
         files: |
           artifacts/*
         draft: false

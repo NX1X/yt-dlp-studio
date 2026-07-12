@@ -112,7 +112,31 @@ Deno on first run.
   `release-assets.githubusercontent.com` to the CodeQL harden-runner allowlist -
   GitHub moved release-asset downloads (the CodeQL CLI bundle) to that host, and
   block-mode egress was refusing it, failing "Initialize CodeQL" with
-  ECONNREFUSED.
+  ECONNREFUSED. Also added the Sigstore endpoints
+  (`fulcio`/`rekor`/`tuf-repo-cdn.sigstore.dev`) to the Scorecard job so
+  `publish_results` can sign results (the Security workflow had been failing on
+  every run).
+
+### Security
+
+- **msgpack `1.1.2` -> `1.2.1`** (Dependabot alert #3, GHSA-6v7p-g79w-8964,
+  High: out-of-bounds read / crash on Unpacker reuse after a caught error).
+  Updated in the hash-pinned CI toolchain (`requirements/ci-tools.txt`).
+
+### Dependencies
+
+Consolidated the outstanding Renovate/Dependabot updates into this release
+instead of shipping them as separate version bumps:
+
+- `black` `>=26.3.1` -> `>=26.5.1`, `packaging` `>=23.0` -> `>=23.2`,
+  `pip-tools` `>=7.4.0` -> `>=7.5.3`, `mkdocs` `>=1.5.0` -> `>=1.6.1`,
+  `mkdocs-material` `>=9.0.0` -> `>=9.7.6` (pyproject.toml).
+- pre-commit hooks: `ruff-pre-commit` `v0.8.4` -> `v0.15.20`,
+  `gitleaks` `v8.21.2` -> `v8.30.1`, `psf/black` `26.3.1` -> `26.5.1`.
+- GitHub Actions (SHA-pinned): `actions/checkout` `v6.0.2` -> `v6.0.3`,
+  `actions/setup-python` `v6.2.0` -> `v6.3.0`,
+  `actions/attest-build-provenance` `v4.1.0` -> `v4.1.1`,
+  `github/codeql-action` `v4.35.5` -> `v4.36.3`.
 
 ---
 

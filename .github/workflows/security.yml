@@ -30,7 +30,7 @@ name: Security
 #
 # Action pinning: every action is pinned to a commit SHA (repo convention).
 # checkout / setup-python / upload-artifact reuse the exact SHAs from
-# build.yml. github/codeql-action/upload-sarif reuses the v4.35.5 SHA already
+# build.yml. github/codeql-action/upload-sarif reuses the v4.36.3 SHA already
 # pinned in codeql.yml (same monorepo). ossf/scorecard-action is pinned to the
 # v2.4.3 release commit, cross-checked via the release page and the
 # dereferenced annotated tag. Renovate keeps these digests current.
@@ -75,12 +75,12 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # this job never uses git creds
 
     - name: Set up Python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
         python-version: '3.11'
 
@@ -124,12 +124,12 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # this job never uses git creds
 
     - name: Set up Python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
         python-version: '3.11'
 
@@ -154,7 +154,7 @@ jobs:
 
     - name: Upload SARIF to code scanning
       if: always() && github.event.pull_request.head.repo.fork != true
-      uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+      uses: github/codeql-action/upload-sarif@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4.36.3
       with:
         sarif_file: zizmor.sarif
         category: zizmor
@@ -213,7 +213,7 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false
 
@@ -230,7 +230,7 @@ jobs:
         publish_results: true
 
     - name: Upload Scorecard SARIF to code scanning
-      uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+      uses: github/codeql-action/upload-sarif@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4.36.3
       with:
         sarif_file: scorecard.sarif
         category: scorecard
