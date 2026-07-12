@@ -21,6 +21,35 @@ _(no entries yet)_
 
 ---
 
+## [0.1.3] - 2026-07-11
+
+### Maintenance release focused on supply-chain hardening. No user-facing feature changes; the Windows EXE built from this tag is functionally identical to `0.1.2` and only differs in the hardened CI + dependency posture that produced it.
+
+### Changed
+
+- **Renovate cooldown bumped from 7 days to 14 days across all package rules.** Rationale is documented in the file header of `.github/renovate.json5`: this project ships as a signed PyInstaller EXE to end users, so the supply-chain threat model outweighs the CVE-patch-latency concern (no live service under attack). A two-week observation window catches typical time-to-postmortem for a bad release before a hijacked package can be merged into main. `vulnerabilityAlerts.minimumReleaseAge` deliberately matches the base cooldown - shortening the security override would widen the window in which a malicious release masquerading as a CVE patch could slip in and land inside the signed EXE. The `yt-dlp/yt-dlp` engine cooldown was bumped from 5 to 7 days (still shorter than the base because upstream ships almost daily and extractor breakage is the most visible user-facing regression).
+- **Pip is now version-pinned in every workflow.** All five `python -m pip install --upgrade pip` sites across `.github/workflows/build.yml` (Tests + Windows Build) and `.github/workflows/release.yml` (Tests + Windows Build + Linux Build) now use `pip==26.1.2` instead of the bare upgrade. Fixes Scorecard's `PinnedDependenciesID` regression source and gives Renovate something concrete to update on a schedule.
+- **PyInstaller is now version-pinned in the Linux release build.** Replaced the bare `pip install pyinstaller` in `.github/workflows/release.yml` with `pip install pyinstaller==6.21.0`. The Windows build path continues to pull PyInstaller through `pip install -e .[build]` for now; a follow-up PR will refactor the `.[dev]` / `.[build]` editable-install sites to `pip install --no-deps -e .` plus explicit hash-pinned tool installs once the runtime lockfile has been regenerated to include the dev + build extras.
+
+### Fixed
+
+- **`.github/renovate.json5` schema-validation warning cleared.** The `vulnerabilityAlerts` block used to include `"prPriority": 10`, which Renovate's schema only permits inside `packageRules`. The property was silently ignored at runtime, but every scheduled Renovate run reported "Repository Problems / Found renovate config warnings" on the Dependency Dashboard. Removed. `npx --package=renovate -- renovate-config-validator .github/renovate.json5` now reports `Config validated successfully`.
+
+### Added
+
+- **New Renovate custom manager** for the pinned pip version. Regex-tracks `pip install --upgrade pip==X.Y.Z` occurrences in `.github/workflows/*.yml` and bumps them via the standard PyPI datasource under the 14-day cooldown, so the pin does not silently rot.
+
+### Security
+
+- The msgpack `1.1.2 -> 1.2.1` bump for **GHSA-6v7p-g79w-8964** (Out-of-bounds read / crash on Unpacker reuse after a caught exception, upstream advisory rated High) landed via Dependabot PR #24 alongside this release.
+
+### Notes for maintainer
+
+- The `pip install -e .[dev]` and `pip install -e .[build]` editable-install sites still exist and are still flagged by Scorecard's `PinnedDependenciesID` rule. The rewrite pattern is documented in the follow-up PR: (a) regenerate `requirements/lock.txt` with the `[dev]` and `[build]` optional-dependencies included, (b) change each site to `pip install --no-deps -e .` (project only, no transitive re-install), (c) add explicit `pip install <tool>==<pin>` lines for anything the removed extras used to pull that isn't already in the lockfile. Deferred out of `0.1.3` to keep the release surface tight; the current Scorecard alerts for these sites have been dismissed with a follow-up-PR-tracked rationale.
+- Follow-up items already scheduled: refactor the `-e .[extras]` sites (see above), regenerate `requirements/lock.txt` to cover dev+build extras, revisit branch protection for `main` (the "no merge commits" rule flagged an ancestor-of-main squash commit on this branch's push and required a bypass - either loosen the rule or accept bypasses on release branches).
+
+---
+
 ## [0.1.2] - 2026-06-12
 
 ### Added
