@@ -36,10 +36,15 @@ jobs:
     steps:
     - name: Harden runner
       # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
-      # CodeQL needs two non-obvious endpoints beyond the baseline: ghcr.io
-      # and pkg-containers.githubusercontent.com — the `security-extended`
-      # query pack is delivered as an OCI artifact from GitHub Container
-      # Registry. Drop those two if `queries:` is ever removed.
+      # CodeQL needs non-obvious endpoints beyond the baseline:
+      #   - ghcr.io + pkg-containers.githubusercontent.com — the
+      #     `security-extended` query pack is delivered as an OCI artifact from
+      #     GitHub Container Registry. Drop these two if `queries:` is removed.
+      #   - release-assets.githubusercontent.com — the CodeQL CLI bundle
+      #     (codeql-bundle-*.tar.zst) is a GitHub Release asset, and GitHub now
+      #     redirects release-asset downloads to this host (previously
+      #     objects.githubusercontent.com). Without it the "Initialize CodeQL"
+      #     step fails at bundle download with ECONNREFUSED.
       uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: block
@@ -52,6 +57,7 @@ jobs:
           objects.githubusercontent.com:443
           pkg-containers.githubusercontent.com:443
           raw.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
           results-receiver.actions.githubusercontent.com:443
           *.blob.core.windows.net:443
 
