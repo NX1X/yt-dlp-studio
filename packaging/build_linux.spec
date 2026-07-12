@@ -6,8 +6,13 @@
 # Output: dist/yt-dlp-studio
 #
 # Note: Linux build does NOT bundle FFmpeg or Deno.
-# Users must install FFmpeg via their package manager (e.g., apt install ffmpeg).
-# Deno is optional (for YouTube JS challenges).
+# Users must install FFmpeg via their package manager (apt/dnf/pacman/zypper/...).
+# Deno is optional (for YouTube JS challenges) and auto-downloads on first run.
+#
+# Portability: the shipped binary's glibc floor is the build host's glibc, so
+# CI builds this on ubuntu-22.04 (glibc 2.35), not ubuntu-latest. It also relies
+# on the standard Qt runtime libraries provided by any desktop environment
+# (libglib-2.0, libGL, fontconfig); these are not bundled.
 #
 
 import os
@@ -139,8 +144,22 @@ a = Analysis(
         'tarfile',
         'subprocess',
         'sched',
+        # Concurrency. yt-dlp's fragment downloader imports concurrent.futures;
+        # the vendored engine is bundled as `datas` (not analysed for imports),
+        # so these must be listed explicitly or the binary fails at run time
+        # with "No module named 'concurrent'" (it happened to be pulled in
+        # transitively on 3.11 but not on 3.10). Mirrors packaging/build.spec.
+        'asyncio',
+        'concurrent',
+        'concurrent.futures',
         'requests',
         'packaging',
+        # yt-dlp-ejs: the external JavaScript solver yt-dlp uses to pass
+        # YouTube's JS challenges. Without it bundled, YouTube extraction on the
+        # frozen Linux build silently loses formats / hits challenges.
+        'yt_dlp_ejs',
+        'yt_dlp_ejs.yt',
+        'yt_dlp_ejs.yt.solver',
     ],
     hookspath=[str(Path(SPECPATH))],
     hooksconfig={},

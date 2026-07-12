@@ -80,12 +80,41 @@ if command -v gtk-update-icon-cache >/dev/null 2>&1; then
     gtk-update-icon-cache -f -t "${ICONS_DIR}" >/dev/null 2>&1 || true
 fi
 
+# Distro-agnostic FFmpeg install hint: pick the command for whichever package
+# manager this system actually has, so the guidance is correct on Debian/Ubuntu,
+# Fedora/RHEL, Arch, openSUSE, Alpine, etc. - not just apt-based distros.
+ffmpeg_install_hint() {
+    if command -v apt-get >/dev/null 2>&1; then
+        echo "sudo apt install ffmpeg"
+    elif command -v dnf >/dev/null 2>&1; then
+        echo "sudo dnf install ffmpeg   # may need RPM Fusion enabled"
+    elif command -v yum >/dev/null 2>&1; then
+        echo "sudo yum install ffmpeg   # may need RPM Fusion/EPEL enabled"
+    elif command -v pacman >/dev/null 2>&1; then
+        echo "sudo pacman -S ffmpeg"
+    elif command -v zypper >/dev/null 2>&1; then
+        echo "sudo zypper install ffmpeg"
+    elif command -v apk >/dev/null 2>&1; then
+        echo "sudo apk add ffmpeg"
+    elif command -v xbps-install >/dev/null 2>&1; then
+        echo "sudo xbps-install -S ffmpeg"
+    elif command -v eopkg >/dev/null 2>&1; then
+        echo "sudo eopkg install ffmpeg"
+    else
+        echo "install 'ffmpeg' with your distribution's package manager"
+    fi
+}
+
 echo ""
 echo "${APP_NAME} installed successfully."
 echo "Launch it from your application menu, or run: ${APP_ID}"
 echo ""
 echo "Requirements:"
-echo "  - FFmpeg (required):   sudo apt install ffmpeg"
+if command -v ffmpeg >/dev/null 2>&1; then
+    echo "  - FFmpeg:   found ($(command -v ffmpeg))"
+else
+    echo "  - FFmpeg (required, not found):   $(ffmpeg_install_hint)"
+fi
 echo "  - Deno (optional):     auto-downloaded on first run, or install from https://deno.land"
 echo ""
 if ! printf '%s' ":${PATH}:" | grep -q ":${BIN_DIR}:"; then

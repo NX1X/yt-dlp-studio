@@ -87,10 +87,10 @@ class MainWindow(QMainWindow):
 
         if config.last_update_check:
             try:
-                from datetime import UTC, datetime
+                from datetime import datetime, timezone
 
                 last = datetime.fromisoformat(config.last_update_check)
-                if (datetime.now(UTC) - last).total_seconds() < 24 * 3600:
+                if (datetime.now(timezone.utc) - last).total_seconds() < 24 * 3600:
                     logger.debug("Skipping startup update check (checked within 24h)")
                     return
             except ValueError:
@@ -105,13 +105,13 @@ class MainWindow(QMainWindow):
 
     def _on_startup_update_check(self, result) -> None:
         """Surface the update dialog only for a new, non-skipped release."""
-        from datetime import UTC, datetime
+        from datetime import datetime, timezone
 
         if result.error:
             logger.info(f"Startup update check failed silently: {result.error}")
             return
 
-        self.config_manager.update_config(last_update_check=datetime.now(UTC).isoformat())
+        self.config_manager.update_config(last_update_check=datetime.now(timezone.utc).isoformat())
 
         if not (result.update_available and result.release_info):
             return

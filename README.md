@@ -67,8 +67,9 @@ See the [Getting Started guide](docs/GETTING_STARTED.md) for how to use each fea
 
 ## 🚀 Quick Start
 
-**Requirements:** Windows 10/11, or Linux 64-bit (glibc 2.31+, tested on Ubuntu
-22.04+). Python 3.10+ only if running from source.
+**Requirements:** Windows 10/11, or 64-bit Linux with glibc 2.35+ (Ubuntu
+22.04+, Debian 12+, Fedora 36+, Linux Mint 21+, Arch, and most 2022-and-later
+distributions). Python 3.10+ only if running from source.
 
 ### Option 1: Standalone executable (no Python)
 
@@ -77,9 +78,18 @@ See the [Getting Started guide](docs/GETTING_STARTED.md) for how to use each fea
 1. Download the latest `yt-dlp-studio-<version>-Windows.zip` from [Releases](https://github.com/NX1X/yt-dlp-studio/releases)
 2. Extract and run `yt-dlp-studio.exe` (FFmpeg and Deno are bundled)
 
-**Linux (Ubuntu)**
+**Linux** (works on any glibc 2.35+ distribution, not just Ubuntu)
 
-1. Install FFmpeg: `sudo apt install ffmpeg`
+1. Install FFmpeg with your distro's package manager:
+
+   | Distro | Command |
+   |--------|---------|
+   | Debian / Ubuntu / Mint | `sudo apt install ffmpeg` |
+   | Fedora / RHEL | `sudo dnf install ffmpeg` (may need RPM Fusion) |
+   | Arch / Manjaro | `sudo pacman -S ffmpeg` |
+   | openSUSE | `sudo zypper install ffmpeg` |
+   | Alpine | `sudo apk add ffmpeg` |
+
 2. Download the latest `yt-dlp-studio-<version>-Linux.tar.gz` from [Releases](https://github.com/NX1X/yt-dlp-studio/releases)
 3. Extract it, then add it to your application menu:
 
@@ -88,10 +98,11 @@ See the [Getting Started guide](docs/GETTING_STARTED.md) for how to use each fea
    ./install.sh          # installs to ~/.local, no root needed
    ```
 
-   Launch it from your app menu, or run `yt-dlp-studio`. To remove it later,
-   run `./uninstall.sh`. You can also run the binary directly without
-   installing: `chmod +x yt-dlp-studio && ./yt-dlp-studio`. Deno is downloaded
-   automatically on first run.
+   `install.sh` works on any desktop that follows the XDG spec (GNOME, KDE,
+   XFCE, Cinnamon, ...). Launch it from your app menu, or run `yt-dlp-studio`.
+   To remove it later, run `./uninstall.sh`. You can also run the binary
+   directly without installing: `chmod +x yt-dlp-studio && ./yt-dlp-studio`.
+   Deno is downloaded automatically on first run.
 
 ### Option 2: Run from source
 
@@ -102,7 +113,8 @@ pip install -e .
 python launcher.py
 ```
 
-On Linux, install FFmpeg first (`sudo apt install ffmpeg`).
+On Linux, install FFmpeg first with your package manager (e.g.
+`sudo apt install ffmpeg`, `sudo dnf install ffmpeg`, or `sudo pacman -S ffmpeg`).
 
 Full details: [Installation Guide](docs/INSTALLATION_GUIDE.md) ·
 [Getting Started](docs/GETTING_STARTED.md)

@@ -383,7 +383,12 @@ jobs:
     name: Build Linux Executable
     needs: [check-version, test]
     if: needs.check-version.outputs.should_release == 'true'
-    runs-on: ubuntu-latest
+    # Pinned to ubuntu-22.04 (glibc 2.35), NOT ubuntu-latest. The shipped
+    # PyInstaller binary cannot run on a glibc older than the build host's, so
+    # building on 24.04 (glibc 2.39) would lock users out of most pre-2024
+    # distros. 22.04's 2.35 covers Ubuntu 22.04+, Debian 12+, Fedora 36+, and
+    # most 2022-and-later distributions. Keep in lockstep with build.yml.
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
       id-token: write       # OIDC token for Sigstore signing
@@ -430,7 +435,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libegl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0
+        sudo apt-get install -y libegl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0 libglib2.0-0 libgl1 libfontconfig1
 
     - name: Install Python dependencies
       # `pip install pyinstaller` used to be bare; Scorecard's
@@ -463,6 +468,34 @@ jobs:
         fi
         ls -lh dist/yt-dlp-studio
         chmod +x dist/yt-dlp-studio
+
+    - name: Smoke-test the binary (headless launch)
+      # Runtime-test the frozen binary before attesting/publishing it: launch it
+      # under the offscreen Qt platform, wait for the "started successfully"
+      # milestone (logged after the main window is shown), then stop it. The
+      # frozen app skips the Deno download (sys.frozen), so this needs no
+      # network. A broken bundle that still produces a file fails here instead
+      # of shipping to users.
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        ./dist/yt-dlp-studio > smoke.log 2>&1 &
+        APP_PID=$!
+        ok=0
+        for _ in $(seq 1 30); do
+          if grep -q "started successfully" smoke.log 2>/dev/null; then ok=1; break; fi
+          if ! kill -0 "$APP_PID" 2>/dev/null; then break; fi
+          sleep 1
+        done
+        kill "$APP_PID" 2>/dev/null || true
+        wait "$APP_PID" 2>/dev/null || true
+        echo "----- smoke.log -----"
+        cat smoke.log || true
+        if [ "$ok" -ne 1 ]; then
+          echo "Smoke test FAILED: app did not reach 'started successfully'."
+          exit 1
+        fi
+        echo "Smoke test passed: the frozen binary launched and initialized."
 
     - name: Generate build provenance attestation
       # Sigstore-signed SLSA provenance binding the binary's SHA-256 to this
@@ -511,8 +544,14 @@ jobs:
         Run: ./uninstall.sh
 
         REQUIREMENTS
-        - Linux (64-bit, glibc 2.31+); tested on Ubuntu 22.04+
-        - FFmpeg must be installed: sudo apt install ffmpeg
+        - 64-bit Linux, glibc 2.35+ (Ubuntu 22.04+, Debian 12+, Fedora 36+,
+          Mint 21+, Arch, and most 2022-and-later distributions).
+        - A desktop environment (GNOME/KDE/XFCE/...) - provides the standard
+          Qt runtime libraries (libglib, libGL, fontconfig). Minimal/server
+          installs may need these installed via your package manager.
+        - FFmpeg must be installed. install.sh prints the right command for
+          your package manager; e.g. Debian/Ubuntu: sudo apt install ffmpeg,
+          Fedora: sudo dnf install ffmpeg, Arch: sudo pacman -S ffmpeg.
         - Deno (optional): auto-downloaded on first run, or install from
           https://deno.land
 

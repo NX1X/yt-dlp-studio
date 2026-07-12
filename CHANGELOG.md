@@ -46,6 +46,11 @@ Deno on first run.
   job that builds the PyInstaller Linux binary on every PR and push to
   `main`/`dev`, mirroring the existing Windows build so Linux-only bundle
   regressions surface before merge.
+- **Runtime smoke-test of the Linux binary in CI.** Both the CI and release
+  Linux builds now launch the frozen binary headless (offscreen Qt) and assert
+  it reaches the "started successfully" milestone before uploading/publishing.
+  This runtime-tests the bundle - catching missing hidden imports and Qt/plugin
+  gaps that a build-only check misses.
 
 ### Changed
 
@@ -54,6 +59,14 @@ Deno on first run.
   enabled, produces a Sigstore-signed SLSA provenance attestation (matching the
   Windows job), packages the full desktop bundle, and is wired into
   `create-release` so the Linux `.tar.gz` is attached to every GitHub Release.
+- **Wide Linux distribution support, not just Debian/Ubuntu.** The Linux binary
+  is now built on `ubuntu-22.04` (glibc 2.35) instead of `ubuntu-latest` (24.04,
+  glibc 2.39). A PyInstaller binary cannot run on a glibc older than its build
+  host's, so this lowers the compatibility floor to cover Ubuntu 22.04+,
+  Debian 12+, Fedora 36+, Linux Mint 21+, Arch, and most 2022-and-later
+  distributions. `install.sh` now detects the system package manager
+  (apt/dnf/pacman/zypper/apk/...) and prints the correct FFmpeg install command,
+  and the docs list per-distro instructions.
 - **FFmpeg and Deno lookup is now platform-aware.** `yt_dlp_wrapper` resolves
   `ffmpeg`/`deno` (no `.exe`) on Linux/macOS and finds the auto-installed Deno
   binary in the project-local `deno/` folder on every platform.
@@ -72,6 +85,34 @@ Deno on first run.
   run-from-source branch; on a frozen Linux build (which does not bundle Deno)
   the lookup could reference an undefined name. The project root is now resolved
   unconditionally.
+- **Missing hidden imports in the Linux PyInstaller spec.** `build_linux.spec`
+  was missing `concurrent` / `concurrent.futures` (yt-dlp's fragment downloader)
+  and the `yt_dlp_ejs` JS-challenge solver that `build.spec` (Windows) already
+  listed. Because the vendored engine is bundled as data (not analysed for
+  imports), these were dropped from the Linux binary - it happened to work on
+  Python 3.11 (pulled in transitively) but failed with
+  `ModuleNotFoundError: No module named 'concurrent'` on 3.10, and YouTube JS
+  challenges could silently lose formats without the solver. Both are now listed
+  explicitly. Surfaced by the new runtime smoke-test.
+- **Restored Python 3.10 support (run-from-source).** The code imported
+  `datetime.UTC`, which only exists on Python 3.11+, despite
+  `requires-python = ">=3.10"` and a 3.10 classifier - so running from source on
+  Python 3.10 (e.g. stock Ubuntu 22.04, whose system Python is 3.10) crashed at
+  import. Switched to `datetime.timezone.utc` (works on 3.2+) across
+  `main_window`, `settings_tab`, `crash_handler`, and `scripts/sync_version.py`,
+  and set the ruff/black `target-version` to `py310` so 3.11-only idioms can't
+  slip back in.
+- **`test_queue_tab.py` is no longer flaky / excluded from CI.** It asserted
+  English UI strings but never pinned the language, so the translation
+  singleton's state (mutated by other test modules) or the CI runner's locale
+  could render the labels in Hebrew and fail 6 assertions. It now forces English
+  in a fixture, so the full suite runs deterministically under any locale; the
+  `--ignore=tests/test_queue_tab.py` exclusion has been removed.
+- **CodeQL and the Scorecard/Security workflow egress.** Added
+  `release-assets.githubusercontent.com` to the CodeQL harden-runner allowlist -
+  GitHub moved release-asset downloads (the CodeQL CLI bundle) to that host, and
+  block-mode egress was refusing it, failing "Initialize CodeQL" with
+  ECONNREFUSED.
 
 ---
 

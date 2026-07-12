@@ -268,11 +268,12 @@ jobs:
         if: steps.resolve.outputs.skip != 'true'
         # pytest / pytest-qt / pytest-cov are installed by the `[dev]` extra
         # in the previous step; no further unhashed install needed here.
-        # test_queue_tab is locale-sensitive and may flake on a fresh
-        # config; the bump workflow should not be blocked by it.
+        # test_queue_tab used to be excluded here because it was locale-
+        # sensitive; it now pins the UI language to English internally, so the
+        # full suite runs.
         run: |
           set -euo pipefail
-          python -m pytest tests/ --ignore=tests/test_queue_tab.py -q
+          python -m pytest tests/ -q
 
       - name: Create PR
         if: steps.resolve.outputs.skip != 'true'

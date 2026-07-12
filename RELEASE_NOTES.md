@@ -35,13 +35,17 @@ See [CHANGELOG.md](CHANGELOG.md) for the full list, including the frozen-build `
 ### Windows
 Download `yt-dlp-studio-<version>-Windows.zip` from the [Releases page](https://github.com/NX1X/yt-dlp-studio/releases), extract, and run `yt-dlp-studio.exe`. FFmpeg and Deno are bundled - no dependencies.
 
-### Linux (Ubuntu)
+### Linux (any glibc 2.35+ distro, not just Ubuntu)
 ```bash
-sudo apt install ffmpeg                      # required
+# Install FFmpeg with your package manager (required):
+#   Debian/Ubuntu: sudo apt install ffmpeg
+#   Fedora/RHEL:   sudo dnf install ffmpeg
+#   Arch:          sudo pacman -S ffmpeg
+#   openSUSE:      sudo zypper install ffmpeg
 tar -xzf yt-dlp-studio-*-Linux.tar.gz
 ./install.sh                                 # installs to ~/.local, no root
 ```
-Then launch from your app menu or run `yt-dlp-studio`. Deno is downloaded automatically on first run. Run `./uninstall.sh` to remove it.
+Then launch from your app menu or run `yt-dlp-studio`. `install.sh` prints the right FFmpeg command for your package manager if it's missing. Deno is downloaded automatically on first run. Run `./uninstall.sh` to remove it.
 
 ### From source (developers)
 ```bash
@@ -56,7 +60,7 @@ Requires Python 3.10+. On Linux, install FFmpeg first (`sudo apt install ffmpeg`
 
 ## System Requirements
 
-- **OS:** Windows 10/11 (64-bit), or Linux 64-bit with glibc 2.31+ (tested on Ubuntu 22.04+)
+- **OS:** Windows 10/11 (64-bit), or 64-bit Linux with glibc 2.35+ (Ubuntu 22.04+, Debian 12+, Fedora 36+, Mint 21+, Arch, and most 2022-and-later distributions)
 - **RAM:** 512 MB minimum, 2 GB recommended
 - **Disk:** 200 MB for the app + space for downloads
 - **Internet:** Required for downloads
