@@ -67,13 +67,31 @@ See the [Getting Started guide](docs/GETTING_STARTED.md) for how to use each fea
 
 ## 🚀 Quick Start
 
-**Requirements:** Windows 10/11 (Linux support in progress). Python 3.10+ only if
-running from source.
+**Requirements:** Windows 10/11, or Linux 64-bit (glibc 2.31+, tested on Ubuntu
+22.04+). Python 3.10+ only if running from source.
 
 ### Option 1: Standalone executable (no Python)
 
-1. Download the latest `YT-DLP-Studio-Windows.zip` from [Releases](https://github.com/NX1X/yt-dlp-studio/releases)
-2. Extract and run `yt-dlp-studio.exe`
+**Windows**
+
+1. Download the latest `yt-dlp-studio-<version>-Windows.zip` from [Releases](https://github.com/NX1X/yt-dlp-studio/releases)
+2. Extract and run `yt-dlp-studio.exe` (FFmpeg and Deno are bundled)
+
+**Linux (Ubuntu)**
+
+1. Install FFmpeg: `sudo apt install ffmpeg`
+2. Download the latest `yt-dlp-studio-<version>-Linux.tar.gz` from [Releases](https://github.com/NX1X/yt-dlp-studio/releases)
+3. Extract it, then add it to your application menu:
+
+   ```bash
+   tar -xzf yt-dlp-studio-*-Linux.tar.gz
+   ./install.sh          # installs to ~/.local, no root needed
+   ```
+
+   Launch it from your app menu, or run `yt-dlp-studio`. To remove it later,
+   run `./uninstall.sh`. You can also run the binary directly without
+   installing: `chmod +x yt-dlp-studio && ./yt-dlp-studio`. Deno is downloaded
+   automatically on first run.
 
 ### Option 2: Run from source
 
@@ -83,6 +101,8 @@ cd yt-dlp-studio
 pip install -e .
 python launcher.py
 ```
+
+On Linux, install FFmpeg first (`sudo apt install ffmpeg`).
 
 Full details: [Installation Guide](docs/INSTALLATION_GUIDE.md) ·
 [Getting Started](docs/GETTING_STARTED.md)
@@ -178,8 +198,8 @@ notices.
 
 **Is it safe?** All downloads go through yt-dlp, which is trusted by millions.
 
-**Does it work on macOS?** Not currently. Windows 10/11 now, Linux in progress,
-macOS possibly later.
+**Does it work on macOS?** Not currently. Windows 10/11 and Linux (Ubuntu
+22.04+) are supported; macOS possibly later.
 
 **Why is the exe so large (~100MB)?** It bundles Python, PySide6, and yt-dlp so
 it runs with no installation.

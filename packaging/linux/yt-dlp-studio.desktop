@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=YT-DLP Studio
+GenericName=Video Downloader
+Comment=A user-friendly GUI for yt-dlp - download videos and audio from YouTube and 1000+ sites
+Exec=yt-dlp-studio %U
+Icon=yt-dlp-studio
+Terminal=false
+Categories=AudioVideo;Video;Network;Utility;
+Keywords=youtube;video;download;yt-dlp;audio;converter;
+StartupNotify=true
+StartupWMClass=yt-dlp-studio

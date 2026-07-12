@@ -21,6 +21,60 @@ _(no entries yet)_
 
 ---
 
+## [0.2.0] - 2026-07-11
+
+### Linux (Ubuntu) desktop support
+
+First release with an officially built and published Linux desktop package,
+alongside the existing Windows EXE. The Linux build is a self-contained
+PyInstaller binary that relies on a system-installed FFmpeg and auto-downloads
+Deno on first run.
+
+### Added
+
+- **Linux desktop integration package.** The Linux release archive
+  (`yt-dlp-studio-<version>-Linux.tar.gz`) now ships an `install.sh` /
+  `uninstall.sh` pair plus hicolor icons (32-256px) and a `.desktop` launcher
+  (`packaging/linux/`). `install.sh` installs the executable, icons, and
+  launcher into the per-user XDG locations (`~/.local/bin`,
+  `~/.local/share/icons/hicolor`, `~/.local/share/applications`) with no root
+  required, so YT-DLP Studio appears in the Ubuntu application menu / dock.
+- **PNG application icon** rendered from the source SVG and bundled at
+  `src/resources/icons/favicon.png` so the window icon renders reliably in a
+  frozen build even without the Qt SVG image plugin.
+- **Linux build in CI.** `.github/workflows/build.yml` now has a `build-linux`
+  job that builds the PyInstaller Linux binary on every PR and push to
+  `main`/`dev`, mirroring the existing Windows build so Linux-only bundle
+  regressions surface before merge.
+
+### Changed
+
+- **The release pipeline now builds and publishes the Linux artifact.** The
+  previously-disabled `build-linux` job in `.github/workflows/release.yml` is
+  enabled, produces a Sigstore-signed SLSA provenance attestation (matching the
+  Windows job), packages the full desktop bundle, and is wired into
+  `create-release` so the Linux `.tar.gz` is attached to every GitHub Release.
+- **FFmpeg and Deno lookup is now platform-aware.** `yt_dlp_wrapper` resolves
+  `ffmpeg`/`deno` (no `.exe`) on Linux/macOS and finds the auto-installed Deno
+  binary in the project-local `deno/` folder on every platform.
+- **The in-app updater is Linux-aware.** On Linux it selects the Linux archive
+  asset (never a Windows `.exe`), names the download with the correct
+  extension, and - since a `.tar.gz` is not a self-running installer - reveals
+  the downloaded archive in the file manager instead of trying to execute it.
+- On Linux the app sets its Qt desktop file name (`yt-dlp-studio`) so
+  GNOME/Wayland associates the window with the installed launcher and shows the
+  correct dock icon.
+
+### Fixed
+
+- **`NameError` on a frozen Linux build when Deno was absent.** The module-level
+  project-root path used by the Deno lookup was only defined in the
+  run-from-source branch; on a frozen Linux build (which does not bundle Deno)
+  the lookup could reference an undefined name. The project root is now resolved
+  unconditionally.
+
+---
+
 ## [0.1.3] - 2026-07-11
 
 ### Maintenance release focused on supply-chain hardening. No user-facing feature changes; the Windows EXE built from this tag is functionally identical to `0.1.2` and only differs in the hardened CI + dependency posture that produced it.

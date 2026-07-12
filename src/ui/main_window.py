@@ -135,12 +135,17 @@ class MainWindow(QMainWindow):
         # Set minimum size
         self.setMinimumSize(QSize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT))
 
-        # Set application icon
+        # Set application icon. Prefer the PNG (renders without the Qt SVG
+        # image plugin, which a frozen Linux build may not bundle), then fall
+        # back to the SVG for the crisp vector when running from source.
         import os
 
-        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "resources", "icons", "favicon.svg")
-        if os.path.exists(icon_path):
-            self.setWindowIcon(QIcon(icon_path))
+        icons_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "resources", "icons")
+        for icon_name in ("favicon.png", "favicon.svg", "favicon.ico"):
+            icon_path = os.path.join(icons_dir, icon_name)
+            if os.path.exists(icon_path):
+                self.setWindowIcon(QIcon(icon_path))
+                break
 
         # Create central tab widget
         self.tabs = QTabWidget()
