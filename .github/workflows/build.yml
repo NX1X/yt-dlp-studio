@@ -40,12 +40,12 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # no job here pushes via git
 
     - name: Set up Python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
         python-version: '3.11'
 
@@ -93,12 +93,12 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # no job here pushes via git
 
     - name: Set up Python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
         python-version: '3.11'
 
@@ -204,12 +204,12 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # no job here pushes via git
 
     - name: Set up Python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
         python-version: '3.11'
 
@@ -320,7 +320,7 @@ jobs:
       # Produces a Sigstore-signed SLSA provenance statement binding the
       # exe's SHA-256 to this workflow file at this commit on this runner.
       # Verify with: gh attestation verify dist/yt-dlp-studio.exe --owner <owner>
-      uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+      uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
       with:
         subject-path: 'dist/yt-dlp-studio.exe'
 
@@ -337,3 +337,128 @@ jobs:
         Write-Host "Executable location: dist/yt-dlp-studio.exe"
         $fileSize = (Get-Item "dist/yt-dlp-studio.exe").Length / 1MB
         Write-Host "File size: $([math]::Round($fileSize, 2)) MB"
+
+  build-linux:
+    name: Build Linux Executable
+    needs: [lint, test]
+    # Pinned to ubuntu-22.04 (glibc 2.35), NOT ubuntu-latest. A PyInstaller
+    # binary only runs on a glibc at least as new as the build host's, so the
+    # build-host glibc IS the compatibility floor for the shipped binary.
+    # ubuntu-latest is 24.04 (glibc 2.39), which would refuse to start on most
+    # distributions older than ~2024. 22.04's 2.35 covers Ubuntu 22.04+,
+    # Debian 12+, Fedora 36+, Mint 21+, and most 2022-and-later distros.
+    # Keep this in lockstep with the build-linux job in release.yml.
+    runs-on: ubuntu-22.04
+    # Same rationale as build-windows: catch PyInstaller-only regressions
+    # (missing hidden imports, broken bundle paths, vendored-engine path math
+    # that only matters under _MEIPASS) on the Linux target in the PR, not
+    # after merge. PR builds upload an artifact for manual smoke testing but
+    # are NOT promoted to releases.
+    if: >
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/dev'
+    permissions:
+      contents: read
+    steps:
+    - name: Harden runner
+      # See lint job for rationale. Linux runner uses apt (EGL/dbus libs for
+      # the PySide6 offscreen import), so disable-sudo MUST be false. Mirrors
+      # the test job's Linux allowlist plus PyInstaller wheel fetches.
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: block
+        disable-sudo: false                # Linux leg runs `sudo apt-get`
+        allowed-endpoints: >
+          api.github.com:443
+          azure.archive.ubuntu.com:80
+          codeload.github.com:443
+          esm.ubuntu.com:443
+          files.pythonhosted.org:443
+          github.com:443
+          objects.githubusercontent.com:443
+          packages.microsoft.com:443
+          pypi.org:443
+          raw.githubusercontent.com:443
+          results-receiver.actions.githubusercontent.com:443
+          security.ubuntu.com:80
+          *.blob.core.windows.net:443
+
+    - name: Checkout code
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      with:
+        persist-credentials: false   # no job here pushes via git
+
+    - name: Set up Python
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      with:
+        python-version: '3.11'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libegl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0 libglib2.0-0 libgl1 libfontconfig1
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip==26.1.2
+        pip install --require-hashes -r requirements/lock.txt
+        pip install -e .[build]
+
+    - name: Sync version metadata
+      run: python scripts/sync_version.py
+
+    - name: Build executable
+      run: pyinstaller packaging/build_linux.spec
+      env:
+        QT_QPA_PLATFORM: offscreen
+
+    - name: Verify build
+      run: |
+        if [ ! -f "dist/yt-dlp-studio" ]; then
+          echo "Build failed: dist/yt-dlp-studio not found!"
+          exit 1
+        fi
+        chmod +x dist/yt-dlp-studio
+        ls -lh dist/yt-dlp-studio
+
+    - name: Smoke-test the binary (headless launch)
+      # Runtime-test the frozen binary, not just that it built: launch it under
+      # the offscreen Qt platform, wait for it to reach the "started
+      # successfully" milestone (logged after the main window is shown), then
+      # stop it. The frozen app skips the Deno download (sys.frozen), so this
+      # needs no network. Catches missing hidden imports / broken bundle paths
+      # / Qt plugin gaps that only surface at run time.
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        ./dist/yt-dlp-studio > smoke.log 2>&1 &
+        APP_PID=$!
+        ok=0
+        for _ in $(seq 1 30); do
+          if grep -q "started successfully" smoke.log 2>/dev/null; then ok=1; break; fi
+          if ! kill -0 "$APP_PID" 2>/dev/null; then break; fi
+          sleep 1
+        done
+        kill "$APP_PID" 2>/dev/null || true
+        wait "$APP_PID" 2>/dev/null || true
+        echo "----- smoke.log -----"
+        cat smoke.log || true
+        if [ "$ok" -ne 1 ]; then
+          echo "Smoke test FAILED: app did not reach 'started successfully'."
+          exit 1
+        fi
+        echo "Smoke test passed: the frozen binary launched and initialized."
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: YT-DLP-Studio-Linux
+        path: dist/yt-dlp-studio
+        retention-days: 7
+
+    - name: Display build info
+      run: |
+        echo "Build completed successfully!"
+        echo "Executable location: dist/yt-dlp-studio"
+        echo "File size: $(du -h dist/yt-dlp-studio | cut -f1)"

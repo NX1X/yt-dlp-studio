@@ -67,13 +67,42 @@ See the [Getting Started guide](docs/GETTING_STARTED.md) for how to use each fea
 
 ## 🚀 Quick Start
 
-**Requirements:** Windows 10/11 (Linux support in progress). Python 3.10+ only if
-running from source.
+**Requirements:** Windows 10/11, or 64-bit Linux with glibc 2.35+ (Ubuntu
+22.04+, Debian 12+, Fedora 36+, Linux Mint 21+, Arch, and most 2022-and-later
+distributions). Python 3.10+ only if running from source.
 
 ### Option 1: Standalone executable (no Python)
 
-1. Download the latest `YT-DLP-Studio-Windows.zip` from [Releases](https://github.com/NX1X/yt-dlp-studio/releases)
-2. Extract and run `yt-dlp-studio.exe`
+**Windows**
+
+1. Download the latest `yt-dlp-studio-<version>-Windows.zip` from [Releases](https://github.com/NX1X/yt-dlp-studio/releases)
+2. Extract and run `yt-dlp-studio.exe` (FFmpeg and Deno are bundled)
+
+**Linux** (works on any glibc 2.35+ distribution, not just Ubuntu)
+
+1. Install FFmpeg with your distro's package manager:
+
+   | Distro | Command |
+   |--------|---------|
+   | Debian / Ubuntu / Mint | `sudo apt install ffmpeg` |
+   | Fedora / RHEL | `sudo dnf install ffmpeg` (may need RPM Fusion) |
+   | Arch / Manjaro | `sudo pacman -S ffmpeg` |
+   | openSUSE | `sudo zypper install ffmpeg` |
+   | Alpine | `sudo apk add ffmpeg` |
+
+2. Download the latest `yt-dlp-studio-<version>-Linux.tar.gz` from [Releases](https://github.com/NX1X/yt-dlp-studio/releases)
+3. Extract it, then add it to your application menu:
+
+   ```bash
+   tar -xzf yt-dlp-studio-*-Linux.tar.gz
+   ./install.sh          # installs to ~/.local, no root needed
+   ```
+
+   `install.sh` works on any desktop that follows the XDG spec (GNOME, KDE,
+   XFCE, Cinnamon, ...). Launch it from your app menu, or run `yt-dlp-studio`.
+   To remove it later, run `./uninstall.sh`. You can also run the binary
+   directly without installing: `chmod +x yt-dlp-studio && ./yt-dlp-studio`.
+   Deno is downloaded automatically on first run.
 
 ### Option 2: Run from source
 
@@ -83,6 +112,9 @@ cd yt-dlp-studio
 pip install -e .
 python launcher.py
 ```
+
+On Linux, install FFmpeg first with your package manager (e.g.
+`sudo apt install ffmpeg`, `sudo dnf install ffmpeg`, or `sudo pacman -S ffmpeg`).
 
 Full details: [Installation Guide](docs/INSTALLATION_GUIDE.md) ·
 [Getting Started](docs/GETTING_STARTED.md)
@@ -178,8 +210,8 @@ notices.
 
 **Is it safe?** All downloads go through yt-dlp, which is trusted by millions.
 
-**Does it work on macOS?** Not currently. Windows 10/11 now, Linux in progress,
-macOS possibly later.
+**Does it work on macOS?** Not currently. Windows 10/11 and Linux (Ubuntu
+22.04+) are supported; macOS possibly later.
 
 **Why is the exe so large (~100MB)?** It bundles Python, PySide6, and yt-dlp so
 it runs with no installation.

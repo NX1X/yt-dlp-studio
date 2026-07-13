@@ -217,7 +217,16 @@ class UpdateDialog(QDialog):
         output_dir = Path.home() / "Downloads"
         output_dir.mkdir(exist_ok=True)
 
-        filename = f"YT-DLP-Studio-{self.release_info['version']}.exe"
+        # Prefer the real asset filename published on the release (keeps the
+        # correct extension - .exe on Windows, .tar.gz on Linux). Fall back to
+        # a platform-appropriate default only if the release omitted it.
+        asset_name = (self.release_info.get("asset_name") or "").strip()
+        if asset_name:
+            filename = asset_name
+        elif os.name == "nt":
+            filename = f"YT-DLP-Studio-{self.release_info['version']}.exe"
+        else:
+            filename = f"yt-dlp-studio-{self.release_info['version']}-Linux.tar.gz"
         output_path = output_dir / filename
 
         size_bytes = self.release_info.get("size", 0)
@@ -282,6 +291,27 @@ class UpdateDialog(QDialog):
         if result.success:
             self.status_label.setText(tr("text_download_verified"))
             logger.info(f"Update downloaded and verified: {result.file_path}")
+
+            if os.name != "nt":
+                # Linux: the asset is a .tar.gz archive, not a self-running
+                # installer. Reveal it in the file manager so the user can
+                # extract it and run install.sh; the running app is left open.
+                reply = QMessageBox.question(
+                    self,
+                    tr("dialog_download_complete_update"),
+                    tr("msg_download_verified_reveal", path=result.file_path),
+                    QMessageBox.Yes | QMessageBox.No,
+                )
+                if reply == QMessageBox.Yes:
+                    self._reveal_in_file_manager(result.file_path)
+                else:
+                    QMessageBox.information(
+                        self,
+                        tr("dialog_download_complete_update"),
+                        tr("msg_installer_saved", path=result.file_path),
+                    )
+                self.accept()
+                return
 
             reply = QMessageBox.question(
                 self,
@@ -359,4 +389,32 @@ class UpdateDialog(QDialog):
                 self,
                 tr("dialog_installer_error"),
                 tr("msg_installer_launch_failed", error=str(e), path=file_path),
+            )
+
+    def _reveal_in_file_manager(self, file_path: str):
+        """
+        Open the folder containing the downloaded archive (Linux/POSIX).
+
+        Uses ``xdg-open`` on the parent directory so the user can extract the
+        archive and run its install script. The app is NOT closed - unlike the
+        Windows installer flow, there is no executable to hand off to.
+
+        Args:
+            file_path: Path to the downloaded archive.
+        """
+        folder = str(Path(file_path).parent)
+        try:
+            subprocess.Popen(["xdg-open", folder])
+            logger.info(f"Opened download folder: {folder}")
+            QMessageBox.information(
+                self,
+                tr("dialog_download_complete_update"),
+                tr("msg_installer_saved", path=file_path),
+            )
+        except Exception as e:
+            logger.error(f"Failed to open download folder: {e}")
+            QMessageBox.information(
+                self,
+                tr("dialog_download_complete_update"),
+                tr("msg_installer_saved", path=file_path),
             )

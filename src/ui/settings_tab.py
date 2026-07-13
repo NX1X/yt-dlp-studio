@@ -4,7 +4,7 @@ Settings tab UI for YT-DLP Studio.
 Provides interface for configuring application settings.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
@@ -356,7 +356,7 @@ class SettingsTab(QWidget):
                 )
             return
 
-        self.config_manager.update_config(last_update_check=datetime.now(UTC).isoformat())
+        self.config_manager.update_config(last_update_check=datetime.now(timezone.utc).isoformat())
 
         if result.update_available and result.release_info:
             logger.info(f"Update available: {result.release_info['version']}")

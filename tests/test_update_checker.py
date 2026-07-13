@@ -80,7 +80,9 @@ class TestVersionCompare:
 
 
 class TestSelectAsset:
-    def test_prefers_exe_with_size_and_digest(self):
+    def test_prefers_exe_with_size_and_digest_on_windows(self, monkeypatch):
+        # Asset selection is platform-aware; force the Windows branch.
+        monkeypatch.setattr("src.backend.update_checker.os.name", "nt")
         c = UpdateChecker()
         data = {
             "assets": [
@@ -98,11 +100,41 @@ class TestSelectAsset:
         assert asset.size == 123
         assert asset.digest == "c" * 64
 
-    def test_falls_back_to_zip_then_first(self):
+    def test_falls_back_to_zip_then_first_on_windows(self, monkeypatch):
+        monkeypatch.setattr("src.backend.update_checker.os.name", "nt")
         c = UpdateChecker()
         assert c._select_asset({"assets": [{"name": "x.zip", "browser_download_url": "z"}]}).url == "z"
         assert c._select_asset({"assets": [{"name": "x.bin", "browser_download_url": "b"}]}).url == "b"
         assert c._select_asset({"assets": []}) is None
+
+    def test_prefers_linux_archive(self, monkeypatch):
+        # On Linux, the Linux archive is chosen and a Windows .exe is never
+        # selected even if it is the only "installer-looking" asset.
+        monkeypatch.setattr("src.backend.update_checker.os.name", "posix")
+        c = UpdateChecker()
+        data = {
+            "assets": [
+                {"name": "YT-DLP-Studio-Setup.exe", "browser_download_url": "u-exe", "size": 123},
+                {
+                    "name": "yt-dlp-studio-1.0.0-Linux.tar.gz",
+                    "browser_download_url": "u-linux",
+                    "size": 456,
+                    "digest": "sha256:" + "c" * 64,
+                },
+            ]
+        }
+        asset = c._select_asset(data)
+        assert asset.url == "u-linux"
+        assert asset.size == 456
+        assert asset.digest == "c" * 64
+
+    def test_never_selects_exe_on_linux(self, monkeypatch):
+        monkeypatch.setattr("src.backend.update_checker.os.name", "posix")
+        c = UpdateChecker()
+        # Only a Windows .exe is available -> nothing suitable for Linux.
+        assert c._select_asset({"assets": [{"name": "app.exe", "browser_download_url": "e"}]}) is None
+        # A generic archive is acceptable as a fallback.
+        assert c._select_asset({"assets": [{"name": "x.AppImage", "browser_download_url": "a"}]}).url == "a"
 
 
 class TestCheckForUpdates:
@@ -114,7 +146,8 @@ class TestCheckForUpdates:
         assert result.error == "rate_limited"
         assert result.update_available is False
 
-    def test_update_available_populates_size_and_digest(self):
+    def test_update_available_populates_size_and_digest(self, monkeypatch):
+        monkeypatch.setattr("src.backend.update_checker.os.name", "nt")
         c = UpdateChecker()
         c.current_version = "0.0.1"
         digest = "d" * 64
@@ -140,6 +173,7 @@ class TestCheckForUpdates:
         assert result.release_info["size"] == 999
         assert result.release_info["digest"] == digest
         assert result.release_info["download_url"] == "https://example/dl.exe"
+        assert result.release_info["asset_name"] == "YT-DLP-Studio.exe"
 
     def test_up_to_date(self):
         c = UpdateChecker()

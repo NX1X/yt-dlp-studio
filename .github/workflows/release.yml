@@ -39,7 +39,7 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         fetch-depth: 0
         persist-credentials: false   # only reads local tags, never pushes
@@ -126,12 +126,12 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # tests never push via git
 
     - name: Set up Python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
         python-version: '3.11'
 
@@ -206,12 +206,12 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # build only; attestation uses OIDC
 
     - name: Set up Python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
         python-version: '3.11'
 
@@ -331,7 +331,7 @@ jobs:
       # Produces a Sigstore-signed SLSA provenance statement binding the
       # exe's SHA-256 to this workflow file at this commit on this runner.
       # Verify with: gh attestation verify dist/yt-dlp-studio.exe --owner NX1X
-      uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+      uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
       with:
         subject-path: 'dist/yt-dlp-studio.exe'
 
@@ -380,19 +380,25 @@ jobs:
           YT-DLP Studio.exe
 
   build-linux:
-    name: Build Linux (disabled)
+    name: Build Linux Executable
     needs: [check-version, test]
-    if: false  # Disabled — Windows only for now. Re-enable when adding Linux support.
-    runs-on: ubuntu-latest
+    if: needs.check-version.outputs.should_release == 'true'
+    # Pinned to ubuntu-22.04 (glibc 2.35), NOT ubuntu-latest. The shipped
+    # PyInstaller binary cannot run on a glibc older than the build host's, so
+    # building on 24.04 (glibc 2.39) would lock users out of most pre-2024
+    # distros. 22.04's 2.35 covers Ubuntu 22.04+, Debian 12+, Fedora 36+, and
+    # most 2022-and-later distributions. Keep in lockstep with build.yml.
+    runs-on: ubuntu-22.04
     permissions:
-      contents: write
+      contents: read
+      id-token: write       # OIDC token for Sigstore signing
+      attestations: write   # Publish build provenance attestation
     steps:
     - name: Harden runner
       # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
-      # Job is currently `if: false` so this never runs, but the policy is
-      # in place so re-enabling Linux support does not silently regress the
-      # baseline. Mirrors the Linux test allowlist plus PyInstaller wheel
-      # fetches (no Sigstore yet — this job has no attestation step).
+      # Mirrors the Linux test allowlist plus PyInstaller wheel fetches and the
+      # Sigstore endpoints required by attest-build-provenance (incl. the often-
+      # missed sigstore.github.com). Kept in lockstep with build-windows.
       uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: block
@@ -403,29 +409,33 @@ jobs:
           codeload.github.com:443
           esm.ubuntu.com:443
           files.pythonhosted.org:443
+          fulcio.sigstore.dev:443
           github.com:443
           objects.githubusercontent.com:443
           packages.microsoft.com:443
           pypi.org:443
           raw.githubusercontent.com:443
+          rekor.sigstore.dev:443
           results-receiver.actions.githubusercontent.com:443
           security.ubuntu.com:80
+          sigstore.github.com:443
+          tuf-repo-cdn.sigstore.dev:443
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         persist-credentials: false   # build only, never pushes via git
 
     - name: Set up Python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
         python-version: '3.11'
 
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libegl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0
+        sudo apt-get install -y libegl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0 libglib2.0-0 libgl1 libfontconfig1
 
     - name: Install Python dependencies
       # `pip install pyinstaller` used to be bare; Scorecard's
@@ -459,26 +469,91 @@ jobs:
         ls -lh dist/yt-dlp-studio
         chmod +x dist/yt-dlp-studio
 
+    - name: Smoke-test the binary (headless launch)
+      # Runtime-test the frozen binary before attesting/publishing it: launch it
+      # under the offscreen Qt platform, wait for the "started successfully"
+      # milestone (logged after the main window is shown), then stop it. The
+      # frozen app skips the Deno download (sys.frozen), so this needs no
+      # network. A broken bundle that still produces a file fails here instead
+      # of shipping to users.
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        ./dist/yt-dlp-studio > smoke.log 2>&1 &
+        APP_PID=$!
+        ok=0
+        for _ in $(seq 1 30); do
+          if grep -q "started successfully" smoke.log 2>/dev/null; then ok=1; break; fi
+          if ! kill -0 "$APP_PID" 2>/dev/null; then break; fi
+          sleep 1
+        done
+        kill "$APP_PID" 2>/dev/null || true
+        wait "$APP_PID" 2>/dev/null || true
+        echo "----- smoke.log -----"
+        cat smoke.log || true
+        if [ "$ok" -ne 1 ]; then
+          echo "Smoke test FAILED: app did not reach 'started successfully'."
+          exit 1
+        fi
+        echo "Smoke test passed: the frozen binary launched and initialized."
+
+    - name: Generate build provenance attestation
+      # Sigstore-signed SLSA provenance binding the binary's SHA-256 to this
+      # workflow at this commit. Verify with:
+      #   gh attestation verify dist/yt-dlp-studio --owner NX1X
+      uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+      with:
+        subject-path: 'dist/yt-dlp-studio'
+
     - name: Create Linux archive
       env:
         VERSION: ${{ needs.check-version.outputs.version }}
       run: |
-        mkdir -p release
+        # Assemble a desktop-ready archive: the executable, hicolor icons, a
+        # .desktop launcher, and install/uninstall scripts (see
+        # packaging/linux/). install.sh wires everything into the user's
+        # application menu without root.
+        mkdir -p release/icons
         cp dist/yt-dlp-studio release/
         chmod +x release/yt-dlp-studio
+        cp packaging/linux/install.sh release/
+        cp packaging/linux/uninstall.sh release/
+        chmod +x release/install.sh release/uninstall.sh
+        cp packaging/linux/yt-dlp-studio.desktop release/
+        cp packaging/linux/yt-dlp-studio-32.png release/icons/
+        cp packaging/linux/yt-dlp-studio-48.png release/icons/
+        cp packaging/linux/yt-dlp-studio-64.png release/icons/
+        cp packaging/linux/yt-dlp-studio-128.png release/icons/
+        cp packaging/linux/yt-dlp-studio-256.png release/icons/
         cat > release/README.txt << 'EOF'
         yt-dlp-studio - Linux
         ================================
 
-        INSTALLATION
+        QUICK INSTALL (recommended)
         1. Extract this archive to any folder
-        2. Make executable: chmod +x yt-dlp-studio
-        3. Run: ./yt-dlp-studio
+        2. Run: ./install.sh
+           This adds YT-DLP Studio to your application menu and installs the
+           icon and launcher into ~/.local (no root required).
+        3. Launch it from your app menu, or run: yt-dlp-studio
+
+        RUN WITHOUT INSTALLING
+        1. Make executable: chmod +x yt-dlp-studio
+        2. Run: ./yt-dlp-studio
+
+        UNINSTALL
+        Run: ./uninstall.sh
 
         REQUIREMENTS
-        - Linux (64-bit, glibc 2.31+)
-        - FFmpeg must be installed: sudo apt install ffmpeg
-        - Deno (optional): curl -fsSL https://deno.land/install.sh | sh
+        - 64-bit Linux, glibc 2.35+ (Ubuntu 22.04+, Debian 12+, Fedora 36+,
+          Mint 21+, Arch, and most 2022-and-later distributions).
+        - A desktop environment (GNOME/KDE/XFCE/...) - provides the standard
+          Qt runtime libraries (libglib, libGL, fontconfig). Minimal/server
+          installs may need these installed via your package manager.
+        - FFmpeg must be installed. install.sh prints the right command for
+          your package manager; e.g. Debian/Ubuntu: sudo apt install ffmpeg,
+          Fedora: sudo dnf install ffmpeg, Arch: sudo pacman -S ffmpeg.
+        - Deno (optional): auto-downloaded on first run, or install from
+          https://deno.land
 
         SUPPORT
         - Website: https://nx1xlab.dev/nxtools
@@ -495,7 +570,7 @@ jobs:
 
   create-release:
     name: Create GitHub Release
-    needs: [check-version, build-windows]
+    needs: [check-version, build-windows, build-linux]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -526,7 +601,7 @@ jobs:
     # next step pushes the immutable release tag via `git push origin`. Adding
     # persist-credentials: false here would break tag publishing.
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 # zizmor: ignore[artipacked]
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3 # zizmor: ignore[artipacked]
 
     - name: Create immutable tag if absent
       # Immutable-release policy: a version is published EXACTLY ONCE. The
@@ -554,8 +629,68 @@ jobs:
         name: windows-release
         path: ./artifacts/
 
+    - name: Download Linux artifact
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        name: linux-release
+        path: ./artifacts/
+
     - name: List artifacts
       run: ls -la artifacts/
+
+    - name: Build release notes from CHANGELOG
+      # The GitHub Release body is generated from the version's own CHANGELOG.md
+      # section, so each release shows what actually changed in it - not a
+      # static, identical feature list. Downloads + system requirements +
+      # credits are appended as boilerplate.
+      env:
+        TAG: ${{ needs.check-version.outputs.version }}
+      run: |
+        set -euo pipefail
+        VERSION="${TAG#v}"   # strip the leading v: v0.2.0 -> 0.2.0
+
+        # Extract the lines under "## [VERSION]" up to (but not including) the
+        # next "## [" heading, dropping the "---" section separators.
+        NOTES=$(awk -v hdr="## [${VERSION}]" '
+          index($0, hdr) == 1 { found = 1; next }
+          found && /^## \[/   { exit }
+          found && $0 == "---" { next }
+          found               { print }
+        ' CHANGELOG.md)
+        # Trim leading/trailing blank lines.
+        NOTES="$(printf '%s\n' "$NOTES" | sed -e :a -e '/^\n*$/{$d;N;ba}' -e '/./,$!d')"
+        if [ -z "$NOTES" ]; then
+          echo "::warning::No CHANGELOG.md section found for ${VERSION}; using a fallback body."
+          NOTES="See the [CHANGELOG](https://github.com/NX1X/yt-dlp-studio/blob/main/CHANGELOG.md) for details."
+        fi
+
+        {
+          echo "### Downloads"
+          echo
+          echo "| Platform | File | Notes |"
+          echo "|----------|------|-------|"
+          echo "| **Windows** | \`yt-dlp-studio-...-Windows.zip\` | Includes FFmpeg + Deno. Just extract and run. |"
+          echo "| **Linux** | \`yt-dlp-studio-...-Linux.tar.gz\` | Extract and run \`./install.sh\` to add it to your app menu. Requires system FFmpeg. |"
+          echo
+          echo "### What's changed in ${VERSION}"
+          echo
+          echo "${NOTES}"
+          echo
+          echo "### System requirements"
+          echo
+          echo "**Windows:** Windows 10/11 (64-bit) - no additional software needed."
+          echo
+          echo "**Linux:** 64-bit, glibc 2.35+ (Ubuntu 22.04+, Debian 12+, Fedora 36+, and most 2022-and-later distros). Requires FFmpeg; Deno is auto-downloaded on first run."
+          echo
+          echo "### Credits"
+          echo
+          echo "Part of **NXTools** by **NX1X** - https://nx1xlab.dev/nxtools · Support development: https://buymeacoffee.com/nx1x"
+          echo
+          echo "Full history: [CHANGELOG.md](https://github.com/NX1X/yt-dlp-studio/blob/main/CHANGELOG.md)"
+        } > RELEASE_BODY.md
+
+        echo "----- RELEASE_BODY.md -----"
+        cat RELEASE_BODY.md
 
     # Deliberately use the pinned, SHA-locked action rather than a `gh release`
     # script step: it is part of the audited/attested release path and Renovate
@@ -565,35 +700,7 @@ jobs:
       with:
         tag_name: ${{ needs.check-version.outputs.version }}
         name: yt-dlp-studio ${{ needs.check-version.outputs.version }}
-        body: |
-          ## yt-dlp-studio ${{ needs.check-version.outputs.version }}
-
-          ### Downloads
-
-          | Platform | File | Notes |
-          |----------|------|-------|
-          | **Windows** | `yt-dlp-studio-...-Windows.zip` | Includes FFmpeg + Deno. Just extract and run. |
-
-          ### Features
-
-          - User-friendly GUI for yt-dlp video downloader
-          - Download from YouTube
-          - Multiple quality options (Best, 8K, 4K, 2K, 1080p, 720p, 480p, 360p)
-          - Audio download support (MP3, FLAC, WAV, M4A, OPUS, Vorbis)
-          - Subtitle, comment, and metadata download
-          - Queue management with concurrent download protection
-          - Download history tracking
-          - Dark/Light theme, Multi-language (English/Hebrew)
-
-          ### System Requirements
-
-          **Windows:** Windows 10/11 (64-bit) - No additional software needed
-
-          ### Credits
-
-          Part of **NXTools** by **NX1X**
-          - Website: https://nx1xlab.dev/nxtools
-          - Support development: https://buymeacoffee.com/nx1x
+        body_path: RELEASE_BODY.md
         files: |
           artifacts/*
         draft: false

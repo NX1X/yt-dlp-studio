@@ -13,6 +13,28 @@ from PySide6.QtCore import Qt
 from src.backend.queue_manager import QueueManager
 from src.models.download_task import DownloadTask, TaskStatus
 from src.ui.queue_tab import QueueTab
+from src.utils.translations import get_translation_manager
+
+
+@pytest.fixture(autouse=True)
+def force_english_ui():
+    """Pin the UI language to English for every test in this module.
+
+    QueueTab builds its column headers and statistics labels from ``tr()`` at
+    construction time, and the translation manager is a process-wide singleton.
+    Other modules (e.g. test_translations.py) flip it to Hebrew, and the CI
+    runner's own locale can make ``_detect_system_language()`` return "he".
+    Either one leaves QueueTab rendering Hebrew text, which intermittently broke
+    the English-text assertions below - the "locale-sensitive flake" that forced
+    this file to be excluded from CI. Forcing "en" on the singleton before each
+    test makes the suite deterministic regardless of locale or test order.
+
+    We call ``set_language`` on the existing manager rather than nulling and
+    rebuilding it, so we don't re-run system-locale detection (and its
+    deprecation warning) 38 times per run.
+    """
+    get_translation_manager().set_language("en")
+    yield
 
 
 @pytest.fixture
@@ -22,8 +44,12 @@ def queue_manager():
 
 
 @pytest.fixture
-def queue_tab(qtbot, queue_manager):
-    """Create a queue tab for testing."""
+def queue_tab(qtbot, queue_manager, force_english_ui):
+    """Create a queue tab for testing.
+
+    Depends on ``force_english_ui`` so the language is pinned to English
+    *before* the widget (and its translated labels) is constructed.
+    """
     tab = QueueTab(queue_manager)
     qtbot.addWidget(tab)
     return tab

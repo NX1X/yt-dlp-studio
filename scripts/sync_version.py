@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import re
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -145,7 +145,7 @@ def cut_changelog(version: str) -> int:
         print("ERROR: ## [Unreleased] section has no content; refusing to cut an empty release", file=sys.stderr)
         return 3
 
-    today = datetime.now(UTC).strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     new_header = f"## [Unreleased]\n\n_(no entries yet)_\n\n---\n\n## [{version}] - {today}\n"
     new_text = text[: header_match.start()] + new_header + text[header_match.end() :]
 

@@ -40,6 +40,13 @@ class App:
         self.qt_app.setApplicationName(APP_NAME)
         self.qt_app.setApplicationVersion(APP_VERSION)
 
+        # On Linux, tie the window to its .desktop entry so GNOME/Wayland shows
+        # the installed icon in the dock and groups windows correctly. Must
+        # match the installed file name (yt-dlp-studio.desktop) and the
+        # StartupWMClass declared there.
+        if sys.platform.startswith("linux"):
+            self.qt_app.setDesktopFileName("yt-dlp-studio")
+
         # Enable high DPI scaling
         if hasattr(Qt, "AA_EnableHighDpiScaling"):
             QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)

@@ -10,6 +10,7 @@ driven from a background QThread (see src/ui/update_dialog.py).
 
 import hashlib
 import hmac
+import os
 from dataclasses import dataclass, field
 
 import requests
@@ -184,6 +185,7 @@ class UpdateChecker:
                 "published_at": release_data.get("published_at", ""),
                 "html_url": release_data.get("html_url", ""),
                 "download_url": asset.url if asset else release_data.get("html_url"),
+                "asset_name": asset.extras.get("name", "") if asset else "",
                 "size": asset.size if asset else 0,
                 "digest": asset.digest if asset else "",
                 "assets": release_data.get("assets", []),
@@ -219,14 +221,16 @@ class UpdateChecker:
 
     def _select_asset(self, release_data: dict) -> _Asset | None:
         """
-        Select the most appropriate downloadable asset from a release.
+        Select the most appropriate downloadable asset for the current OS.
 
-        Priority: Windows installer/.exe -> .zip -> first asset. The full
-        asset is returned (URL, size and GitHub-published digest) so callers
-        can show an accurate size and verify integrity.
+        On Windows the priority is installer/.exe -> .zip -> first asset.
+        On Linux it is the Linux archive (name contains "linux" or ends in
+        .tar.gz / .AppImage) -> first asset. The full asset is returned
+        (URL, size and GitHub-published digest) so callers can show an
+        accurate size and verify integrity.
 
         Returns:
-            _Asset, or None if the release has no assets.
+            _Asset, or None if the release has no matching asset.
         """
         assets = release_data.get("assets", []) or []
 
@@ -237,6 +241,19 @@ class UpdateChecker:
                 digest=_normalize_digest(asset.get("digest")),
                 extras=asset,
             )
+
+        if os.name != "nt":
+            # Linux (and other POSIX): prefer a Linux archive. Never fall
+            # back to a Windows .exe, which would be useless to the user.
+            for asset in assets:
+                name = asset.get("name", "").lower()
+                if "linux" in name or name.endswith((".tar.gz", ".tgz", ".appimage")):
+                    return make(asset)
+            for asset in assets:
+                name = asset.get("name", "").lower()
+                if not name.endswith((".exe", ".msi")):
+                    return make(asset)
+            return None
 
         for asset in assets:
             name = asset.get("name", "").lower()

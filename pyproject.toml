@@ -59,7 +59,7 @@ dependencies = [
     # CVE-2024-47081 (.netrc credential leak via crafted URL), and
     # CVE-2026-25645 (insecure temp-file reuse in extract_zipped_paths).
     "requests>=2.33.0",
-    "packaging>=23.0",
+    "packaging>=23.2",
     "plyer>=2.1.0",
     # yt-dlp's external JavaScript solver. Ships the JS challenge solver
     # scripts that the vendored yt-dlp engine needs to handle YouTube's
@@ -84,16 +84,16 @@ dev = [
     "pytest-qt>=4.2.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.8.0,<0.13",
-    "black>=26.3.1",
+    "black>=26.5.1",
     "pre-commit>=3.7.0",
-    "pip-tools>=7.4.0",
+    "pip-tools>=7.5.3",
 ]
 build = [
     "pyinstaller>=6.3.0",
 ]
 docs = [
-    "mkdocs>=1.5.0",
-    "mkdocs-material>=9.0.0",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.6",
 ]
 
 # No `[project.scripts]` / `[project.gui-scripts]` entries are declared.
@@ -200,7 +200,11 @@ exclude_lines = [
 # ---------------------------------------------------------------------------
 [tool.ruff]
 line-length = 120
-target-version = "py311"
+# py310, matching requires-python = ">=3.10" and the 3.10 classifier. Keeping
+# this at py311 previously let 3.11-only idioms (datetime.UTC) slip in and break
+# run-from-source on Python 3.10 - e.g. stock Ubuntu 22.04, whose system Python
+# is 3.10. Pinning it to py310 keeps lint honest about the supported floor.
+target-version = "py310"
 src = ["src", "tests"]
 exclude = [
     "vendor",
@@ -253,7 +257,7 @@ known-first-party = ["src"]
 # ---------------------------------------------------------------------------
 [tool.black]
 line-length = 120
-target-version = ["py311"]
+target-version = ["py310"]
 extend-exclude = '''
 /(
     vendor

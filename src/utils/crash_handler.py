@@ -31,7 +31,7 @@ import platform
 import sys
 import threading
 import traceback
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from types import TracebackType
 from typing import Any
@@ -64,7 +64,7 @@ def _build_report(
 ) -> dict[str, Any]:
     """Assemble a JSON-serializable crash record."""
     report: dict[str, Any] = {
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "origin": origin,
         "thread": thread_name or threading.current_thread().name,
         "app_version": APP_VERSION,
