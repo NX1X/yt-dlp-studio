@@ -18,7 +18,7 @@
 import os
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, collect_data_files
 
 # Spec lives in packaging/, project root is one level up
 project_root = Path(SPECPATH).parent
@@ -47,6 +47,11 @@ a = Analysis(
         (str(project_root / 'src' / 'resources'), 'src/resources'),
         # curl_cffi data files (cacert.pem, CFFI headers)
         *_curl_cffi_datas,
+        # yt-dlp-ejs solver scripts (lib.min.js / core.min.js). These are DATA
+        # files, not modules, so hiddenimports alone does not bundle them -
+        # without this, YouTube JS-challenge solving fails at runtime with
+        # "Failed to load challenge solver lib script" and formats can be lost.
+        *collect_data_files('yt_dlp_ejs'),
     ],
     hiddenimports=[
         # SSL/TLS support
