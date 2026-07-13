@@ -117,6 +117,12 @@ Ship the app the way users on each OS expect to get it, while keeping the no-ins
 - ⬜ Batch download from text file (multiple URLs)
 - ⬜ Browser extension integration (download from browser)
 - ⬜ Automatic retry on failure
+- ⬜ **Reliable desktop notifications + system tray on both Windows and Linux.**
+  Today notifications use Qt's `QSystemTrayIcon` with a plyer fallback; on
+  desktops without a tray (e.g. stock GNOME) completion toasts silently fail
+  (`plyer.platforms` is not bundled and there is no dbus backend). Rework to a
+  robust cross-platform path - Qt-native notifications and/or a `notify-send`
+  fallback on Linux - and a proper always-available tray icon on both OSes.
 
 ### v0.5.0 - Advanced Format Options
 - ⬜ Custom format string builder (advanced users)
