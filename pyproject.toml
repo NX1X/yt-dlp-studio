@@ -59,7 +59,7 @@ dependencies = [
     # CVE-2024-47081 (.netrc credential leak via crafted URL), and
     # CVE-2026-25645 (insecure temp-file reuse in extract_zipped_paths).
     "requests>=2.33.0",
-    "packaging>=23.0",
+    "packaging>=23.2",
     "plyer>=2.1.0",
     # yt-dlp's external JavaScript solver. Ships the JS challenge solver
     # scripts that the vendored yt-dlp engine needs to handle YouTube's
