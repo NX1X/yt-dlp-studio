@@ -263,7 +263,7 @@ jobs:
         # pattern used by build.yml/test and release.yml/test.
         run: |
           set -euo pipefail
-          python -m pip install --upgrade pip==26.1.2
+          python -m pip install --upgrade pip==26.1.2 --only-binary :all:
           pip install --require-hashes -r requirements/lock.txt
           pip install -e .[dev]
           python scripts/check_imports.py

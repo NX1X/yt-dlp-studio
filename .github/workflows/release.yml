@@ -145,7 +145,7 @@ jobs:
 
     - name: Install Python dependencies
       run: |
-        python -m pip install --upgrade pip==26.1.2
+        python -m pip install --upgrade pip==26.1.2 --only-binary :all:
         pip install --require-hashes -r requirements/lock.txt
         pip install -e .[dev]
 
@@ -220,7 +220,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip==26.1.2
+        python -m pip install --upgrade pip==26.1.2 --only-binary :all:
         pip install --require-hashes -r requirements/lock.txt
         pip install -e .[build]
 
@@ -439,7 +439,7 @@ jobs:
       # tag we build against never drifts silently. Renovate's pypi
       # manager keeps this in step with the ecosystem.
       run: |
-        python -m pip install --upgrade pip==26.1.2
+        python -m pip install --upgrade pip==26.1.2 --only-binary :all:
         pip install --require-hashes -r requirements/lock.txt
         pip install pyinstaller==6.21.0
 
