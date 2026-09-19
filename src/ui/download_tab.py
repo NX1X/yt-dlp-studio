@@ -45,6 +45,27 @@ from .video_info_dialog import VideoInfoDialog
 logger = get_logger()
 
 
+_SECONDARY_BUTTON_QSS = """
+            QPushButton {
+                background-color: #4a4a4a;
+                color: white;
+                border: none;
+                border-radius: 3px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #5a5a5a;
+            }
+            QPushButton:pressed {
+                background-color: #3a3a3a;
+            }
+            QPushButton:disabled {
+                background-color: #3e3e3e;
+                color: #858585;
+            }
+        """
+
+
 class DownloadTab(QWidget):
     """
     Download tab widget.
@@ -149,25 +170,7 @@ class DownloadTab(QWidget):
         self.show_info_button = QPushButton(tr("button_show_info"))
         self.show_info_button.setMinimumWidth(100)
         self.show_info_button.clicked.connect(self._on_show_info_clicked)
-        self.show_info_button.setStyleSheet("""
-            QPushButton {
-                background-color: #4a4a4a;
-                color: white;
-                border: none;
-                border-radius: 3px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #5a5a5a;
-            }
-            QPushButton:pressed {
-                background-color: #3a3a3a;
-            }
-            QPushButton:disabled {
-                background-color: #3e3e3e;
-                color: #858585;
-            }
-        """)
+        self.show_info_button.setStyleSheet(_SECONDARY_BUTTON_QSS)
         url_layout.addWidget(self.show_info_button)
 
         input_layout.addLayout(url_layout)
@@ -301,25 +304,7 @@ class DownloadTab(QWidget):
         self.select_subs_button.setMinimumWidth(100)
         self.select_subs_button.clicked.connect(self._on_select_subtitles_clicked)
         self.select_subs_button.setToolTip(tr("tooltip_select_subs"))
-        self.select_subs_button.setStyleSheet("""
-            QPushButton {
-                background-color: #4a4a4a;
-                color: white;
-                border: none;
-                border-radius: 3px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #5a5a5a;
-            }
-            QPushButton:pressed {
-                background-color: #3a3a3a;
-            }
-            QPushButton:disabled {
-                background-color: #3e3e3e;
-                color: #858585;
-            }
-        """)
+        self.select_subs_button.setStyleSheet(_SECONDARY_BUTTON_QSS)
         options_layout.addWidget(self.select_subs_button)
 
         # v2.1.0: Metadata checkbox
@@ -391,25 +376,7 @@ class DownloadTab(QWidget):
         self.add_to_queue_button.setMinimumWidth(140)
         self.add_to_queue_button.setMinimumHeight(35)
         self.add_to_queue_button.clicked.connect(self._on_add_to_queue_clicked)
-        self.add_to_queue_button.setStyleSheet("""
-            QPushButton {
-                background-color: #4a4a4a;
-                color: white;
-                border: none;
-                border-radius: 3px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #5a5a5a;
-            }
-            QPushButton:pressed {
-                background-color: #3a3a3a;
-            }
-            QPushButton:disabled {
-                background-color: #3e3e3e;
-                color: #858585;
-            }
-        """)
+        self.add_to_queue_button.setStyleSheet(_SECONDARY_BUTTON_QSS)
         button_layout.addWidget(self.add_to_queue_button)
 
         # Download Now button
@@ -682,8 +649,8 @@ class DownloadTab(QWidget):
             self.log_widget.append_success(f"Opened directory: {directory}")
             logger.info(f"Opened download directory: {directory}")
 
-        except Exception as e:
-            logger.error(f"Failed to open directory: {e}")
+        except Exception:
+            logger.exception("Failed to open directory")
             QMessageBox.critical(self, tr("error_generic"), tr("msg_failed_open_dir"))
 
     def _on_add_to_queue_clicked(self) -> None:

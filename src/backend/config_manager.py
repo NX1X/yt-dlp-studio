@@ -67,10 +67,10 @@ class ConfigManager:
                         logger.info("Configuration loaded successfully")
 
             except json.JSONDecodeError as e:
-                logger.error(f"Config file corrupted: {e}. Using defaults.")
+                logger.exception(f"Config file corrupted: {e}. Using defaults.")
                 self.config = self._create_default_config()
             except Exception as e:
-                logger.error(f"Error loading config: {e}. Using defaults.")
+                logger.exception(f"Error loading config: {e}. Using defaults.")
                 self.config = self._create_default_config()
         else:
             logger.info("Config file not found, creating default")
@@ -112,8 +112,8 @@ class ConfigManager:
             logger.info("Configuration saved successfully")
             return True
 
-        except Exception as e:
-            logger.error(f"Error saving config: {e}")
+        except Exception:
+            logger.exception("Error saving config")
             return False
 
     def update_config(self, **kwargs) -> bool:

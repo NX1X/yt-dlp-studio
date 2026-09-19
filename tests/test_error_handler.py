@@ -74,9 +74,12 @@ class TestGetErrorInfo:
         }
         for _category, msg in test_messages.items():
             title, message, suggestions = ErrorHandler.get_error_info(msg)
-            assert isinstance(title, str) and len(title) > 0
-            assert isinstance(message, str) and len(message) > 0
-            assert isinstance(suggestions, str) and len(suggestions) > 0
+            assert isinstance(title, str)
+            assert len(title) > 0
+            assert isinstance(message, str)
+            assert len(message) > 0
+            assert isinstance(suggestions, str)
+            assert len(suggestions) > 0
 
 
 class TestFormatErrorDialogText:

@@ -4,7 +4,7 @@ Settings tab UI for YT-DLP Studio.
 Provides interface for configuring application settings.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
@@ -274,8 +274,8 @@ class SettingsTab(QWidget):
                 with open(language_file, "w", encoding="utf-8") as f:
                     json.dump({"language": selected_lang_code}, f)
                 logger.info(f"Language preference saved: {selected_lang_code}")
-            except Exception as e:
-                logger.error(f"Failed to save language preference: {e}")
+            except Exception:
+                logger.exception("Failed to save language preference")
 
         # Save other settings
         old_output_dir = self.config_manager.get_config().output_directory
@@ -356,7 +356,7 @@ class SettingsTab(QWidget):
                 )
             return
 
-        self.config_manager.update_config(last_update_check=datetime.now(UTC).isoformat())
+        self.config_manager.update_config(last_update_check=datetime.now(timezone.utc).isoformat())
 
         if result.update_available and result.release_info:
             logger.info(f"Update available: {result.release_info['version']}")

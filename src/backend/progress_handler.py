@@ -75,8 +75,8 @@ class ProgressHandler:
             elif status == "error":
                 logger.error(f"Download error status: {raw_data}")
 
-        except Exception as e:
-            logger.error(f"Error parsing progress data: {e}")
+        except Exception:
+            logger.exception("Error parsing progress data")
 
         return clean_data
 
@@ -110,7 +110,7 @@ class ProgressHandler:
             percent_str = raw_data.get("_percent_str", "0%")
             try:
                 data["percent"] = float(percent_str.strip("%"))
-            except:
+            except Exception:
                 data["percent"] = 0.0
 
         # Get download speed

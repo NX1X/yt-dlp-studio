@@ -30,7 +30,7 @@ name: Security
 #
 # Action pinning: every action is pinned to a commit SHA (repo convention).
 # checkout / setup-python / upload-artifact reuse the exact SHAs from
-# build.yml. github/codeql-action/upload-sarif reuses the v4.35.5 SHA already
+# build.yml. github/codeql-action/upload-sarif reuses the v4.36.3 SHA already
 # pinned in codeql.yml (same monorepo). ossf/scorecard-action is pinned to the
 # v2.4.3 release commit, cross-checked via the release page and the
 # dereferenced annotated tag. Renovate keeps these digests current.
@@ -87,7 +87,7 @@ jobs:
 
     - name: Install pip-audit
       # Hash-pinned CI tooling (see requirements/ci-tools.in).
-      run: python -m pip install --require-hashes -r requirements/ci-tools.txt
+      run: 'python -m pip install --require-hashes -r requirements/ci-tools.txt --only-binary :all:'
 
     - name: Audit hash-pinned lockfile
       # --require-hashes matches how requirements/lock.txt is consumed in
@@ -137,7 +137,7 @@ jobs:
 
     - name: Install zizmor
       # Hash-pinned CI tooling (see requirements/ci-tools.in).
-      run: python -m pip install --require-hashes -r requirements/ci-tools.txt
+      run: 'python -m pip install --require-hashes -r requirements/ci-tools.txt --only-binary :all:'
 
     - name: Run zizmor (gate)
       # Human-readable output to the log; non-zero exit on findings fails the
@@ -179,11 +179,13 @@ jobs:
       # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
       # Scorecard has the widest external surface of any job — it queries
       # deps.dev, osv.dev, bestpractices.dev, softwareheritage, and pulls
-      # gcr.io/openssf/scorecard via Docker Hub. Flag: this job has the
-      # highest chance of a `block`-mode false positive on first run; if a
-      # check fails on an unlisted endpoint, the harden-runner network log
-      # in the run summary will name it — add it here and rerun (do NOT
-      # flip the policy back to audit).
+      # gcr.io/openssf/scorecard via Docker Hub. `publish_results: true` also
+      # signs the results via Sigstore, which needs fulcio/rekor/tuf-repo-cdn
+      # .sigstore.dev — without them the run failed at "error signing scorecard
+      # results ... connection refused". Flag: this job has the highest chance
+      # of a `block`-mode false positive; if a check fails on an unlisted
+      # endpoint, the harden-runner network log in the run summary will name
+      # it — add it here and rerun (do NOT flip the policy back to audit).
       uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: block
@@ -198,15 +200,18 @@ jobs:
           auth.docker.io:443
           bestpractices.coreinfrastructure.org:443
           codeload.github.com:443
+          fulcio.sigstore.dev:443
           github.com:443
           index.docker.io:443
           objects.githubusercontent.com:443
           production.cloudflare.docker.com:443
           raw.githubusercontent.com:443
           registry-1.docker.io:443
+          rekor.sigstore.dev:443
           release-assets.githubusercontent.com:443
           results-receiver.actions.githubusercontent.com:443
           storage.googleapis.com:443
+          tuf-repo-cdn.sigstore.dev:443
           www.bestpractices.dev:443
           *.blob.core.windows.net:443
 

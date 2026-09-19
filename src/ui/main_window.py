@@ -87,10 +87,10 @@ class MainWindow(QMainWindow):
 
         if config.last_update_check:
             try:
-                from datetime import UTC, datetime
+                from datetime import datetime, timezone
 
                 last = datetime.fromisoformat(config.last_update_check)
-                if (datetime.now(UTC) - last).total_seconds() < 24 * 3600:
+                if (datetime.now(timezone.utc) - last).total_seconds() < 24 * 3600:
                     logger.debug("Skipping startup update check (checked within 24h)")
                     return
             except ValueError:
@@ -105,13 +105,13 @@ class MainWindow(QMainWindow):
 
     def _on_startup_update_check(self, result) -> None:
         """Surface the update dialog only for a new, non-skipped release."""
-        from datetime import UTC, datetime
+        from datetime import datetime, timezone
 
         if result.error:
             logger.info(f"Startup update check failed silently: {result.error}")
             return
 
-        self.config_manager.update_config(last_update_check=datetime.now(UTC).isoformat())
+        self.config_manager.update_config(last_update_check=datetime.now(timezone.utc).isoformat())
 
         if not (result.update_available and result.release_info):
             return
@@ -135,12 +135,17 @@ class MainWindow(QMainWindow):
         # Set minimum size
         self.setMinimumSize(QSize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT))
 
-        # Set application icon
+        # Set application icon. Prefer the PNG (renders without the Qt SVG
+        # image plugin, which a frozen Linux build may not bundle), then fall
+        # back to the SVG for the crisp vector when running from source.
         import os
 
-        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "resources", "icons", "favicon.svg")
-        if os.path.exists(icon_path):
-            self.setWindowIcon(QIcon(icon_path))
+        icons_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "resources", "icons")
+        for icon_name in ("favicon.png", "favicon.svg", "favicon.ico"):
+            icon_path = os.path.join(icons_dir, icon_name)
+            if os.path.exists(icon_path):
+                self.setWindowIcon(QIcon(icon_path))
+                break
 
         # Create central tab widget
         self.tabs = QTabWidget()
