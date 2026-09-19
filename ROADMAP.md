@@ -127,6 +127,15 @@ Ship the app the way users on each OS expect to get it, while keeping the no-ins
   (`plyer.platforms` is not bundled and there is no dbus backend). Rework to a
   robust cross-platform path - Qt-native notifications and/or a `notify-send`
   fallback on Linux - and a proper always-available tray icon on both OSes.
+  **Confirmed on Windows too** (v0.2.0 test): the frozen EXE logs
+  `Could not send notification: No usable implementation found!` on every
+  download, so it is not just stock GNOME. As part of this rework, fix the
+  **false-success log line**: after the failure warning the code still logs
+  `Notification sent`, which is misleading; only log success when a
+  notification actually dispatched.
+- ⬜ **Fix audio-only completion label** (cosmetic): an audio-only download logs
+  `Task N completed: video file`. Report "audio file" (or the actual output
+  type) instead of hardcoded "video file".
 
 ### v0.5.0 - Advanced Format Options
 - ⬜ Custom format string builder (advanced users)
