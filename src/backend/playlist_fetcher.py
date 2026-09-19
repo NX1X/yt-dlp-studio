@@ -32,8 +32,8 @@ try:
     from yt_dlp import YoutubeDL
 
     logger.debug("yt-dlp imported successfully for playlist fetching")
-except ImportError as e:
-    logger.error(f"Failed to import yt-dlp: {e}")
+except ImportError:
+    logger.exception("Failed to import yt-dlp")
     raise
 
 
@@ -77,7 +77,7 @@ class PlaylistInfo:
     video_count: int
     uploader: str = ""
     description: str = ""
-    videos: list[PlaylistVideoInfo] = None
+    videos: list[PlaylistVideoInfo] | None = None
 
     def __post_init__(self):
         """Initialize mutable default values."""
@@ -159,8 +159,8 @@ class PlaylistFetcher:
                 logger.info(f"Playlist info fetched: {playlist_info.title} ({len(videos)} videos)")
                 return playlist_info
 
-        except Exception as e:
-            logger.error(f"Error fetching playlist info: {e}")
+        except Exception:
+            logger.exception("Error fetching playlist info")
             return None
 
     @staticmethod
@@ -196,6 +196,6 @@ class PlaylistFetcher:
                     "uploader": info_dict.get("uploader", info_dict.get("channel", "")),
                 }
 
-        except Exception as e:
-            logger.error(f"Error in quick playlist fetch: {e}")
+        except Exception:
+            logger.exception("Error in quick playlist fetch")
             return None

@@ -92,7 +92,7 @@ class Validators:
             return True, ""
 
         except Exception as e:
-            logger.error(f"Directory validation error: {e}")
+            logger.exception("Directory validation error")
             return False, f"Invalid directory path: {str(e)}"
 
     @staticmethod

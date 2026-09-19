@@ -146,7 +146,7 @@ class DownloadWorker(QThread):
 
         except Exception as e:
             error_msg = f"Unexpected error: {str(e)}"
-            logger.error(f"Download worker error: {e}", exc_info=True)
+            logger.exception("Download worker error")
             self._handle_failure(error_msg)
 
     def cancel(self) -> None:

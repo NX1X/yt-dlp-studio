@@ -193,13 +193,13 @@ class UpdateChecker:
             return UpdateCheckResult(update_available=True, release_info=release_info)
 
         except requests.exceptions.Timeout:
-            logger.error("Update check timed out")
+            logger.exception("Update check timed out")
             return UpdateCheckResult(error="timeout")
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Update check failed: {e}")
+        except requests.exceptions.RequestException:
+            logger.exception("Update check failed")
             return UpdateCheckResult(error="network")
-        except Exception as e:
-            logger.error(f"Unexpected error during update check: {e}")
+        except Exception:
+            logger.exception("Unexpected error during update check")
             return UpdateCheckResult(error="unknown")
 
     def _is_version_newer(self, latest: str, current: str) -> bool:
@@ -355,8 +355,8 @@ class UpdateChecker:
                 actual_digest=actual,
             )
 
-        except Exception as e:
-            logger.error(f"Download error: {e}")
+        except Exception:
+            logger.exception("Download error")
             return DownloadResult(success=False, error="download_failed")
 
     def get_current_version(self) -> str:

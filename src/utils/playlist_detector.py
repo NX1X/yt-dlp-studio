@@ -90,31 +90,17 @@ class PlaylistDetector:
         Returns:
             Playlist ID or empty string if not found
         """
-        if platform == "youtube":
-            match = re.search(r"list=([a-zA-Z0-9_-]+)", url)
+        # Ordered ID-extraction patterns per platform. First match wins.
+        patterns_by_platform = {
+            "youtube": [r"list=([a-zA-Z0-9_-]+)"],
+            "youtube_channel": [r"/@([^/]+)", r"/channel/([^/]+)", r"/c/([^/]+)", r"/user/([^/]+)"],
+            "vimeo": [r"/album/(\d+)", r"/channels/([^/]+)"],
+            "dailymotion": [r"/playlist/([^/]+)"],
+        }
+        for pattern in patterns_by_platform.get(platform, []):
+            match = re.search(pattern, url)
             if match:
                 return match.group(1)
-
-        elif platform == "youtube_channel":
-            # Extract channel identifier
-            for pattern in [r"/@([^/]+)", r"/channel/([^/]+)", r"/c/([^/]+)", r"/user/([^/]+)"]:
-                match = re.search(pattern, url)
-                if match:
-                    return match.group(1)
-
-        elif platform == "vimeo":
-            match = re.search(r"/album/(\d+)", url)
-            if match:
-                return match.group(1)
-            match = re.search(r"/channels/([^/]+)", url)
-            if match:
-                return match.group(1)
-
-        elif platform == "dailymotion":
-            match = re.search(r"/playlist/([^/]+)", url)
-            if match:
-                return match.group(1)
-
         return ""
 
     @staticmethod

@@ -24,7 +24,7 @@ def isolated_crash_dir(tmp_path, monkeypatch):
     crash_dir = tmp_path / "crashes"
     monkeypatch.setattr(crash_handler, "CRASH_DIR", crash_dir)
     monkeypatch.setattr(crash_handler, "_show_crash_dialog", lambda path: None)
-    yield crash_dir
+    return crash_dir
 
 
 def _make_exc_info(exc: BaseException):
@@ -118,8 +118,9 @@ def test_prune_old_crashes_keeps_max(isolated_crash_dir, monkeypatch):
 def test_install_is_idempotent(isolated_crash_dir, monkeypatch):
     """install_crash_handler() must not stack hooks if called twice."""
     monkeypatch.setattr(crash_handler, "_installed", False)
-    original_sys_hook = sys.excepthook
-    original_thread_hook = threading.excepthook
+    # monkeypatch records the current hooks and auto-restores them after the test.
+    monkeypatch.setattr(sys, "excepthook", sys.excepthook)
+    monkeypatch.setattr(threading, "excepthook", threading.excepthook)
 
     try:
         crash_handler.install_crash_handler()
@@ -130,8 +131,6 @@ def test_install_is_idempotent(isolated_crash_dir, monkeypatch):
         assert sys.excepthook is first_sys
         assert threading.excepthook is first_thread
     finally:
-        sys.excepthook = original_sys_hook
-        threading.excepthook = original_thread_hook
         monkeypatch.setattr(crash_handler, "_installed", False)
 
 
@@ -256,7 +255,7 @@ def test_build_report_redacts_log_tail(isolated_crash_dir, monkeypatch):
 def test_threading_excepthook_writes_report(isolated_crash_dir, monkeypatch):
     """A worker thread that raises should produce a crash file."""
     monkeypatch.setattr(crash_handler, "_installed", False)
-    original_hook = threading.excepthook
+    monkeypatch.setattr(threading, "excepthook", threading.excepthook)
     crash_handler.install_crash_handler()
 
     try:
@@ -275,5 +274,4 @@ def test_threading_excepthook_writes_report(isolated_crash_dir, monkeypatch):
         assert payload["thread"] == "boom-worker"
         assert payload["exception_message"] == "thread boom"
     finally:
-        threading.excepthook = original_hook
         monkeypatch.setattr(crash_handler, "_installed", False)

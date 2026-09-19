@@ -384,7 +384,7 @@ class UpdateDialog(QDialog):
             QApplication.instance().quit()
 
         except Exception as e:
-            logger.error(f"Failed to run installer: {e}")
+            logger.exception("Failed to run installer")
             QMessageBox.critical(
                 self,
                 tr("dialog_installer_error"),
@@ -411,8 +411,8 @@ class UpdateDialog(QDialog):
                 tr("dialog_download_complete_update"),
                 tr("msg_installer_saved", path=file_path),
             )
-        except Exception as e:
-            logger.error(f"Failed to open download folder: {e}")
+        except Exception:
+            logger.exception("Failed to open download folder")
             QMessageBox.information(
                 self,
                 tr("dialog_download_complete_update"),

@@ -256,7 +256,7 @@ class VideoInfoDialog(QDialog):
             month = date_str[4:6]
             day = date_str[6:8]
             return f"{day}/{month}/{year}"
-        except:
+        except Exception:
             return date_str
 
     def _get_truncated_description(self, max_length: int = 500) -> str:
@@ -311,6 +311,6 @@ class VideoInfoDialog(QDialog):
             self.thumbnail_label.setPixmap(scaled_pixmap)
             logger.info("Thumbnail loaded successfully")
 
-        except Exception as e:
+        except Exception:
             self.thumbnail_label.setText(tr("text_failed_load_thumbnail"))
-            logger.error(f"Error loading thumbnail: {e}")
+            logger.exception("Error loading thumbnail")

@@ -141,13 +141,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/ytdlp-update
-          curl -sSfL -o /tmp/ytdlp-update/yt-dlp.tar.gz \
+          curl -sSfL --proto '=https' --tlsv1.2 -o /tmp/ytdlp-update/yt-dlp.tar.gz \
             "https://github.com/yt-dlp/yt-dlp/releases/download/${VERSION}/yt-dlp.tar.gz"
-          curl -sSfL -o /tmp/ytdlp-update/SHA2-256SUMS \
+          curl -sSfL --proto '=https' --tlsv1.2 -o /tmp/ytdlp-update/SHA2-256SUMS \
             "https://github.com/yt-dlp/yt-dlp/releases/download/${VERSION}/SHA2-256SUMS"
           # GPG detached signature over SHA2-256SUMS. Verified in the next step
           # against the bundled trust anchor (.github/trust/yt-dlp-public-key.asc).
-          curl -sSfL -o /tmp/ytdlp-update/SHA2-256SUMS.sig \
+          curl -sSfL --proto '=https' --tlsv1.2 -o /tmp/ytdlp-update/SHA2-256SUMS.sig \
             "https://github.com/yt-dlp/yt-dlp/releases/download/${VERSION}/SHA2-256SUMS.sig"
 
       - name: Verify GPG signature on SHA2-256SUMS
@@ -264,8 +264,8 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip==26.1.2 --only-binary :all:
-          pip install --require-hashes -r requirements/lock.txt
-          pip install -e .[dev]
+          pip install --require-hashes -r requirements/lock.txt --only-binary :all:
+          pip install -e .[dev]  # NOSONAR: --only-binary is incompatible with -e; editable install of the local project, dev/build tool pinning is a tracked follow-up.
           python scripts/check_imports.py
 
       - name: Run pytest

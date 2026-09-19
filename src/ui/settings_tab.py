@@ -274,8 +274,8 @@ class SettingsTab(QWidget):
                 with open(language_file, "w", encoding="utf-8") as f:
                     json.dump({"language": selected_lang_code}, f)
                 logger.info(f"Language preference saved: {selected_lang_code}")
-            except Exception as e:
-                logger.error(f"Failed to save language preference: {e}")
+            except Exception:
+                logger.exception("Failed to save language preference")
 
         # Save other settings
         old_output_dir = self.config_manager.get_config().output_directory

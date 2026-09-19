@@ -433,7 +433,7 @@ class QueueTab(QWidget):
             logger.info(f"Opened file: {file_path}")
 
         except Exception as e:
-            logger.error(f"Failed to open file: {e}")
+            logger.exception("Failed to open file")
             QMessageBox.critical(self, tr("error"), f"{tr('msg_failed_open_file')}:\n{e}")
 
     @staticmethod

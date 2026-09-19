@@ -112,6 +112,7 @@ Ship the app the way users on each OS expect to get it, while keeping the no-ins
 - ⬜ Note: released binaries remain **unsigned for now** (no code-signing certificate - see the signing plan under v1.0.0); Sigstore provenance already covers cryptographic verification
 
 ### v0.4.0 - Enhanced Download Management
+- ⬜ **Refactor `YtDlpWrapper.download()`** - split the ~500-line method (SonarCloud S3776 cognitive complexity 136, S107 15 params) into cohesive helpers plus a `DownloadOptions` object, with live download testing. Currently `# NOSONAR`-suppressed on the critical path rather than rushed into the 0.2.0 merge.
 - ⬜ Resume interrupted downloads
 - ⬜ Download scheduling (download at specific time)
 - ⬜ Batch download from text file (multiple URLs)

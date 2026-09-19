@@ -146,8 +146,8 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip==26.1.2 --only-binary :all:
-        pip install --require-hashes -r requirements/lock.txt
-        pip install -e .[dev]
+        pip install --require-hashes -r requirements/lock.txt --only-binary :all:
+        pip install -e .[dev]  # NOSONAR: --only-binary is incompatible with -e; editable install of the local project, dev/build tool pinning is a tracked follow-up.
 
     - name: Run tests (Linux)
       if: runner.os == 'Linux'
@@ -221,8 +221,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip==26.1.2 --only-binary :all:
-        pip install --require-hashes -r requirements/lock.txt
-        pip install -e .[build]
+        pip install --require-hashes -r requirements/lock.txt --only-binary :all:
+        pip install -e .[build]  # NOSONAR: --only-binary is incompatible with -e; editable install of the local project, dev/build tool pinning is a tracked follow-up.
 
     - name: Download and verify Deno
       run: |
@@ -450,8 +450,8 @@ jobs:
       # manager keeps this in step with the ecosystem.
       run: |
         python -m pip install --upgrade pip==26.1.2 --only-binary :all:
-        pip install --require-hashes -r requirements/lock.txt
-        pip install pyinstaller==6.21.0
+        pip install --require-hashes -r requirements/lock.txt --only-binary :all:
+        pip install pyinstaller==6.21.0 --only-binary :all:
 
     - name: Sync version metadata
       # Linux build_linux.spec doesn't currently use version_info.txt, but

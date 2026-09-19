@@ -139,7 +139,7 @@ def cut_changelog(version: str) -> int:
 
     body = text[body_start:body_end].strip()
     # Strip any optional ``---`` divider that often precedes the next section.
-    body_no_divider = re.sub(r"\s*^---\s*$", "", body, count=1, flags=re.MULTILINE).strip()
+    body_no_divider = re.sub(r"^---\s*$", "", body, count=1, flags=re.MULTILINE).strip()
 
     if not body_no_divider:
         print("ERROR: ## [Unreleased] section has no content; refusing to cut an empty release", file=sys.stderr)

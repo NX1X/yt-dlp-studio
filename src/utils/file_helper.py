@@ -35,8 +35,8 @@ class FileHelper:
             dir_path.mkdir(parents=True, exist_ok=True)
             logger.debug(f"Directory ensured: {path}")
             return True
-        except Exception as e:
-            logger.error(f"Failed to create directory {path}: {e}")
+        except Exception:
+            logger.exception(f"Failed to create directory {path}")
             return False
 
     @staticmethod
@@ -84,8 +84,8 @@ class FileHelper:
         """
         try:
             return os.path.getsize(file_path)
-        except Exception as e:
-            logger.error(f"Failed to get file size for {file_path}: {e}")
+        except Exception:
+            logger.exception(f"Failed to get file size for {file_path}")
             return None
 
     @staticmethod
