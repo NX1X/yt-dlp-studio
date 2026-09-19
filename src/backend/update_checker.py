@@ -233,41 +233,41 @@ class UpdateChecker:
             _Asset, or None if the release has no matching asset.
         """
         assets = release_data.get("assets", []) or []
+        chosen = self._select_linux_asset(assets) if os.name != "nt" else self._select_windows_asset(assets)
+        return self._make_asset(chosen) if chosen else None
 
-        def make(asset: dict) -> _Asset:
-            return _Asset(
-                url=asset.get("browser_download_url", ""),
-                size=int(asset.get("size", 0) or 0),
-                digest=_normalize_digest(asset.get("digest")),
-                extras=asset,
-            )
+    @staticmethod
+    def _make_asset(asset: dict) -> _Asset:
+        return _Asset(
+            url=asset.get("browser_download_url", ""),
+            size=int(asset.get("size", 0) or 0),
+            digest=_normalize_digest(asset.get("digest")),
+            extras=asset,
+        )
 
-        if os.name != "nt":
-            # Linux (and other POSIX): prefer a Linux archive. Never fall
-            # back to a Windows .exe, which would be useless to the user.
-            for asset in assets:
-                name = asset.get("name", "").lower()
-                if "linux" in name or name.endswith((".tar.gz", ".tgz", ".appimage")):
-                    return make(asset)
-            for asset in assets:
-                name = asset.get("name", "").lower()
-                if not name.endswith((".exe", ".msi")):
-                    return make(asset)
-            return None
+    @staticmethod
+    def _select_linux_asset(assets: list[dict]) -> dict | None:
+        """Prefer a Linux archive; never a Windows .exe/.msi (useless on Linux)."""
+        for asset in assets:
+            name = asset.get("name", "").lower()
+            if "linux" in name or name.endswith((".tar.gz", ".tgz", ".appimage")):
+                return asset
+        for asset in assets:
+            if not asset.get("name", "").lower().endswith((".exe", ".msi")):
+                return asset
+        return None
 
+    @staticmethod
+    def _select_windows_asset(assets: list[dict]) -> dict | None:
+        """Prefer an installer/.exe, then a .zip, then the first asset."""
         for asset in assets:
             name = asset.get("name", "").lower()
             if name.endswith(".exe") or "setup" in name or "installer" in name:
-                return make(asset)
-
+                return asset
         for asset in assets:
             if asset.get("name", "").lower().endswith(".zip"):
-                return make(asset)
-
-        if assets:
-            return make(assets[0])
-
-        return None
+                return asset
+        return assets[0] if assets else None
 
     def download_update(
         self,

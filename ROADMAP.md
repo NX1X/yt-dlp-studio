@@ -101,6 +101,7 @@ First officially built and published Linux desktop package, alongside the existi
 - ✅ Wide-distro support: built on glibc 2.35 (Ubuntu 22.04+, Debian 12+, Fedora 36+, Arch, ...)
 - ✅ Restored Python 3.10 support (run-from-source on stock Ubuntu 22.04)
 - ⬜ Community testing on multiple distributions before promoting to "stable Linux"
+- ⬜ **Post-merge (once 0.2.0 ships):** add the Linux download to the website, and update docs + marketing to say the app is available for **Windows and Linux** (was Windows-only).
 
 ### v0.3.0 - Distribution: Installer, Portable & Package Managers
 Ship the app the way users on each OS expect to get it, while keeping the no-install option.
@@ -131,6 +132,13 @@ Ship the app the way users on each OS expect to get it, while keeping the no-ins
 - ⬜ Audio codec selection (AAC, Opus, Vorbis)
 - ⬜ Bitrate control for video and audio
 - ⬜ Frame rate control
+
+### v0.5.0 / v0.6.0 - Expanded Site Support
+yt-dlp already extracts from 1000+ sites; surface more of them without taking on
+a huge manual-test burden.
+- ⬜ **Tested tier** (shown as "Supported"): the sites hand-verified each release - YouTube, Instagram, TikTok, Facebook, Twitter/X.
+- ⬜ **Experimental tier** ("powered by yt-dlp - 1000+ sites, untested"): expose the rest with a clear not-officially-tested label so breakage is expected, not surprising. Zero added test burden.
+- ⬜ **Automated extractor tester** (replaces manual site checks): a scheduled CI job that runs info-extraction only (no full download) against one known public URL per tested site and reports which extractors still work, catching upstream breakage automatically.
 
 ### v0.6.0 - Post-Processing
 - ⬜ Built-in video trimmer (cut segments)

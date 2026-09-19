@@ -265,7 +265,7 @@ jobs:
           set -euo pipefail
           python -m pip install --upgrade pip==26.1.2 --only-binary :all:
           pip install --require-hashes -r requirements/lock.txt --only-binary :all:
-          pip install -e .[dev]  # NOSONAR: --only-binary is incompatible with -e; editable install of the local project, dev/build tool pinning is a tracked follow-up.
+          pip install -e .[dev]
           python scripts/check_imports.py
 
       - name: Run pytest

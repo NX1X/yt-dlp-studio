@@ -34,7 +34,6 @@ def force_english_ui():
     deprecation warning) 38 times per run.
     """
     get_translation_manager().set_language("en")
-    yield
 
 
 @pytest.fixture

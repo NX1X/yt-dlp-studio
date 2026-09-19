@@ -26,7 +26,7 @@ APPS_DIR="${DATA_DIR}/applications"
 ICONS_DIR="${DATA_DIR}/icons/hicolor"
 
 BIN_SRC="${SCRIPT_DIR}/${APP_ID}"
-if [ ! -f "${BIN_SRC}" ]; then
+if [[ ! -f "${BIN_SRC}" ]]; then
     echo "Error: executable '${APP_ID}' not found next to this script." >&2
     echo "Run install.sh from inside the extracted release archive." >&2
     exit 1
@@ -42,7 +42,7 @@ echo "  - executable: ${BIN_DIR}/${APP_ID}"
 # 2. Icons -> hicolor theme at every size we ship.
 for size in 32 48 64 128 256; do
     src="${SCRIPT_DIR}/icons/${APP_ID}-${size}.png"
-    if [ -f "${src}" ]; then
+    if [[ -f "${src}" ]]; then
         dst_dir="${ICONS_DIR}/${size}x${size}/apps"
         mkdir -p "${dst_dir}"
         install -m 0644 "${src}" "${dst_dir}/${APP_ID}.png"

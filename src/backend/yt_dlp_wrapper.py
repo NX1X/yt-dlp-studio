@@ -470,9 +470,7 @@ class YtDlpWrapper:
 
         return language_names.get(lang_code, lang_code.upper())
 
-    # NOSONAR: ~500-line critical download path (S3776 complexity, S107 param count);
-    # refactor into helpers + a DownloadOptions object is tracked in ROADMAP v0.4.0.
-    def download(  # NOSONAR
+    def download(
         self,
         url: str,
         output_dir: str,
