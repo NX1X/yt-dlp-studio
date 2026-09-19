@@ -188,10 +188,19 @@
     },
     {
       "customType": "regex",
-      "description": "Deno runtime version pinned in src/utils/deno_installer.py",
-      "managerFilePatterns": ["src/utils/deno_installer\\.py$"],
+      // Deno is pinned in three places that must move together: the
+      // runtime auto-installer and the build/release workflows that bundle
+      // it into the EXE. The workflows also pin DENO_SHA256, which Renovate
+      // cannot compute; its PR fails the hash check until a maintainer pastes
+      // the verified digest, which is the intended manual gate.
+      "description": "Deno runtime version pinned in deno_installer.py and the build/release workflows",
+      "managerFilePatterns": [
+        "src/utils/deno_installer\\.py$",
+        "\\.github/workflows/(build|release)\\.yml$",
+      ],
       "matchStrings": [
         "DENO_VERSION\\s*=\\s*\"(?<currentValue>[^\"]+)\"",
+        "DENO_VERSION:\\s*\"(?<currentValue>[^\"]+)\"",
       ],
       "depNameTemplate": "denoland/deno",
       "datasourceTemplate": "github-releases",
@@ -199,8 +208,11 @@
     },
     {
       "customType": "regex",
-      "description": "FFmpeg binary version pinned in .github/workflows/build.yml",
-      "managerFilePatterns": ["\\.github/workflows/build\\.yml$"],
+      // build.yml (PR builds) and release.yml (the published EXE) each pin
+      // FFMPEG_VERSION + FFMPEG_SHA256. Watching only build.yml let the
+      // release copy drift; both files now bump in the same PR.
+      "description": "FFmpeg binary version pinned in the build/release workflows",
+      "managerFilePatterns": ["\\.github/workflows/(build|release)\\.yml$"],
       "matchStrings": [
         "FFMPEG_VERSION:\\s*\"(?<currentValue>[^\"]+)\"",
       ],

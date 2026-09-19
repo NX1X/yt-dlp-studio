@@ -52,10 +52,12 @@ jobs:
         allowed-endpoints: >
           api.github.com:443
           codeload.github.com:443
+          files.pythonhosted.org:443
           ghcr.io:443
           github.com:443
           objects.githubusercontent.com:443
           pkg-containers.githubusercontent.com:443
+          pypi.org:443
           raw.githubusercontent.com:443
           release-assets.githubusercontent.com:443
           results-receiver.actions.githubusercontent.com:443
@@ -69,7 +71,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
-        python-version: '3.11'
+        python-version: '3.14.6'
 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4.36.3

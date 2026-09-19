@@ -36,6 +36,7 @@ jobs:
           objects.githubusercontent.com:443
           pypi.org:443
           raw.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
           results-receiver.actions.githubusercontent.com:443
           *.blob.core.windows.net:443
 
@@ -47,7 +48,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
-        python-version: '3.11'
+        python-version: '3.14.6'
 
     - name: Install linting tools
       # Hash-pinned CI tooling (see requirements/ci-tools.in).
@@ -88,6 +89,7 @@ jobs:
           packages.microsoft.com:443
           pypi.org:443
           raw.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
           results-receiver.actions.githubusercontent.com:443
           security.ubuntu.com:80
           *.blob.core.windows.net:443
@@ -100,7 +102,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
-        python-version: '3.11'
+        python-version: '3.14.6'
 
     - name: Install system dependencies (Linux)
       if: runner.os == 'Linux'
@@ -110,7 +112,7 @@ jobs:
 
     - name: Install Python dependencies
       run: |
-        python -m pip install --upgrade pip==26.1.2
+        python -m pip install --upgrade pip==26.1.2 --only-binary :all:
         pip install --require-hashes -r requirements/lock.txt
         pip install -e .[dev]
 
@@ -171,12 +173,12 @@ jobs:
       # When bumping a version, update the matching SHA-256 in the same commit.
       # Procedure: download the asset locally, run `Get-FileHash -Algorithm SHA256`,
       # cross-check against the publisher's own checksum file, then paste here.
-      DENO_VERSION: "2.6.10"
+      DENO_VERSION: "2.9.6"
       # Cross-checked against
-      # https://github.com/denoland/deno/releases/download/v2.6.10/deno-x86_64-pc-windows-msvc.zip.sha256sum
-      DENO_SHA256: "6b26d272c2107ca63474c5702c824132a4a3e4469463edf0f327b9b5a5f5f854"
-      FFMPEG_VERSION: "8.1.1"
-      FFMPEG_SHA256: "7a6c3e86f54b0dd3bceff31f81bf3b70397171fcf35d1a13b9ed9cbf1040fc18"
+      # https://github.com/denoland/deno/releases/download/v2.9.6/deno-x86_64-pc-windows-msvc.zip.sha256sum
+      DENO_SHA256: "15e5300b0ba3c3695a7621d90160a746ec9e710228cee639afa9d580f6e3cd11"
+      FFMPEG_VERSION: "8.1.2"
+      FFMPEG_SHA256: "cba748035c21ce1431d0823c7a3a711f38616f89f87a265dceddf9b7f6749d2d"
     steps:
     - name: Harden runner
       # See lint job for rationale. Windows runner, so no apt and disable-sudo
@@ -198,6 +200,7 @@ jobs:
           pypi.org:443
           raw.githubusercontent.com:443
           rekor.sigstore.dev:443
+          release-assets.githubusercontent.com:443
           results-receiver.actions.githubusercontent.com:443
           sigstore.github.com:443
           tuf-repo-cdn.sigstore.dev:443
@@ -211,11 +214,11 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
-        python-version: '3.11'
+        python-version: '3.14.6'
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip==26.1.2
+        python -m pip install --upgrade pip==26.1.2 --only-binary :all:
         pip install --require-hashes -r requirements/lock.txt
         pip install -e .[build]
 

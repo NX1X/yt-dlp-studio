@@ -71,6 +71,7 @@ jobs:
           objects.githubusercontent.com:443
           pypi.org:443
           raw.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
           results-receiver.actions.githubusercontent.com:443
           *.blob.core.windows.net:443
 
@@ -82,7 +83,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
-        python-version: '3.11'
+        python-version: '3.14.6'
 
     - name: Install pip-audit
       # Hash-pinned CI tooling (see requirements/ci-tools.in).
@@ -120,6 +121,7 @@ jobs:
           objects.githubusercontent.com:443
           pypi.org:443
           raw.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
           results-receiver.actions.githubusercontent.com:443
           *.blob.core.windows.net:443
 
@@ -131,7 +133,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
-        python-version: '3.11'
+        python-version: '3.14.6'
 
     - name: Install zizmor
       # Hash-pinned CI tooling (see requirements/ci-tools.in).
@@ -206,6 +208,7 @@ jobs:
           raw.githubusercontent.com:443
           registry-1.docker.io:443
           rekor.sigstore.dev:443
+          release-assets.githubusercontent.com:443
           results-receiver.actions.githubusercontent.com:443
           storage.googleapis.com:443
           tuf-repo-cdn.sigstore.dev:443

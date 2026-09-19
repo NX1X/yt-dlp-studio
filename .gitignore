@@ -189,6 +189,13 @@ MEMORY.md
 **/MEMORY.md
 
 # ========================================
+# Snyk IDE extension (private to maintainer)
+# ========================================
+# Auto-generated AI-assistant rule files ("Snyk Security At Inception"),
+# rewritten by the extension per IDE (.github/instructions, .cursor/rules, ...).
+**/snyk_rules.*
+
+# ========================================
 # Internal docs (private to maintainer)
 # ========================================
 docs-internal/
