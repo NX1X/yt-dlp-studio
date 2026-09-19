@@ -54,9 +54,13 @@ class PlaylistVideoInfo:
         if self.duration <= 0:
             return "Unknown"
 
-        hours = self.duration // 3600
-        minutes = (self.duration % 3600) // 60
-        seconds = self.duration % 60
+        # yt-dlp reports duration as a float (e.g. 245.0); the ``:02d`` format
+        # code below requires ints, so normalise once up front - otherwise
+        # opening a playlist raises ValueError and crashes the dialog.
+        total = int(self.duration)
+        hours = total // 3600
+        minutes = (total % 3600) // 60
+        seconds = total % 60
 
         if hours > 0:
             return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
