@@ -22,6 +22,7 @@ This is the **first public beta**. The core feature set is functional and the ap
 **If YouTube downloads stopped working for you, this release fixes it.** Update and try again.
 
 - **Downloads work again.** The Windows EXE was missing the scripts yt-dlp uses to answer YouTube's anti-bot challenges, so downloads failed or offered fewer formats. They are now bundled.
+- **No more false "download complete".** If a download fails, the app now says so and shows the reason, instead of reporting success with no file.
 - **Playlist window no longer crashes** when opening some playlists.
 - **Newer download engine:** yt-dlp `2026.08.19`, with the latest YouTube, TikTok, Instagram, Vimeo and Bandcamp fixes.
 - **Updated bundled tools:** Deno `2.9.6` and FFmpeg `8.1.2`.

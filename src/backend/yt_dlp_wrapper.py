@@ -66,6 +66,48 @@ except Exception as e:
     logger.warning(f"Could not resolve impersonation target ({e}); falling back to no impersonation.")
 
 
+class _YtDlpLogBridge:
+    """Route yt-dlp's own messages into the app log.
+
+    Without a ``logger`` option yt-dlp prints to stdout/stderr, which the
+    windowed EXE discards, so yt-dlp's errors never reached the log file.
+    The last error is kept so a failed download can show the real reason.
+    """
+
+    def __init__(self) -> None:
+        self.last_error: str | None = None
+
+    def debug(self, msg: str) -> None:
+        # yt-dlp sends both debug and ordinary progress lines here; keep them
+        # below INFO so download progress does not flood the log file.
+        logger.debug(msg)
+
+    def info(self, msg: str) -> None:
+        logger.debug(msg)
+
+    def warning(self, msg: str) -> None:
+        logger.warning(f"yt-dlp: {msg}")
+
+    def error(self, msg: str) -> None:
+        self.last_error = msg
+        logger.error(f"yt-dlp: {msg}")
+
+
+def _existing_output_files(info_dict: dict | None) -> list[str]:
+    """Return the final files yt-dlp reports writing that exist on disk.
+
+    With ``ignoreerrors='only_download'`` a failed download does not raise:
+    ``extract_info`` returns ``None`` (or an entry without output), so the
+    only reliable success signal is the output file itself. ``filepath`` in
+    ``requested_downloads`` is the post-processed path (merged .mp4,
+    converted .mp3).
+    """
+    if not info_dict:
+        return []
+    paths = (d.get("filepath") for d in info_dict.get("requested_downloads") or [])
+    return [p for p in paths if p and os.path.exists(p)]
+
+
 def _make_subtitles_non_fatal(ydl: "YoutubeDL") -> None:
     """Patch a YoutubeDL instance so subtitle download failures cannot abort the video.
 
@@ -694,6 +736,10 @@ class YtDlpWrapper:
         ydl_opts_log = {k: v for k, v in ydl_opts.items() if k != "progress_hooks"}
         logger.info(json.dumps(ydl_opts_log, indent=2, default=str))
 
+        # Added after the dump above: the bridge is an object, not config.
+        log_bridge = _YtDlpLogBridge()
+        ydl_opts["logger"] = log_bridge
+
         try:
             logger.info("\n[STEP 5/5] Initializing yt-dlp and starting download...")
             with YoutubeDL(ydl_opts) as ydl:
@@ -717,6 +763,13 @@ class YtDlpWrapper:
                 if self._download_cancelled:
                     logger.info("Download was cancelled")
                     return False
+
+                # Never report success without a file on disk (see
+                # _existing_output_files). Raising routes this through the
+                # normal failure path so the UI shows the error.
+                if not _existing_output_files(info_dict):
+                    reason = log_bridge.last_error or "no error was reported"
+                    raise RuntimeError(f"yt-dlp finished without writing a file: {reason}")
 
                 # Post-process metadata files to make them user-friendly
                 if download_metadata and info_dict:

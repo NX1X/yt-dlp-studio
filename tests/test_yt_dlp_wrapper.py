@@ -387,3 +387,78 @@ def test_sleep_interval_subtitles_always_set_when_subs_enabled(monkeypatch):
         download_comments=False,
     )
     assert opts.get("sleep_interval_subtitles") == 2
+
+
+# ---------- success requires a file on disk (false-success regression) ----------
+
+
+def _run_download_returning(monkeypatch, tmp_path, info, error=None):
+    """Run download() against a fake YoutubeDL whose extract_info returns ``info``.
+
+    ``error`` is sent through the configured yt-dlp logger first, the way
+    yt-dlp reports a download error under ignoreerrors='only_download'.
+    """
+    from src.backend import yt_dlp_wrapper as mod
+
+    class _FakeYDL(_CapturingYDL):
+        def extract_info(self, url, download=True):
+            if error:
+                _CapturingYDL.captured["logger"].error(error)
+            return info
+
+    monkeypatch.setattr(mod, "YoutubeDL", _FakeYDL)
+    wrapper = mod.YtDlpWrapper()
+    ok = wrapper.download(
+        url="https://example.com/video",
+        output_dir=str(tmp_path),
+        format_string="best",
+        download_thumbnail=False,
+    )
+    return ok, wrapper
+
+
+def test_download_fails_when_ytdlp_returns_none(monkeypatch, tmp_path):
+    """v0.1.3 logged 'DOWNLOAD COMPLETED SUCCESSFULLY' with nothing on disk.
+
+    With ignoreerrors='only_download', an unavailable format makes
+    extract_info return None instead of raising.
+    """
+    msg = "ERROR: [youtube] abc: Requested format is not available"
+    ok, wrapper = _run_download_returning(monkeypatch, tmp_path, None, error=msg)
+    assert ok is False
+    assert "Requested format is not available" in wrapper._last_error
+
+
+def test_download_fails_when_reported_file_is_missing(monkeypatch, tmp_path):
+    info = {"requested_downloads": [{"filepath": str(tmp_path / "gone.mp4")}]}
+    ok, wrapper = _run_download_returning(monkeypatch, tmp_path, info)
+    assert ok is False
+    assert "without writing a file" in wrapper._last_error
+
+
+def test_download_succeeds_when_file_exists(monkeypatch, tmp_path):
+    out = tmp_path / "video.mp4"
+    out.write_bytes(b"x")
+    info = {"requested_downloads": [{"filepath": str(out)}]}
+    ok, _ = _run_download_returning(monkeypatch, tmp_path, info)
+    assert ok is True
+
+
+def test_ytdlp_logger_is_wired(monkeypatch):
+    """yt-dlp's own errors must reach the app log, not the discarded stderr."""
+    opts = _run_download_with_capture(monkeypatch)
+    bridge = opts.get("logger")
+    assert bridge is not None
+    for method in ("debug", "info", "warning", "error"):
+        assert callable(getattr(bridge, method))
+
+
+def test_existing_output_files_filters_missing(tmp_path):
+    from src.backend.yt_dlp_wrapper import _existing_output_files
+
+    real = tmp_path / "a.mp3"
+    real.write_bytes(b"x")
+    info = {"requested_downloads": [{"filepath": str(real)}, {"filepath": str(tmp_path / "b.mp3")}, {}]}
+    assert _existing_output_files(info) == [str(real)]
+    assert _existing_output_files(None) == []
+    assert _existing_output_files({"id": "x"}) == []
