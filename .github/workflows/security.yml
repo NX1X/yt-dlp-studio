@@ -97,6 +97,11 @@ jobs:
       #   --ignore-vuln GHSA-xxxx-xxxx-xxxx
       run: pip-audit --require-hashes -r requirements/lock.txt --desc
 
+    - name: Audit hash-pinned build tooling
+      # PyInstaller's bootloader is embedded in every shipped binary, so its
+      # lock (requirements/build-tools.txt) is gated the same way.
+      run: pip-audit --require-hashes -r requirements/build-tools.txt --desc
+
   zizmor:
     name: zizmor (workflow security)
     runs-on: ubuntu-latest
