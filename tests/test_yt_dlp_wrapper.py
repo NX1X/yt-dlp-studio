@@ -34,12 +34,18 @@ def reset_location_caches():
 
 
 def test_engine_imports_at_pinned_version():
-    """The wrapper module must successfully import yt_dlp at our pinned version."""
+    """The wrapper module must successfully import yt_dlp at our pinned version.
+
+    Compares against YTDLP_VERSION rather than a literal so the vendored tree
+    and the constant cannot drift apart, and so the bump workflow (which
+    updates only the constant) does not need to edit this test.
+    """
     from src.backend import yt_dlp_wrapper as wrapper
+    from src.utils.constants import YTDLP_VERSION
 
     assert hasattr(wrapper, "YoutubeDL")
     assert hasattr(wrapper, "ytdlp_version")
-    assert wrapper.ytdlp_version.__version__ == "2026.06.09"
+    assert wrapper.ytdlp_version.__version__ == YTDLP_VERSION
 
 
 def test_curl_cffi_is_available():
