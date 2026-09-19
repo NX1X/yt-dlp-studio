@@ -1,7 +1,7 @@
-# YT-DLP Studio v0.1.0 - Release Notes
+# YT-DLP Studio v0.1.4 - Release Notes
 
-**Release Date:** 2026-05-10
-**Status:** Public Beta - first public release
+**Release Date:** 2026-09-19
+**Status:** Public Beta - hotfix release
 
 > This file describes the **current release**. For full per-version history, see [CHANGELOG.md](CHANGELOG.md). For planned future work, see [ROADMAP.md](ROADMAP.md).
 >
@@ -14,6 +14,20 @@
 A user-friendly Windows desktop GUI for [yt-dlp](https://github.com/yt-dlp/yt-dlp) - download videos and audio from YouTube without touching the command line. Bundles FFmpeg and the Deno JS runtime, so there are no external dependencies to install.
 
 This is the **first public beta**. The core feature set is functional and the app is usable for daily downloads, but expect rough edges in the UI, missing options, and bug fixes coming in subsequent 0.x releases. We will tag **v1.0.0** when the feature set is stable and beta exit criteria (in [ROADMAP.md](ROADMAP.md)) are met.
+
+---
+
+## What's new in v0.1.4
+
+**If YouTube downloads stopped working for you, this release fixes it.** Update and try again.
+
+- **Downloads work again.** The Windows EXE was missing the scripts yt-dlp uses to answer YouTube's anti-bot challenges, so downloads failed or offered fewer formats. They are now bundled.
+- **No more false "download complete".** If a download fails, the app now says so and shows the reason, instead of reporting success with no file.
+- **Playlist window no longer crashes** when opening some playlists.
+- **Newer download engine:** yt-dlp `2026.08.19`, with the latest YouTube, TikTok, Instagram, Vimeo and Bandcamp fixes.
+- **Updated bundled tools:** Deno `2.9.6` and FFmpeg `8.1.2`.
+
+Nothing to migrate: your settings, history and download folder carry over. Full technical detail is in [CHANGELOG.md](CHANGELOG.md#014---2026-09-19).
 
 ---
 
@@ -40,7 +54,7 @@ This is the initial public release, so "what's new" is essentially the whole fea
 
 ### Build
 - Single-file Windows EXE (Windows 10/11, 64-bit)
-- Bundled FFmpeg, bundled Deno v2.6.10 JS runtime
+- Bundled FFmpeg, bundled Deno JS runtime
 - No external dependencies for end users
 
 See [CHANGELOG.md](CHANGELOG.md) for the full list.

@@ -21,6 +21,37 @@ _(no entries yet)_
 
 ---
 
+## [0.1.4] - 2026-09-19
+
+### Hotfix release: downloads work again in the Windows EXE. Also refreshes the bundled yt-dlp engine, Deno and FFmpeg, and clears the open dependency and CI backlog.
+
+### Fixed
+
+- **YouTube downloads failing in the Windows EXE.** `packaging/build.spec` listed `yt_dlp_ejs` under `hiddenimports`, which bundles the package's Python modules but not its data files. The JS challenge solver scripts (`yt_dlp_ejs/yt/solver/core.min.js` and `lib.min.js`) were therefore missing from the frozen build, so YouTube's JS challenges could not be solved and downloads failed or lost formats. Running from source was unaffected because the scripts exist on disk in the venv. The spec now adds `collect_data_files('yt_dlp_ejs')` to `datas`. Verified with the new engine: yt-dlp logs `Using challenge solver lib/core script v0.8.0 (source: python package, variant: minified)` with no hash-mismatch warning.
+- **Failed downloads were reported as successful.** With `ignoreerrors='only_download'`, a failed download does not raise: `extract_info` returns `None`, and the wrapper logged `DOWNLOAD COMPLETED SUCCESSFULLY` with nothing on disk. This is exactly what v0.1.3 users saw, completing in about two seconds with no file. The wrapper now counts a download as successful only when the files yt-dlp reports in `requested_downloads` exist, and otherwise fails with yt-dlp's own error, which the UI displays. yt-dlp's warnings and errors are also routed into the app log through a `logger` bridge; previously they went to stdout/stderr, which the windowed EXE discards.
+- **Playlist dialog crash on float durations.** yt-dlp reports `duration` as a float (e.g. `245.0`), and the `:02d` format in `PlaylistVideoInfo` raised `ValueError`, closing the dialog. The duration is now normalised to `int` first. Covered by new tests in `tests/test_playlist_fetcher.py`.
+- **`bump-yt-dlp-engine.yml` never passed its checksum step.** The `SHA2-256SUMS` lookup allowed exactly one space between hash and filename, but `sha256sum` emits two, so the pattern matched no upstream release (tested back to `2026.02.04`) and the workflow always exited at "yt-dlp.tar.gz hash not found". The pattern now accepts any whitespace and the binary-mode `*` marker, and is anchored so `yt-dlp.tar.gz.sig` cannot match. The same workflow's `pip` upgrade, missed by the 0.1.3 pinning pass, is now pinned to `pip==26.1.2`.
+- **`Set up Python` failing across CI after the setup-python v6.3.0 bump.** GitHub now serves release assets from `release-assets.githubusercontent.com`, and setup-python v6.3.0 installs pip from PyPI during setup. harden-runner's block-mode allowlists rejected both, failing every job with `connect ECONNREFUSED`. `release-assets.githubusercontent.com` was added to the 12 allowlist blocks that lacked it (#29), and `pypi.org` / `files.pythonhosted.org` to `codeql.yml` (#30).
+
+### Changed
+
+- **Bundled yt-dlp engine bumped from `2026.06.09` to `2026.08.19`.** Tarball SHA-256 `072aad4f2a7604e92155f61a275a4752dc64046c8f6d90df3710525d94cd37c1`, matching the `SHA2-256SUMS` file signed by the yt-dlp release key (`AC0CBBE6848D6A873464AF4E57CF65933B5A7581`, GPG "Good signature"). Includes the `2026.07.04` and `2026.08.19` YouTube fixes (new `visionos` and `web_embedded` client fallbacks, `android_vr` removed from default clients, player client version updates, tab/playlist metadata and pagination fixes) plus TikTok, Instagram, Vimeo and Bandcamp fixes. New extractors: `omnyfm`, `zan`. Removed upstream: `gofile`, `trovo`, and the dead `ARDIE` extractor (other ARD extractors remain). Still requires `yt-dlp-ejs==0.8.0`, matching `requirements/lock.txt`.
+- **Deno bumped from `2.6.10` to `2.9.6`** in `src/utils/deno_installer.py`, `build.yml` and `release.yml`. SHA-256 `15e5300b0ba3c3695a7621d90160a746ec9e710228cee639afa9d580f6e3cd11` agrees across the publisher's `.sha256sum` sidecar, the downloaded asset and the GitHub release digest. `2.9.7` was skipped because it was one day old, inside the 14-day cooldown.
+- **FFmpeg bumped from `8.1.1` to `8.1.2`** in `build.yml` and `release.yml` (SHA-256 `cba748035c21ce1431d0823c7a3a711f38616f89f87a265dceddf9b7f6749d2d`). FFmpeg `9.0.1` was deliberately not taken: it moves every library soname (`avcodec-62` to `avcodec-63`, `swscale-9` to `swscale-10`, and so on), which would break the seven hardcoded DLL entries in `build.spec`. That bump belongs in a release that can absorb a spec change.
+- **FFmpeg and Deno lookup is platform-aware.** `YtDlpWrapper` now looks for `ffmpeg` / `deno` without the `.exe` suffix on non-Windows platforms. No behaviour change on Windows; brought forward from the in-progress Linux work.
+- **Renovate now tracks every copy of the Deno and FFmpeg pins.** The FFmpeg manager watched only `build.yml`, leaving `release.yml` (the published EXE) to drift, and the Deno manager watched only `deno_installer.py`, missing both workflows. Both managers now cover `build.yml` and `release.yml`. The workflows also pin a SHA-256 that Renovate cannot compute, so its PR fails the hash check until the verified digest is pasted in, which is the intended manual gate.
+- **`test_engine_imports_at_pinned_version` compares against `YTDLP_VERSION`** instead of a string literal, so the vendored tree and the constant cannot drift and the bump workflow's pytest step no longer needs a test edit on every bump.
+
+### Security
+
+- **msgpack bumped to `1.2.1` in the CI tooling lock** (GHSA-6v7p-g79w-8964, High: out-of-bounds read when an `Unpacker` is reused after a caught error). Reachable only through `pip-audit -> cachecontrol -> msgpack` in `requirements/ci-tools.txt`; not bundled into the EXE. Done as a surgical pin-and-hash swap (#31), because a full re-lock on Linux drops Windows-only transitives such as `colorama`, which is what broke the Dependabot PR (#24).
+
+### Dependencies
+
+- Merged the pending Renovate queue: `actions/checkout` v6.0.3, `actions/setup-python` v6.3.0, `github/codeql-action` v4.36.3, `actions/attest-build-provenance` v4.1.1, `softprops/action-gh-release` v3.0.1 (#13); `packaging>=23.2` (#21); `black>=26.5.1` (#27); `pip-tools>=7.5.3` (#28); `mkdocs-material>=9.7.6` (#20); pre-commit hooks `psf/black` v26.5.1 (#17), `gitleaks` v8.30.1 (#16), `ruff-pre-commit` v0.15.20 (#15).
+
+---
+
 ## [0.1.3] - 2026-07-11
 
 ### Maintenance release focused on supply-chain hardening. No user-facing feature changes; the Windows EXE built from this tag is functionally identical to `0.1.2` and only differs in the hardened CI + dependency posture that produced it.

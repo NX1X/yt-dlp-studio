@@ -22,12 +22,17 @@ logger = get_logger()
 # In a PyInstaller bundle the engine is extracted to <_MEIPASS>/yt_dlp_engine
 # (see packaging/build.spec datas); running from source it lives at
 # <project_root>/vendor/yt_dlp_engine.
+# Project root is resolved unconditionally so the project-local deno/ folder
+# lookup (see _get_deno_location) works even on a frozen build that does not
+# bundle Deno (e.g. the Linux build, which relies on the auto-installer
+# dropping the binary next to the executable rather than inside the bundle).
+_current_dir = Path(__file__).resolve().parent
+_project_root = _current_dir.parent.parent
+
 if getattr(sys, "frozen", False):
     _bundle_dir = getattr(sys, "_MEIPASS", None)
     _engine_path = Path(_bundle_dir) / "yt_dlp_engine" if _bundle_dir else None
 else:
-    _current_dir = Path(__file__).resolve().parent
-    _project_root = _current_dir.parent.parent
     _engine_path = _project_root / "vendor" / "yt_dlp_engine"
 
 if _engine_path is not None and str(_engine_path) not in sys.path:
@@ -59,6 +64,48 @@ try:
 except Exception as e:
     _DEFAULT_IMPERSONATE_TARGET = None
     logger.warning(f"Could not resolve impersonation target ({e}); falling back to no impersonation.")
+
+
+class _YtDlpLogBridge:
+    """Route yt-dlp's own messages into the app log.
+
+    Without a ``logger`` option yt-dlp prints to stdout/stderr, which the
+    windowed EXE discards, so yt-dlp's errors never reached the log file.
+    The last error is kept so a failed download can show the real reason.
+    """
+
+    def __init__(self) -> None:
+        self.last_error: str | None = None
+
+    def debug(self, msg: str) -> None:
+        # yt-dlp sends both debug and ordinary progress lines here; keep them
+        # below INFO so download progress does not flood the log file.
+        logger.debug(msg)
+
+    def info(self, msg: str) -> None:
+        logger.debug(msg)
+
+    def warning(self, msg: str) -> None:
+        logger.warning(f"yt-dlp: {msg}")
+
+    def error(self, msg: str) -> None:
+        self.last_error = msg
+        logger.error(f"yt-dlp: {msg}")
+
+
+def _existing_output_files(info_dict: dict | None) -> list[str]:
+    """Return the final files yt-dlp reports writing that exist on disk.
+
+    With ``ignoreerrors='only_download'`` a failed download does not raise:
+    ``extract_info`` returns ``None`` (or an entry without output), so the
+    only reliable success signal is the output file itself. ``filepath`` in
+    ``requested_downloads`` is the post-processed path (merged .mp4,
+    converted .mp3).
+    """
+    if not info_dict:
+        return []
+    paths = (d.get("filepath") for d in info_dict.get("requested_downloads") or [])
+    return [p for p in paths if p and os.path.exists(p)]
 
 
 def _make_subtitles_non_fatal(ydl: "YoutubeDL") -> None:
@@ -121,9 +168,14 @@ class YtDlpWrapper:
         Find FFmpeg executable location (cached after first lookup).
 
         Checks multiple locations:
-        1. PyInstaller bundled location (when running from .exe)
-        2. System PATH
+        1. PyInstaller bundled location (when running from a frozen build)
+        2. System PATH (the primary source on Linux/macOS)
         3. Current directory
+
+        The executable name is platform-aware: ``ffmpeg.exe`` on Windows,
+        ``ffmpeg`` elsewhere. On Linux the app relies on a system FFmpeg
+        installed via the package manager (``apt install ffmpeg``); the
+        binary is not bundled.
 
         Returns:
             Path to directory containing ffmpeg, or None if not found
@@ -135,12 +187,13 @@ class YtDlpWrapper:
         import shutil
 
         result = None
+        ffmpeg_binary = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
 
         # Method 1: Check if running from PyInstaller bundle
         if getattr(sys, "frozen", False):
             bundle_dir = getattr(sys, "_MEIPASS", None)
             if bundle_dir:
-                ffmpeg_path = os.path.join(bundle_dir, "ffmpeg.exe")
+                ffmpeg_path = os.path.join(bundle_dir, ffmpeg_binary)
                 if os.path.exists(ffmpeg_path):
                     logger.debug(f"Found FFmpeg in bundle: {bundle_dir}")
                     result = bundle_dir
@@ -156,7 +209,7 @@ class YtDlpWrapper:
         # Method 3: Check current directory
         if result is None:
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            ffmpeg_path = os.path.join(current_dir, "ffmpeg.exe")
+            ffmpeg_path = os.path.join(current_dir, ffmpeg_binary)
             if os.path.exists(ffmpeg_path):
                 logger.debug(f"Found FFmpeg in current dir: {current_dir}")
                 result = current_dir
@@ -174,9 +227,14 @@ class YtDlpWrapper:
         Find Deno executable location (cached after first lookup).
 
         Checks multiple locations:
-        1. PyInstaller bundled location (when running from .exe)
-        2. Project-local deno/ folder (development)
+        1. PyInstaller bundled location (when running from a frozen build)
+        2. Project-local deno/ folder (development / auto-installed)
         3. System PATH
+
+        The executable name is platform-aware: ``deno.exe`` on Windows,
+        ``deno`` elsewhere. The auto-installer (utils/deno_installer.py)
+        drops the binary into the project-local ``deno/`` folder under the
+        same name, so Method 2 finds it on every platform.
 
         Returns:
             Path to deno executable, or None if not found
@@ -188,19 +246,20 @@ class YtDlpWrapper:
         import shutil
 
         result = None
+        deno_binary = "deno.exe" if os.name == "nt" else "deno"
 
         # Method 1: Check if running from PyInstaller bundle
         if getattr(sys, "frozen", False):
             bundle_dir = getattr(sys, "_MEIPASS", None)
             if bundle_dir:
-                deno_path = os.path.join(bundle_dir, "deno.exe")
+                deno_path = os.path.join(bundle_dir, deno_binary)
                 if os.path.exists(deno_path):
                     logger.debug(f"Found Deno in bundle: {deno_path}")
                     result = deno_path
 
         # Method 2: Check project-local deno/ folder
         if result is None:
-            deno_local = _project_root / "deno" / "deno.exe"
+            deno_local = _project_root / "deno" / deno_binary
             if deno_local.exists():
                 logger.debug(f"Found Deno locally: {deno_local}")
                 result = str(deno_local)
@@ -677,6 +736,10 @@ class YtDlpWrapper:
         ydl_opts_log = {k: v for k, v in ydl_opts.items() if k != "progress_hooks"}
         logger.info(json.dumps(ydl_opts_log, indent=2, default=str))
 
+        # Added after the dump above: the bridge is an object, not config.
+        log_bridge = _YtDlpLogBridge()
+        ydl_opts["logger"] = log_bridge
+
         try:
             logger.info("\n[STEP 5/5] Initializing yt-dlp and starting download...")
             with YoutubeDL(ydl_opts) as ydl:
@@ -700,6 +763,13 @@ class YtDlpWrapper:
                 if self._download_cancelled:
                     logger.info("Download was cancelled")
                     return False
+
+                # Never report success without a file on disk (see
+                # _existing_output_files). Raising routes this through the
+                # normal failure path so the UI shows the error.
+                if not _existing_output_files(info_dict):
+                    reason = log_bridge.last_error or "no error was reported"
+                    raise RuntimeError(f"yt-dlp finished without writing a file: {reason}")
 
                 # Post-process metadata files to make them user-friendly
                 if download_metadata and info_dict:

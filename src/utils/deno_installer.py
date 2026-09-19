@@ -3,7 +3,7 @@ Deno auto-installer for YT-DLP Studio.
 
 Downloads and installs the Deno JS runtime on first run if not present.
 Deno is required by yt-dlp to solve YouTube's JS challenges and unlock
-all available formats. Pinned to v2.6.10 to match the CI build.
+all available formats. Pinned to v2.9.6 to match the CI build.
 """
 
 import os
@@ -17,7 +17,7 @@ from .logger import get_logger
 
 logger = get_logger()
 
-DENO_VERSION = "2.6.10"
+DENO_VERSION = "2.9.6"
 
 _DENO_URLS = {
     (
