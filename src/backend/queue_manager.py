@@ -151,7 +151,7 @@ class QueueManager(QObject):
     def stop_all(self) -> None:
         """Stop all active downloads."""
         logger.info("Stopping all active downloads")
-        for _index, worker in list(self.workers.items()):
+        for _index, worker in self.workers.items():
             worker.cancel()
         self.workers.clear()
 

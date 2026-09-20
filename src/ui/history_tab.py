@@ -291,7 +291,7 @@ class HistoryTab(QWidget):
             logger.info(f"Opened download directory: {directory}")
 
         except Exception as e:
-            logger.error(f"Failed to open directory: {e}")
+            logger.exception("Failed to open directory")
             QMessageBox.critical(self, tr("error"), f"{tr('msg_failed_open_dir')}:\n{e}")
 
     def refresh(self) -> None:

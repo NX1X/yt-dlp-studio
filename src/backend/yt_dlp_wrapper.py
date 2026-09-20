@@ -46,7 +46,7 @@ try:
 
     logger.info(f"yt-dlp imported successfully. Version: {ytdlp_version.__version__}")
 except ImportError as e:
-    logger.error(f"Failed to import yt-dlp: {e}")
+    logger.exception("Failed to import yt-dlp")
     raise ImportError("Could not import yt-dlp. Please ensure yt_dlp_engine is properly set up.") from e
 
 
@@ -334,8 +334,8 @@ class YtDlpWrapper:
                 logger.info(f"Video info extracted: {video_info.title}")
                 return video_info
 
-        except Exception as e:
-            logger.error(f"Error extracting video info: {e}")
+        except Exception:
+            logger.exception("Error extracting video info")
             return None
 
     def get_available_subtitles(self, url: str) -> dict:
@@ -419,8 +419,8 @@ class YtDlpWrapper:
 
                 return result
 
-        except Exception as e:
-            logger.error(f"Error fetching subtitles: {e}")
+        except Exception:
+            logger.exception("Error fetching subtitles")
             return {}
 
     def _get_language_name(self, lang_code: str) -> str:
@@ -816,7 +816,7 @@ class YtDlpWrapper:
                                         date_obj = datetime.strptime(upload_date, "%Y%m%d")
                                         formatted_date = date_obj.strftime("%B %d, %Y")
                                         f.write(f"[UPLOAD DATE]\n{formatted_date}\n\n")
-                                    except:
+                                    except Exception:
                                         f.write(f"[UPLOAD DATE]\n{upload_date}\n\n")
 
                                 # Duration
@@ -891,8 +891,8 @@ class YtDlpWrapper:
                         else:
                             logger.warning("Could not find recently created JSON metadata file")
 
-                    except Exception as e:
-                        logger.error(f"Error post-processing metadata files: {e}", exc_info=True)
+                    except Exception:
+                        logger.exception("Error post-processing metadata files")
 
                 # Post-process comments to TXT file (v2.0.0)
                 if download_comments and info_dict:
@@ -947,7 +947,7 @@ class YtDlpWrapper:
 
                                                 dt = datetime.fromtimestamp(timestamp)
                                                 time_str = dt.strftime("%Y-%m-%d %H:%M:%S")
-                                            except:
+                                            except Exception:
                                                 time_str = str(timestamp)
 
                                         f.write(f"[Comment #{i}]\n")
@@ -974,8 +974,8 @@ class YtDlpWrapper:
                         else:
                             logger.warning("Could not find recently created JSON file for comments")
 
-                    except Exception as e:
-                        logger.error(f"Error extracting comments to TXT: {e}", exc_info=True)
+                    except Exception:
+                        logger.exception("Error extracting comments to TXT")
 
                 logger.info("\n" + "=" * 80)
                 logger.info("✓✓✓ DOWNLOAD COMPLETED SUCCESSFULLY ✓✓✓")
@@ -983,23 +983,17 @@ class YtDlpWrapper:
                 return True
 
         except Exception as e:
-            # Log detailed error information for debugging
-            import traceback
+            # Store the error for the UI to display.
+            self._last_error = str(e)
+            self._last_error_type = type(e).__name__
 
+            # logger.exception() records the error type, message, and full
+            # traceback in one entry; the banner lines keep it easy to spot.
             logger.error("\n" + "=" * 80)
             logger.error("✗✗✗ DOWNLOAD FAILED ✗✗✗")
             logger.error("=" * 80)
-            logger.error(f"Error Type: {type(e).__name__}")
-            logger.error(f"Error Message: {str(e)}")
-            logger.error("-" * 80)
-            logger.error("Full Traceback:")
-            error_trace = traceback.format_exc()
-            logger.error(error_trace)
+            logger.exception("Download failed")
             logger.error("=" * 80)
-
-            # Store the error for UI to display
-            self._last_error = str(e)
-            self._last_error_type = type(e).__name__
 
             return False
 
@@ -1028,64 +1022,60 @@ class YtDlpWrapper:
         try:
             import glob
 
-            # Since yt-dlp uses windowsfilenames=True, we need to find files by pattern
-            # Get the height from info_dict
+            # yt-dlp sanitizes filenames (windowsfilenames=True), so locate the
+            # written files by their height suffix rather than the title.
             height = info_dict.get("height", "NA")
+            matching_files = glob.glob(os.path.join(output_dir, f"*{height}p.*"))
 
-            # Search for files with the title in the name (sanitized by yt-dlp)
-            # Use glob to find actual files since filename may be sanitized differently
-            search_pattern = os.path.join(output_dir, f"*{height}p.*")
-            matching_files = glob.glob(search_pattern)
-
-            # Find the base filename from actual files
-            base_filename = None
-            for file_path in matching_files:
-                if file_path.endswith(".info.json"):
-                    base_filename = os.path.splitext(file_path)[0]
-                    break
-
+            base_filename = self._find_metadata_base(matching_files)
             if not base_filename:
-                # Try to find any metadata file
-                for file_path in matching_files:
-                    if file_path.endswith(".description") or file_path.endswith(".webp") or file_path.endswith(".jpg"):
-                        base_filename = os.path.splitext(file_path)[0]
-                        break
-
-            if base_filename:
-                # 1. Format .info.json file with proper indentation
-                json_file = f"{base_filename}.info.json"
-                if os.path.exists(json_file):
-                    try:
-                        with open(json_file, encoding="utf-8") as f:
-                            data = json.load(f)
-
-                        # Rewrite with beautiful formatting
-                        with open(json_file, "w", encoding="utf-8") as f:
-                            json.dump(data, f, indent=2, ensure_ascii=False)
-
-                        logger.info("✓ Formatted JSON file with proper indentation")
-                    except Exception as e:
-                        logger.warning(f"Could not format JSON file: {e}")
-
-                # 2. Rename .description to .txt
-                desc_file = f"{base_filename}.description"
-                txt_file = f"{base_filename}.txt"
-
-                if os.path.exists(desc_file):
-                    try:
-                        # Remove existing .txt file if it exists
-                        if os.path.exists(txt_file):
-                            os.remove(txt_file)
-
-                        os.rename(desc_file, txt_file)
-                        logger.info("✓ Renamed .description to .txt for better readability")
-                    except Exception as e:
-                        logger.warning(f"Could not rename description file: {e}")
-            else:
                 logger.debug("Could not find base filename for metadata post-processing")
+                return
 
-        except Exception as e:
-            logger.warning(f"Error during metadata post-processing: {e}")
+            self._format_info_json(f"{base_filename}.info.json")
+            self._rename_description_to_txt(base_filename)
+        except Exception:
+            logger.exception("Error during metadata post-processing")
+
+    @staticmethod
+    def _find_metadata_base(matching_files: list[str]) -> str | None:
+        """Return the common base path of the downloaded metadata files."""
+        for file_path in matching_files:
+            if file_path.endswith(".info.json"):
+                return os.path.splitext(file_path)[0]
+        for file_path in matching_files:
+            if file_path.endswith((".description", ".webp", ".jpg")):
+                return os.path.splitext(file_path)[0]
+        return None
+
+    @staticmethod
+    def _format_info_json(json_file: str) -> None:
+        """Rewrite the .info.json with human-readable indentation."""
+        if not os.path.exists(json_file):
+            return
+        try:
+            with open(json_file, encoding="utf-8") as f:
+                data = json.load(f)
+            with open(json_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            logger.info("✓ Formatted JSON file with proper indentation")
+        except Exception:
+            logger.exception("Could not format JSON file")
+
+    @staticmethod
+    def _rename_description_to_txt(base_filename: str) -> None:
+        """Rename the .description sidecar to .txt for readability."""
+        desc_file = f"{base_filename}.description"
+        txt_file = f"{base_filename}.txt"
+        if not os.path.exists(desc_file):
+            return
+        try:
+            if os.path.exists(txt_file):
+                os.remove(txt_file)
+            os.rename(desc_file, txt_file)
+            logger.info("✓ Renamed .description to .txt for better readability")
+        except Exception:
+            logger.exception("Could not rename description file")
 
     def _progress_hook(self, d: dict[str, Any]) -> None:
         """
@@ -1104,8 +1094,8 @@ class YtDlpWrapper:
         if self.progress_callback:
             try:
                 self.progress_callback(d)
-            except Exception as e:
-                logger.error(f"Error in progress callback: {e}")
+            except Exception:
+                logger.exception("Error in progress callback")
 
     @staticmethod
     def get_ytdlp_version() -> str:
@@ -1117,5 +1107,5 @@ class YtDlpWrapper:
         """
         try:
             return ytdlp_version.__version__
-        except:
+        except Exception:
             return "Unknown"

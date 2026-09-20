@@ -132,8 +132,8 @@ class HistoryManager:
             filepath.write_text(csv_data, encoding="utf-8")
             logger.info(f"Exported history to CSV: {filepath}")
             return True
-        except Exception as e:
-            logger.error(f"Failed to export CSV: {e}")
+        except Exception:
+            logger.exception("Failed to export CSV")
             return False
 
     def save(self) -> bool:
@@ -148,8 +148,8 @@ class HistoryManager:
             self.history_path.write_text(json_data, encoding="utf-8")
             logger.debug(f"History saved to {self.history_path}")
             return True
-        except Exception as e:
-            logger.error(f"Failed to save history: {e}")
+        except Exception:
+            logger.exception("Failed to save history")
             return False
 
     def load(self) -> bool:
@@ -168,6 +168,6 @@ class HistoryManager:
             self.history = DownloadHistory.from_json(json_data)
             logger.info(f"History loaded: {len(self.history.entries)} entries")
             return True
-        except Exception as e:
-            logger.error(f"Failed to load history: {e}")
+        except Exception:
+            logger.exception("Failed to load history")
             return False

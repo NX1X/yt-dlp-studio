@@ -63,11 +63,10 @@ class DownloadTask:
     download_thumbnail: bool = True
     download_subtitles: bool = False
     subtitle_languages: str = "en"
-    speed_limit: int = 0  # KB/s, 0 = unlimited
+    speed_limit: int = 0  # KB/s (0 means unlimited)
     # v2.0.0 features
     video_container: str | None = None
     audio_format: str = "mp3"
-    audio_only: bool = False  # Track if this is audio-only download for duplicate detection
     # v2.1.0 features - Advanced options
     selected_subtitles: list | None = None  # List of selected subtitle language codes
     download_metadata: bool = False  # Download metadata (comments, description, etc.)

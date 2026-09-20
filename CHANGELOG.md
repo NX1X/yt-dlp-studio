@@ -21,6 +21,94 @@ _(no entries yet)_
 
 ---
 
+## [0.2.0] - 2026-07-11
+
+### Linux (Ubuntu) desktop support
+
+First release with an officially built and published Linux desktop package,
+alongside the existing Windows EXE. The Linux build is a self-contained
+PyInstaller binary that relies on a system-installed FFmpeg and auto-downloads
+Deno on first run.
+
+### Added
+
+- **Linux desktop integration package.** The Linux release archive
+  (`yt-dlp-studio-<version>-Linux.tar.gz`) now ships an `install.sh` /
+  `uninstall.sh` pair plus hicolor icons (32-256px) and a `.desktop` launcher
+  (`packaging/linux/`). `install.sh` installs the executable, icons, and
+  launcher into the per-user XDG locations (`~/.local/bin`,
+  `~/.local/share/icons/hicolor`, `~/.local/share/applications`) with no root
+  required, so YT-DLP Studio appears in the Ubuntu application menu / dock.
+- **PNG application icon** rendered from the source SVG and bundled at
+  `src/resources/icons/favicon.png` so the window icon renders reliably in a
+  frozen build even without the Qt SVG image plugin.
+- **Linux build in CI.** `.github/workflows/build.yml` now has a `build-linux`
+  job that builds the PyInstaller Linux binary on every PR and push to
+  `main`/`dev`, mirroring the existing Windows build so Linux-only bundle
+  regressions surface before merge.
+- **Runtime smoke-test of the Linux binary in CI.** Both the CI and release
+  Linux builds now launch the frozen binary headless (offscreen Qt) and assert
+  it reaches the "started successfully" milestone before uploading/publishing.
+  This runtime-tests the bundle - catching missing hidden imports and Qt/plugin
+  gaps that a build-only check misses.
+
+### Changed
+
+- **The release pipeline now builds and publishes the Linux artifact.** The
+  previously-disabled `build-linux` job in `.github/workflows/release.yml` is
+  enabled, produces a Sigstore-signed SLSA provenance attestation (matching the
+  Windows job), packages the full desktop bundle, and is wired into
+  `create-release` so the Linux `.tar.gz` is attached to every GitHub Release.
+- **Wide Linux distribution support, not just Debian/Ubuntu.** The Linux binary
+  is now built on `ubuntu-22.04` (glibc 2.35) instead of `ubuntu-latest` (24.04,
+  glibc 2.39). A PyInstaller binary cannot run on a glibc older than its build
+  host's, so this lowers the compatibility floor to cover Ubuntu 22.04+,
+  Debian 12+, Fedora 36+, Linux Mint 21+, Arch, and most 2022-and-later
+  distributions. `install.sh` now detects the system package manager
+  (apt/dnf/pacman/zypper/apk/...) and prints the correct FFmpeg install command,
+  and the docs list per-distro instructions.
+- **The in-app updater is Linux-aware.** On Linux it selects the Linux archive
+  asset (never a Windows `.exe`), names the download with the correct
+  extension, and - since a `.tar.gz` is not a self-running installer - reveals
+  the downloaded archive in the file manager instead of trying to execute it.
+- On Linux the app sets its Qt desktop file name (`yt-dlp-studio`) so
+  GNOME/Wayland associates the window with the installed launcher and shows the
+  correct dock icon.
+
+### Fixed
+
+- **Linux PyInstaller spec was missing runtime dependencies.**
+  `build_linux.spec` did not bundle `curl_cffi`'s native impersonation library
+  (downloads failed at `YoutubeDL` init with "Impersonate target 'chrome' is not
+  available"), the `yt_dlp_ejs` solver `.js` data files (JS challenges could lose
+  formats), or `concurrent.futures` (`ModuleNotFoundError` on Python 3.10). All
+  are now bundled via `collect_all` / `collect_data_files` / hidden imports,
+  matching the Windows spec. Surfaced by the new runtime smoke-test.
+- **Restored Python 3.10 support (run-from-source).** The code imported
+  `datetime.UTC`, which only exists on Python 3.11+, despite
+  `requires-python = ">=3.10"` and a 3.10 classifier - so running from source on
+  Python 3.10 (e.g. stock Ubuntu 22.04, whose system Python is 3.10) crashed at
+  import. Switched to `datetime.timezone.utc` (works on 3.2+) across
+  `main_window`, `settings_tab`, `crash_handler`, and `scripts/sync_version.py`,
+  and set the ruff/black `target-version` to `py310` so 3.11-only idioms can't
+  slip back in.
+- **`test_queue_tab.py` is no longer flaky / excluded from CI.** It asserted
+  English UI strings but never pinned the language, so the translation
+  singleton's state (mutated by other test modules) or the CI runner's locale
+  could render the labels in Hebrew and fail 6 assertions. It now forces English
+  in a fixture, so the full suite runs deterministically under any locale; the
+  `--ignore=tests/test_queue_tab.py` exclusion has been removed.
+- **Sigstore egress for the Scorecard job.** Added
+  `fulcio`/`rekor`/`tuf-repo-cdn.sigstore.dev` to the Scorecard harden-runner
+  allowlist so `publish_results` can sign results; the Security workflow had been
+  failing on every run.
+
+> Note: the dependency, engine, and CodeQL/`release-assets` egress work that was
+> staged on this branch shipped ahead of it in **0.1.4** (see below); 0.2.0
+> carries only the Linux-desktop delta on top.
+
+---
+
 ## [0.1.4] - 2026-09-19
 
 ### Hotfix release: downloads work again in the Windows EXE. Also refreshes the bundled yt-dlp engine, Deno and FFmpeg, and clears the open dependency and CI backlog.
