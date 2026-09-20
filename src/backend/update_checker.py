@@ -10,6 +10,7 @@ driven from a background QThread (see src/ui/update_dialog.py).
 
 import hashlib
 import hmac
+import os
 from dataclasses import dataclass, field
 
 import requests
@@ -184,6 +185,7 @@ class UpdateChecker:
                 "published_at": release_data.get("published_at", ""),
                 "html_url": release_data.get("html_url", ""),
                 "download_url": asset.url if asset else release_data.get("html_url"),
+                "asset_name": asset.extras.get("name", "") if asset else "",
                 "size": asset.size if asset else 0,
                 "digest": asset.digest if asset else "",
                 "assets": release_data.get("assets", []),
@@ -191,13 +193,13 @@ class UpdateChecker:
             return UpdateCheckResult(update_available=True, release_info=release_info)
 
         except requests.exceptions.Timeout:
-            logger.error("Update check timed out")
+            logger.exception("Update check timed out")
             return UpdateCheckResult(error="timeout")
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Update check failed: {e}")
+        except requests.exceptions.RequestException:
+            logger.exception("Update check failed")
             return UpdateCheckResult(error="network")
-        except Exception as e:
-            logger.error(f"Unexpected error during update check: {e}")
+        except Exception:
+            logger.exception("Unexpected error during update check")
             return UpdateCheckResult(error="unknown")
 
     def _is_version_newer(self, latest: str, current: str) -> bool:
@@ -219,38 +221,53 @@ class UpdateChecker:
 
     def _select_asset(self, release_data: dict) -> _Asset | None:
         """
-        Select the most appropriate downloadable asset from a release.
+        Select the most appropriate downloadable asset for the current OS.
 
-        Priority: Windows installer/.exe -> .zip -> first asset. The full
-        asset is returned (URL, size and GitHub-published digest) so callers
-        can show an accurate size and verify integrity.
+        On Windows the priority is installer/.exe -> .zip -> first asset.
+        On Linux it is the Linux archive (name contains "linux" or ends in
+        .tar.gz / .AppImage) -> first asset. The full asset is returned
+        (URL, size and GitHub-published digest) so callers can show an
+        accurate size and verify integrity.
 
         Returns:
-            _Asset, or None if the release has no assets.
+            _Asset, or None if the release has no matching asset.
         """
         assets = release_data.get("assets", []) or []
+        chosen = self._select_linux_asset(assets) if os.name != "nt" else self._select_windows_asset(assets)
+        return self._make_asset(chosen) if chosen else None
 
-        def make(asset: dict) -> _Asset:
-            return _Asset(
-                url=asset.get("browser_download_url", ""),
-                size=int(asset.get("size", 0) or 0),
-                digest=_normalize_digest(asset.get("digest")),
-                extras=asset,
-            )
+    @staticmethod
+    def _make_asset(asset: dict) -> _Asset:
+        return _Asset(
+            url=asset.get("browser_download_url", ""),
+            size=int(asset.get("size", 0) or 0),
+            digest=_normalize_digest(asset.get("digest")),
+            extras=asset,
+        )
 
+    @staticmethod
+    def _select_linux_asset(assets: list[dict]) -> dict | None:
+        """Prefer a Linux archive; never a Windows .exe/.msi (useless on Linux)."""
+        for asset in assets:
+            name = asset.get("name", "").lower()
+            if "linux" in name or name.endswith((".tar.gz", ".tgz", ".appimage")):
+                return asset
+        for asset in assets:
+            if not asset.get("name", "").lower().endswith((".exe", ".msi")):
+                return asset
+        return None
+
+    @staticmethod
+    def _select_windows_asset(assets: list[dict]) -> dict | None:
+        """Prefer an installer/.exe, then a .zip, then the first asset."""
         for asset in assets:
             name = asset.get("name", "").lower()
             if name.endswith(".exe") or "setup" in name or "installer" in name:
-                return make(asset)
-
+                return asset
         for asset in assets:
             if asset.get("name", "").lower().endswith(".zip"):
-                return make(asset)
-
-        if assets:
-            return make(assets[0])
-
-        return None
+                return asset
+        return assets[0] if assets else None
 
     def download_update(
         self,
@@ -338,8 +355,8 @@ class UpdateChecker:
                 actual_digest=actual,
             )
 
-        except Exception as e:
-            logger.error(f"Download error: {e}")
+        except Exception:
+            logger.exception("Download error")
             return DownloadResult(success=False, error="download_failed")
 
     def get_current_version(self) -> str:

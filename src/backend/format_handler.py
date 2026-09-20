@@ -11,6 +11,15 @@ from ..utils.translations import tr
 
 logger = get_logger()
 
+# Quality display names (defined once to avoid duplicated literals below).
+_Q_BEST = "Best Quality"
+_Q_8K = "8K (4320p)"
+_Q_4K = "4K (2160p)"
+_Q_2K = "2K (1440p)"
+_Q_1080P = "1080p (Full HD)"
+_Q_720P = "720p (HD)"
+_Q_480P = "480p (SD)"
+
 
 class FormatHandler:
     """
@@ -32,10 +41,10 @@ class FormatHandler:
         """
         # Reverse mapping from translated to English
         reverse_map = {
-            tr("quality_best"): "Best Quality",
-            tr("quality_1080p"): "1080p (Full HD)",
-            tr("quality_720p"): "720p (HD)",
-            tr("quality_480p"): "480p (SD)",
+            tr("quality_best"): _Q_BEST,
+            tr("quality_1080p"): _Q_1080P,
+            tr("quality_720p"): _Q_720P,
+            tr("quality_480p"): _Q_480P,
         }
 
         # Check exact matches first
@@ -70,7 +79,7 @@ class FormatHandler:
         """
         # Convert translated name to English key
         english_name = FormatHandler._get_english_quality_name(quality_name)
-        format_string = QUALITY_OPTIONS.get(english_name, QUALITY_OPTIONS["Best Quality"])
+        format_string = QUALITY_OPTIONS.get(english_name, QUALITY_OPTIONS[_Q_BEST])
         logger.debug(f"Quality '{quality_name}' (English: '{english_name}') -> Format '{format_string}'")
         return format_string
 
@@ -123,13 +132,13 @@ class FormatHandler:
         """
         # Map English quality names to translation keys
         quality_map = {
-            "Best Quality": tr("quality_best"),
-            "8K (4320p)": "8K (4320p)",
-            "4K (2160p)": "4K (2160p)",
-            "2K (1440p)": "2K (1440p)",
-            "1080p (Full HD)": tr("quality_1080p"),
-            "720p (HD)": tr("quality_720p"),
-            "480p (SD)": tr("quality_480p"),
+            _Q_BEST: tr("quality_best"),
+            _Q_8K: _Q_8K,
+            _Q_4K: _Q_4K,
+            _Q_2K: _Q_2K,
+            _Q_1080P: tr("quality_1080p"),
+            _Q_720P: tr("quality_720p"),
+            _Q_480P: tr("quality_480p"),
             "360p": "360p",
             "Audio 320kbps": tr("quality_audio_only") + " 320kbps",
             "Audio 256kbps": tr("quality_audio_only") + " 256kbps",
@@ -162,7 +171,7 @@ class FormatHandler:
         Returns:
             Default quality name
         """
-        return "Best Quality"
+        return _Q_BEST
 
     @staticmethod
     def get_quality_description(quality_name: str) -> str:
@@ -181,13 +190,13 @@ class FormatHandler:
         """
         descriptions = {
             # Video Quality Descriptions
-            "Best Quality": "Best available quality (video+audio or VBR audio) - No limits",
-            "8K (4320p)": "Ultra HD 8K (7680x4320) - Extreme quality, very large files",
-            "4K (2160p)": "Ultra HD 4K (3840x2160) - Excellent quality, large files",
-            "2K (1440p)": "Quad HD (2560x1440) - Great quality, moderate file size",
-            "1080p (Full HD)": "Full HD (1920x1080) - Recommended for most devices",
-            "720p (HD)": "HD (1280x720) - Good quality, smaller file size",
-            "480p (SD)": "Standard definition (854x480) - Faster downloads",
+            _Q_BEST: "Best available quality (video+audio or VBR audio) - No limits",
+            _Q_8K: "Ultra HD 8K (7680x4320) - Extreme quality, very large files",
+            _Q_4K: "Ultra HD 4K (3840x2160) - Excellent quality, large files",
+            _Q_2K: "Quad HD (2560x1440) - Great quality, moderate file size",
+            _Q_1080P: "Full HD (1920x1080) - Recommended for most devices",
+            _Q_720P: "HD (1280x720) - Good quality, smaller file size",
+            _Q_480P: "Standard definition (854x480) - Faster downloads",
             "360p": "Low resolution (640x360) - Smallest file size",
             # Audio Quality Descriptions
             "Audio 320kbps": "Highest fixed quality - Near CD quality (320kbps)",

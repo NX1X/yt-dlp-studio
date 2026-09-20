@@ -137,7 +137,7 @@ class BatchInputDialog(QDialog):
                 logger.info(f"Imported URLs from: {file_path}")
 
             except Exception as e:
-                logger.error(f"Error importing file: {e}")
+                logger.exception("Error importing file")
                 QMessageBox.critical(self, tr("dialog_import_error"), tr("msg_failed_import_file", error=str(e)))
 
     def _clear_urls(self):

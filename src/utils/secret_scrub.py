@@ -28,7 +28,7 @@ REDACTED = "[REDACTED]"
 #   4. AWS-style access key IDs (``AKIA...``).
 _SECRET_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (
-        re.compile(r"(?P<scheme>https?://)[^/@\s]+:[^/@\s]+@", re.IGNORECASE),
+        re.compile(r"(?P<scheme>https?://)[^/@\s:]+:[^/@\s]+@", re.IGNORECASE),
         rf"\g<scheme>{REDACTED}@",
     ),
     # ``Bearer <token>`` / ``Basic <token>`` - the keyword is followed by
@@ -37,10 +37,9 @@ _SECRET_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     # half-match and leave the token visible. The ``-`` is placed FIRST in
     # the character class (where it is unambiguously literal regardless of
     # neighbouring chars); putting it at the end as ``=-`` still made Sonar
-    # S5869 think it might be starting a range.
     (
         re.compile(
-            r"(?P<keyword>\b(?:Bearer|Basic))\s+(?P<val>[-A-Za-z0-9._+/=]{8,})",
+            r"(?P<keyword>\b(?:Bearer|Basic))\s+(?P<val>[A-Za-z0-9._+/=-]{8,})",
             re.IGNORECASE,
         ),
         rf"\g<keyword> {REDACTED}",

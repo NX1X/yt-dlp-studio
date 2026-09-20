@@ -32,6 +32,10 @@ DEFAULT_OUTPUT_DIR = str(Path.home() / "Downloads")
 DEFAULT_QUALITY = "best"  # best, 1080p, 720p, 480p, audio
 DEFAULT_MAX_CONCURRENT_DOWNLOADS = 1  # v1.0 only supports single download
 
+# yt-dlp format string for "best available audio", shared by all audio-only
+# quality options (defined once to avoid a duplicated literal).
+_AUDIO_BEST = "bestaudio/best"
+
 # Quality Options for v1.5.0 - Enhanced with 2K, 4K, 8K and multiple audio quality options
 QUALITY_OPTIONS = {
     # Video Quality Options
@@ -44,10 +48,10 @@ QUALITY_OPTIONS = {
     "480p (SD)": "bestvideo[height<=480]+bestaudio/best[height<=480]",
     "360p": "bestvideo[height<=360]+bestaudio/best[height<=360]",
     # Audio Quality Options
-    "Audio 320kbps": "bestaudio/best",
-    "Audio 256kbps": "bestaudio/best",
-    "Audio 192kbps": "bestaudio/best",
-    "Audio 128kbps": "bestaudio/best",
+    "Audio 320kbps": _AUDIO_BEST,
+    "Audio 256kbps": _AUDIO_BEST,
+    "Audio 192kbps": _AUDIO_BEST,
+    "Audio 128kbps": _AUDIO_BEST,
 }
 
 # Audio quality mapping (kbps for each audio option)

@@ -140,10 +140,7 @@ class DownloadProgressWidget(QWidget):
         # Update downloaded amount label
         if downloaded_bytes > 0:
             downloaded_str = FileHelper.format_size(downloaded_bytes)
-            if total_bytes > 0:
-                self.downloaded_label.setText(f"{tr('label_downloaded')} {downloaded_str}")
-            else:
-                self.downloaded_label.setText(f"{tr('label_downloaded')} {downloaded_str}")
+            self.downloaded_label.setText(f"{tr('label_downloaded')} {downloaded_str}")
         else:
             self.downloaded_label.setText(f"{tr('label_downloaded')} {tr('text_unknown')}")
 

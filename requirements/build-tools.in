@@ -1,0 +1,20 @@
+# Input for the hash-pinned build tooling lockfile.
+#
+# PyInstaller is only needed to freeze the app in the build/release jobs. It is
+# installed from this hash-locked file (--require-hashes --only-binary :all:)
+# instead of `pip install -e .[build]`: the spec files put the project root on
+# `pathex`, so the project itself never needs to be pip-installed to build, and
+# an editable install would run the local build backend and skip hash pinning.
+#
+# The lock is universal (Windows + Linux, Python 3.11+) so one file serves the
+# Windows and Linux jobs; Windows-only transitives (pefile, pywin32-ctypes) are
+# kept behind environment markers. It is constrained to the runtime lock so
+# shared transitives (e.g. packaging) never drift from what the app bundles.
+#
+# Regenerate after editing this file (or when bumping PyInstaller):
+#
+#   uv pip compile requirements/build-tools.in -c requirements/lock.txt \
+#       --universal --generate-hashes --python-version 3.11 \
+#       -o requirements/build-tools.txt
+
+pyinstaller
