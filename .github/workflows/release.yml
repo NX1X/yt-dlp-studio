@@ -25,7 +25,7 @@ jobs:
       # Tightest list in this workflow: only checkout (with full history),
       # local-only python script, and a `git ls-remote --tags origin` to
       # decide release immutability. Everything contacts github.com.
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
         egress-policy: block
         disable-sudo: true
@@ -40,7 +40,7 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         fetch-depth: 0
         persist-credentials: false   # only reads local tags, never pushes
@@ -107,7 +107,7 @@ jobs:
       # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
       # Mirrors build.yml's test job: pip from PyPI, Linux leg uses apt for
       # xvfb/EGL/dbus libs (so disable-sudo MUST be false).
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
         egress-policy: block
         disable-sudo: false                # Linux leg runs `sudo apt-get`
@@ -128,14 +128,14 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         persist-credentials: false   # tests never push via git
 
     - name: Set up Python
       uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
-        python-version: '3.14.6'
+        python-version: '3.14.7'
 
     - name: Install system dependencies (Linux)
       if: runner.os == 'Linux'
@@ -188,7 +188,7 @@ jobs:
       # objects.githubusercontent.com for Deno/FFmpeg release downloads, and
       # the four Sigstore endpoints (incl. sigstore.github.com) for the
       # attest-build-provenance step.
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
         egress-policy: block
         disable-sudo: true                 # Windows; no sudo step
@@ -209,14 +209,14 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         persist-credentials: false   # build only; attestation uses OIDC
 
     - name: Set up Python
       uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
-        python-version: '3.14.6'
+        python-version: '3.14.7'
 
     - name: Install dependencies
       # PyInstaller comes from its own hash-locked file (see
@@ -337,7 +337,7 @@ jobs:
       # Produces a Sigstore-signed SLSA provenance statement binding the
       # exe's SHA-256 to this workflow file at this commit on this runner.
       # Verify with: gh attestation verify dist/yt-dlp-studio.exe --owner NX1X
-      uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+      uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
       with:
         subject-path: 'dist/yt-dlp-studio.exe'
 
@@ -405,7 +405,7 @@ jobs:
       # Mirrors the Linux test allowlist plus PyInstaller wheel fetches and the
       # Sigstore endpoints required by attest-build-provenance (incl. the often-
       # missed sigstore.github.com). Kept in lockstep with build-windows.
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
         egress-policy: block
         disable-sudo: false                # `sudo apt-get` for EGL/dbus libs
@@ -430,14 +430,14 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         persist-credentials: false   # build only, never pushes via git
 
     - name: Set up Python
       uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
-        python-version: '3.14.6'
+        python-version: '3.14.7'
 
     - name: Install system dependencies
       run: |
@@ -505,7 +505,7 @@ jobs:
       # Sigstore-signed SLSA provenance binding the binary's SHA-256 to this
       # workflow at this commit. Verify with:
       #   gh attestation verify dist/yt-dlp-studio --owner NX1X
-      uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+      uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
       with:
         subject-path: 'dist/yt-dlp-studio'
 
@@ -587,7 +587,7 @@ jobs:
       # asset upload. uploads.github.com is the multipart PUT endpoint for
       # release assets and is required ONLY by this job — without it the
       # release object is created but file uploads silently fail.
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
         egress-policy: block
         disable-sudo: true
@@ -606,7 +606,7 @@ jobs:
     # next step pushes the immutable release tag via `git push origin`. Adding
     # persist-credentials: false here would break tag publishing.
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3 # zizmor: ignore[artipacked]
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 # zizmor: ignore[artipacked]
 
     - name: Create immutable tag if absent
       # Immutable-release policy: a version is published EXACTLY ONCE. The
@@ -701,7 +701,7 @@ jobs:
     # script step: it is part of the audited/attested release path and Renovate
     # tracks its digest. Replacing it with raw gh is out of scope here.
     - name: Create Release
-      uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1 # zizmor: ignore[superfluous-actions]
+      uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3 # zizmor: ignore[superfluous-actions]
       with:
         tag_name: ${{ needs.check-version.outputs.version }}
         name: yt-dlp-studio ${{ needs.check-version.outputs.version }}

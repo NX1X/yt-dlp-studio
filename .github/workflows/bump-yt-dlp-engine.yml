@@ -50,7 +50,7 @@ jobs:
         # finally `git push` + `gh pr create`. All hosts are covered by the
         # baseline + pypi entries below; no Sigstore endpoints (no
         # attestation step in this job).
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: block
           disable-sudo: true              # no sudo step
@@ -91,7 +91,7 @@ jobs:
           fi
 
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           ref: ${{ inputs.base_branch }}
           # GITHUB_TOKEN is fine for pushing to a branch in the same repo.
@@ -100,7 +100,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: '3.14.6'
+          python-version: '3.14.7'
 
       - name: Resolve target version
         id: resolve
