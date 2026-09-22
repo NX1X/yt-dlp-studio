@@ -54,7 +54,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "PySide6>=6.6.0",
+    "PySide6>=6.11.2",
     # Pin >=2.33.0 to pick up CVE-2024-35195 (Session.verify=False persistence),
     # CVE-2024-47081 (.netrc credential leak via crafted URL), and
     # CVE-2026-25645 (insecure temp-file reuse in extract_zipped_paths).
