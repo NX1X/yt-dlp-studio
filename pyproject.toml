@@ -80,7 +80,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     # Pin >=9.0.3 for CVE-2025-71176 (vulnerable tmpdir handling).
-    "pytest>=9.0.3",
+    "pytest>=9.1.1",
     "pytest-qt>=4.2.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.8.0,<0.13",
