@@ -58,7 +58,7 @@ dependencies = [
     # Pin >=2.33.0 to pick up CVE-2024-35195 (Session.verify=False persistence),
     # CVE-2024-47081 (.netrc credential leak via crafted URL), and
     # CVE-2026-25645 (insecure temp-file reuse in extract_zipped_paths).
-    "requests>=2.33.0",
+    "requests>=2.34.2",
     "packaging>=23.2",
     "plyer>=2.1.0",
     # yt-dlp's external JavaScript solver. Ships the JS challenge solver
