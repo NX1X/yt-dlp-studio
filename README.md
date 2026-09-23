@@ -167,7 +167,7 @@ your OS/Python version, and relevant log lines.
 
 **License:** [Apache License 2.0](LICENSE)
 
-Copyright © 2024–2026 NX1X. Licensed under the Apache License, Version 2.0.
+Copyright © 2024-present NX1X. Licensed under the Apache License, Version 2.0.
 You may obtain a copy at https://www.apache.org/licenses/LICENSE-2.0.
 
 ### Bundled / Third-Party Components

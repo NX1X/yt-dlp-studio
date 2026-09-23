@@ -1,0 +1,18 @@
+yt-dlp Studio
+Copyright 2024-present NX1X (https://nx1xlab.dev)
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+--------------------------------------------------------------------------------
+Third-party components
+--------------------------------------------------------------------------------
+
+This software bundles or depends on third-party components, each under its own
+license:
+
+  - PySide6 - LGPL v3 (https://www.qt.io/licensing/)
+  - yt-dlp  - The Unlicense / Public Domain (https://github.com/yt-dlp/yt-dlp)
+  - FFmpeg  - LGPL/GPL depending on build (https://ffmpeg.org/legal.html)
+
+These components retain their original licenses and are not relicensed under
+Apache-2.0 by inclusion in this project.

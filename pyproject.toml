@@ -11,7 +11,7 @@ dynamic = ["version"]
 description = "A user-friendly desktop GUI for yt-dlp — download videos and audio from YouTube and 1000+ sites."
 readme = "README.md"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.10"
 authors = [
     { name = "NX1X" },
@@ -143,6 +143,7 @@ include = [
     "/README.md",
     "/ROADMAP.md",
     "/LICENSE",
+    "/NOTICE",
 ]
 exclude = [
     "/vendor",
