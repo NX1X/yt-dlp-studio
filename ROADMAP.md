@@ -5,11 +5,11 @@ Website: https://nx1xlab.dev/nxtools
 
 ---
 
-## Current Version: 0.1.4 released · 0.2.0 in progress (Public Beta)
+## Current Version: 0.2.0 released · 0.3.0 next (Public Beta)
 
 > The project is in **public beta**. The core feature set is functional but UI bugs, polish items, and additional UI options remain. We will reach **v1.0.0** when the feature set is stable and beta exit criteria are met (see below).
 >
-> Latest released: **0.1.4** (Windows EXE download fix + engine 2026.08.19). In progress: **0.2.0** (Linux/Ubuntu desktop support).
+> Latest released: **0.2.0** (Linux/Ubuntu desktop support, 2026-09-20). Next: **0.3.0** (installers, portable builds, and package managers).
 >
 > Earlier private development history (up through internal version 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md). The reasoning behind the version reset to 0.1.0 lives in [docs-internal/VERSIONING.md](docs-internal/VERSIONING.md).
 
@@ -91,7 +91,7 @@ Website: https://nx1xlab.dev/nxtools
 
 ## Future Roadmap
 
-### v0.2.0 - Linux (Ubuntu) Desktop Support  *(in progress)*
+### v0.2.0 - Linux (Ubuntu) Desktop Support  *(released 2026-09-20)*
 First officially built and published Linux desktop package, alongside the existing Windows EXE.
 - ✅ Platform-aware FFmpeg / Deno resolution (no hardcoded `.exe`)
 - ✅ Linux-aware in-app updater (selects the Linux archive; reveals in file manager)
@@ -100,9 +100,11 @@ First officially built and published Linux desktop package, alongside the existi
 - ✅ Linux build in CI (build + release), with a runtime smoke-launch and Sigstore provenance
 - ✅ Wide-distro support: built on glibc 2.35 (Ubuntu 22.04+, Debian 12+, Fedora 36+, Arch, ...)
 - ✅ Restored Python 3.10 support (run-from-source on stock Ubuntu 22.04)
+
+#### Open follow-ups (carried past the release)
 - ⬜ Community testing on multiple distributions before promoting to "stable Linux"
-- ⬜ **Post-merge (once 0.2.0 ships):** add the Linux download to the website, and update docs + marketing to say the app is available for **Windows and Linux** (was Windows-only).
-- ⬜ **Website SEO / GEO pass (post-merge):** update on-page keywords for cross-platform reach (e.g. "yt-dlp GUI for Windows and Linux", "Linux video downloader", "Ubuntu / Debian / Fedora yt-dlp desktop app", "open-source YouTube downloader"), refresh page titles + meta descriptions + OpenGraph/Twitter cards, add/verify JSON-LD `SoftwareApplication` structured data listing both `operatingSystem` values, keep `sitemap.xml` / `robots.txt` / `llms.txt` current so AI answer engines surface the Linux support too.
+- ⬜ **Website:** add the Linux download to the website, and update docs + marketing to say the app is available for **Windows and Linux** (was Windows-only). Lives in the separate `yt-dlp-studio-website` repo.
+- ⬜ **Website SEO / GEO pass:** update on-page keywords for cross-platform reach (e.g. "yt-dlp GUI for Windows and Linux", "Linux video downloader", "Ubuntu / Debian / Fedora yt-dlp desktop app", "open-source YouTube downloader"), refresh page titles + meta descriptions + OpenGraph/Twitter cards, add/verify JSON-LD `SoftwareApplication` structured data listing both `operatingSystem` values, keep `sitemap.xml` / `robots.txt` / `llms.txt` current so AI answer engines surface the Linux support too.
 
 ### v0.3.0 - Distribution: Installer, Portable & Package Managers
 Ship the app the way users on each OS expect to get it, while keeping the no-install option.
@@ -111,6 +113,8 @@ Ship the app the way users on each OS expect to get it, while keeping the no-ins
 - ⬜ Updater copy honesty fix in the meantime ("download the new version", not "run the installer")
 - ⬜ **Windows package manager: winget** (submit manifest to `microsoft/winget-pkgs`)
 - ⬜ **Linux package managers / native packages**: AppImage, plus `.deb` (Debian/Ubuntu) and `.rpm` (Fedora); explore Flatpak / AUR
+- ⬜ **Restore a green SonarCloud gate on `main`** (tracked in [#33](https://github.com/NX1X/yt-dlp-studio/issues/33)). The 0.2.0 cleanup took the project from 99 open issues to 20, and the 7 that remain are all install-hardening: `pip install -e .[dev]` in `build.yml` / `release.yml` / `bump-yt-dlp-engine.yml` (S8541 wheel-only, S8544 unlocked resolution) plus no lock file (S8565). The fix is the deferred refactor to `pip install --no-deps -e .` plus hash-pinned dev tooling, which needs `requirements/lock.txt` regenerated with the dev extras.
+- ⬜ Review the one open security hotspot (`update_checker.py`, `session.mount("http://", ...)`, S5332). The app only ever calls the HTTPS GitHub API, so the `http://` retry adapter mount can simply be dropped. It is why "hotspots reviewed" sits at 0% and fails the gate.
 - ⬜ Note: released binaries remain **unsigned for now** (no code-signing certificate - see the signing plan under v1.0.0); Sigstore provenance already covers cryptographic verification
 - ⬜ **Containerized reproducible builds with [Dagger](https://dagger.io)**: move lint, tests, and the **Linux** PyInstaller build into a Dagger module (`dagger call ...`) that runs the same containerized pipeline locally and in CI. Real win: the Linux glibc floor is pinned by the container base image instead of the GitHub runner image, so the binary's compatibility floor is reproducible and no longer drifts with `ubuntu-22.04`. The Windows EXE build stays on a native `windows-latest` runner (Dagger runs Linux containers only). Blocked for now: pin to a stable Dagger release (0.21.x); the 1.0 beta line cannot yet install its Python SDK (`v1@v1` ref bug). Keep harden-runner egress allowlists and Sigstore provenance intact.
 
@@ -266,12 +270,12 @@ We welcome contributions to YT-DLP Studio! If you have ideas for new features or
 
 ## Version History
 
-Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.1.4** (2026-09-19). In progress: **0.2.0** (Linux desktop support). Earlier private development history (internal 0.1.0 to 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md).
+Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.2.0** (2026-09-20). Next: **0.3.0** (distribution: installers and package managers). Earlier private development history (internal 0.1.0 to 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md).
 
 ---
 
-**Last Updated:** 2026-09-19
-**Current Version:** 0.1.4 released, 0.2.0 in progress (Public Beta)
+**Last Updated:** 2026-09-23
+**Current Version:** 0.2.0 released, 0.3.0 next (Public Beta)
 **Status:** Active Development
 
 For more information, visit: https://nx1xlab.dev/nxtools

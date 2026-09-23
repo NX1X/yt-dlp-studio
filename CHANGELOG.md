@@ -21,7 +21,7 @@ _(no entries yet)_
 
 ---
 
-## [0.2.0] - 2026-07-11
+## [0.2.0] - 2026-09-20
 
 ### Linux (Ubuntu) desktop support
 
