@@ -58,7 +58,7 @@ jobs:
       # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
       # pip-audit queries two CVE backends — PyPI JSON for package metadata
       # and api.osv.dev for advisory data. No `deps.dev` (that's Scorecard).
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
         egress-policy: block
         disable-sudo: true
@@ -76,14 +76,14 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         persist-credentials: false   # this job never uses git creds
 
     - name: Set up Python
       uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
-        python-version: '3.14.6'
+        python-version: '3.14.7'
 
     - name: Install pip-audit
       # Hash-pinned CI tooling (see requirements/ci-tools.in).
@@ -114,7 +114,7 @@ jobs:
       # zizmor's online audits hit api.github.com only (to resolve action
       # SHAs / permissions). SARIF upload via codeql-action/upload-sarif
       # also goes through api.github.com.
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
         egress-policy: block
         disable-sudo: true
@@ -131,14 +131,14 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         persist-credentials: false   # this job never uses git creds
 
     - name: Set up Python
       uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
-        python-version: '3.14.6'
+        python-version: '3.14.7'
 
     - name: Install zizmor
       # Hash-pinned CI tooling (see requirements/ci-tools.in).
@@ -161,7 +161,7 @@ jobs:
 
     - name: Upload SARIF to code scanning
       if: always() && github.event.pull_request.head.repo.fork != true
-      uses: github/codeql-action/upload-sarif@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4.36.3
+      uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
       with:
         sarif_file: zizmor.sarif
         category: zizmor
@@ -191,7 +191,7 @@ jobs:
       # of a `block`-mode false positive; if a check fails on an unlisted
       # endpoint, the harden-runner network log in the run summary will name
       # it — add it here and rerun (do NOT flip the policy back to audit).
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
         egress-policy: block
         disable-sudo: true
@@ -221,12 +221,12 @@ jobs:
           *.blob.core.windows.net:443
 
     - name: Checkout code
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         persist-credentials: false
 
     - name: Run Scorecard analysis
-      uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+      uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
       with:
         results_file: scorecard.sarif
         results_format: sarif
@@ -238,7 +238,7 @@ jobs:
         publish_results: true
 
     - name: Upload Scorecard SARIF to code scanning
-      uses: github/codeql-action/upload-sarif@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4.36.3
+      uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
       with:
         sarif_file: scorecard.sarif
         category: scorecard
