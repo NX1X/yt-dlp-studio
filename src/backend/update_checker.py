@@ -128,8 +128,9 @@ class UpdateChecker:
             raise_on_status=False,
         )
         adapter = HTTPAdapter(max_retries=retry)
+        # HTTPS only: every endpoint this checker calls (GitHub API and
+        # release-asset downloads) is HTTPS, so plain HTTP gets no retries.
         session.mount("https://", adapter)
-        session.mount("http://", adapter)
         return session
 
     def check_for_updates(self, timeout: int = 10) -> UpdateCheckResult:

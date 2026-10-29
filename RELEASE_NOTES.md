@@ -1,6 +1,6 @@
-# YT-DLP Studio v0.2.0 - Release Notes
+# YT-DLP Studio v0.2.1 - Release Notes
 
-**Release Date:** 2026-09-20
+**Release Date:** 2026-10-14
 **Status:** Public Beta
 
 > This file describes the **current release**. For full per-version history, see [CHANGELOG.md](CHANGELOG.md). For planned future work, see [ROADMAP.md](ROADMAP.md).
@@ -17,7 +17,19 @@ This is a **public beta**. The core feature set is functional and the app is usa
 
 ---
 
-## What's new in v0.2.0
+## What's new in v0.2.1
+
+**A maintenance release.** There are no new features, and downloads work as before.
+
+- **Safer builds.** Before any release is published, CI now opens the built app and checks that every file it needs is inside. That includes the YouTube challenge solver whose absence broke downloads in v0.1.3.
+- **One library removed.** The app no longer ships `curl_cffi`, a browser-impersonation library. Video, audio and English subtitle downloads were tested without it and work. You may see one new warning in the log about impersonation; it is harmless.
+- **Tighter supply chain.** Every package used to build and test the app is now pinned by hash and is at least 14 days old.
+
+Nothing to migrate: your settings, history and download folder carry over. Full detail is in [CHANGELOG.md](CHANGELOG.md).
+
+---
+
+## What was new in v0.2.0
 
 **Linux (Ubuntu) desktop support.** This release adds an officially built and published Linux package alongside the Windows EXE.
 

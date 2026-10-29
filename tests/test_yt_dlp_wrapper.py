@@ -48,62 +48,45 @@ def test_engine_imports_at_pinned_version():
     assert wrapper.ytdlp_version.__version__ == YTDLP_VERSION
 
 
-def test_curl_cffi_is_available():
-    """curl_cffi must be installed and detected by yt-dlp.
+# ---------- curl_cffi stays out (software-origin policy) ----------
 
-    Without it, yt-dlp's networking layer can't impersonate a real browser's
-    TLS/JA3 fingerprint, and YouTube replies with HTTP 429 on subtitle and
-    comment endpoints. That used to silently abort entire video downloads.
+_PROJECT_ROOT = __import__("pathlib").Path(__file__).resolve().parent.parent
 
-    If this test fails, check pyproject.toml [project.dependencies] and the
-    PyInstaller spec's collect_all('curl_cffi') wiring.
+
+def test_curl_cffi_is_not_a_runtime_dependency():
+    """curl_cffi is banned by the project's software-origin policy.
+
+    It must not come back as a runtime dependency through a well-meaning
+    Renovate bump or a copy from an older branch.
     """
-    from yt_dlp.dependencies import curl_cffi as curl_cffi_flag
-
-    _ASSERT_MSG = "curl_cffi is not importable. Re-add 'curl_cffi>=0.15.0' to pyproject.toml dependencies."
-    assert curl_cffi_flag is not None, _ASSERT_MSG
-
-    # The impersonation request handler must enumerate Chrome targets.
-    from yt_dlp.networking._curlcffi import CurlCFFIRH
-
-    target_names = {str(t) for t in CurlCFFIRH._SUPPORTED_IMPERSONATE_TARGET_MAP.keys()}
-    chrome_targets = [t for t in target_names if t.startswith("chrome")]
-    assert chrome_targets, "curl_cffi advertises no Chrome impersonation targets"
+    # Plain text parsing, not tomllib: tomllib is 3.11+ and the project
+    # supports Python 3.10.
+    text = (_PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    block = text[text.index("\ndependencies = [") + 1 :]  # +1 skips the leading newline
+    block = block[: block.index("\n]")]
+    entries = [ln.strip() for ln in block.splitlines()[1:] if ln.strip() and not ln.strip().startswith("#")]
+    assert entries, "could not find any runtime dependencies in pyproject.toml"
+    assert not [e for e in entries if e.strip('",').lower().replace("-", "_").startswith("curl_cffi")]
 
 
-def test_default_impersonate_target_is_chrome():
-    """The wrapper module must resolve a Chrome impersonation target at import time."""
-    from src.backend.yt_dlp_wrapper import _DEFAULT_IMPERSONATE_TARGET
+@pytest.mark.parametrize("spec", ["build.spec", "build_linux.spec"])
+def test_curl_cffi_is_excluded_from_bundles(spec):
+    """Both PyInstaller specs must exclude curl_cffi and never collect it.
 
-    assert _DEFAULT_IMPERSONATE_TARGET is not None, (
-        "_DEFAULT_IMPERSONATE_TARGET is None - curl_cffi may be missing or "
-        "ImpersonateTarget.from_str('chrome') failed at import time."
-    )
-    assert "chrome" in str(_DEFAULT_IMPERSONATE_TARGET).lower()
-
-    # The constructed target must round-trip through yt-dlp's validator.
-    from yt_dlp.networking.impersonate import ImpersonateTarget
-
-    assert isinstance(_DEFAULT_IMPERSONATE_TARGET, ImpersonateTarget)
+    The vendored yt-dlp auto-detects curl_cffi, so excluding it in the spec is
+    what guarantees it stays out of the EXE even if a build machine has it.
+    """
+    text = (_PROJECT_ROOT / "packaging" / spec).read_text(encoding="utf-8")
+    assert "collect_all('curl_cffi')" not in text
+    excludes = text[text.index("excludes=[") :]
+    excludes = excludes[: excludes.index("]")]
+    assert "'curl_cffi'" in excludes
 
 
-def test_youtubedl_accepts_default_impersonate_target():
-    """A YoutubeDL instance must accept our impersonate target without raising."""
-    from yt_dlp import YoutubeDL
-
-    from src.backend.yt_dlp_wrapper import _DEFAULT_IMPERSONATE_TARGET
-
-    if _DEFAULT_IMPERSONATE_TARGET is None:
-        pytest.skip("impersonation unavailable in this environment")
-
-    ydl = YoutubeDL(
-        {
-            "quiet": True,
-            "simulate": True,
-            "impersonate": _DEFAULT_IMPERSONATE_TARGET,
-        }
-    )
-    assert ydl is not None
+def test_download_never_requests_impersonation(monkeypatch):
+    """The wrapper must not ask yt-dlp for browser impersonation (needs curl_cffi)."""
+    opts = _run_download_with_capture(monkeypatch)
+    assert "impersonate" not in opts
 
 
 def test_yt_dlp_ejs_is_available():

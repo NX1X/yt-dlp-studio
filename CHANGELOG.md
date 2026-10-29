@@ -21,6 +21,42 @@ _(no entries yet)_
 
 ---
 
+## [0.2.1] - 2026-10-14
+
+### Maintenance release: removes curl_cffi, hash-pins every CI install, and makes CI check the contents of each built executable.
+
+### Removed
+
+- **`curl_cffi` (browser impersonation) is no longer a dependency or bundled.** It is banned by the project's software-origin policy. It was optional here: yt-dlp works without it. It is removed from `pyproject.toml`, from both PyInstaller specs, and from every lock file. It is also added to `excludes` in `packaging/build.spec` and `packaging/build_linux.spec`. The vendored yt-dlp loads `curl_cffi` automatically when it is installed, so the exclude keeps it out of the executable even if a build machine has it. Verified: a build made in a venv with `curl_cffi` 0.15.0 installed contains none of it.
+  - **Effect on downloads, measured on 2026-10-14:** video, audio and English subtitle downloads work without it. yt-dlp now logs one warning: "the extractor specified to use impersonation ... no impersonate target is available". Auto-translated subtitles in other languages (`de`, `fr`, `es`) hit HTTP 429 on the same video **both with and without** Chrome impersonation, so removing it causes no measurable regression there. The existing subtitle sleep and the non-fatal subtitle handling still apply.
+  - Guard tests fail if `curl_cffi` returns to `pyproject.toml`, to a lock file, or to a spec, or if the wrapper requests impersonation.
+- **`sonar-project.properties` is removed.** The project uses SonarCloud Automatic Analysis, so the analysis scope and exclusions are set in the SonarCloud UI instead.
+
+### Added
+
+- **CI checks the contents of every built executable** (`scripts/check_bundle.py`). It runs right after PyInstaller in the Windows and Linux jobs of `build.yml` and `release.yml`, and fails the build when something critical is missing: the `yt_dlp_ejs` solver scripts, the vendored engine, the Qt extensions, and on Windows `ffmpeg.exe`, `ffprobe.exe`, `deno.exe` and the 7 FFmpeg DLLs. It also fails on any `curl_cffi` content, and when the bundled yt-dlp version differs from `YTDLP_VERSION`. v0.1.3 shipped without the solver scripts and every YouTube download failed; this check catches that. Proven both ways: it passes on a real Linux build, and it fails with exit code 1 on a build made without the solver scripts.
+- **`requirements/dev.txt`**: a hash-pinned lock of runtime plus dev tools, constrained by `requirements/lock.txt`.
+- **`scripts/relock.sh`** regenerates all three lock files the correct way (see Fixed).
+- **`tests/test_lock_consistency.py`** fails when a lock pin no longer satisfies its bound in `pyproject.toml`, when `dev.txt` or `build-tools.txt` disagrees with `lock.txt`, or when `curl_cffi` appears in any lock.
+
+### Fixed
+
+- **The lock file had drifted from `pyproject.toml`.** Renovate raises version bounds but does not regenerate the locks. `requirements/lock.txt` pinned PySide6 6.11.0 while `pyproject.toml` required `>=6.11.2`. CI hid it, because the unhashed `pip install -e .[dev]` that followed upgraded past the lock. The locks are regenerated and now match, and the new consistency test catches this from now on.
+- **`requirements/lock.txt` could not be installed on Python 3.10**, the `requires-python` floor. It was compiled on Python 3.14, which drops `tomli` (PySide6 needs it below 3.11), so `pip install --require-hashes` failed. All three lock files are now compiled with `uv pip compile --universal --python-version 3.10`, which keeps platform and Python-version markers. That also keeps Windows-only packages such as `colorama` in `dev.txt`. Verified: all three files install with zero errors on Python 3.14 and 3.10, and the full test suite passes on both.
+- **The 14-day supply-chain cooldown now covers transitive dependencies too.** pip-compile picks the newest version that fits a bound, and Renovate's `minimumReleaseAge` covers only the direct dependencies it bumps. The first regeneration would have pulled 15 packages younger than 14 days, including PySide6 6.12.0 and its new `pyside6-webengine` dependency. Locks are now built with `--exclude-newer` set 14 days back (2026-09-30 for this release). Verified: all 53 unique pins are at least 14 days old.
+
+### Security
+
+- **Every CI `pip install` is now hash-pinned.** The three `pip install -e .[dev]` steps (in `build.yml`, `release.yml` and `bump-yt-dlp-engine.yml`) become `pip install --require-hashes -r requirements/dev.txt --only-binary :all:`. The editable install is gone entirely: `conftest.py` already puts the repo on `sys.path`, and nothing reads the installed package metadata. This clears the 6 open OpenSSF Scorecard `PinnedDependenciesID` alerts and SonarCloud `githubactions:S8541` / `S8544`.
+- **`update_checker.py` mounts its retry adapter for HTTPS only.** It no longer mounts one for `http://`, which nothing used (SonarCloud hotspot `python:S5332`).
+
+### Dependencies
+
+- `packaging>=26.3` (#52), `pre-commit>=4.6.2` (#39, #53), `pytest-qt>=4.5.0` (#43), `pyinstaller>=6.22.3` (#56). All four support Python 3.10 and were older than 14 days.
+- Locked versions (selection): PySide6 6.11.2, requests 2.34.2, packaging 26.3, yt-dlp-ejs 0.8.0, PyInstaller 6.22.3, pytest 9.1.1.
+
+---
+
 ## [0.2.0] - 2026-09-20
 
 ### Linux (Ubuntu) desktop support

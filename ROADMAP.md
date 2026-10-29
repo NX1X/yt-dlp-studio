@@ -5,11 +5,11 @@ Website: https://nx1xlab.dev/nxtools
 
 ---
 
-## Current Version: 0.2.0 released · 0.3.0 next (Public Beta)
+## Current Version: 0.2.1 released · 0.3.0 next (Public Beta)
 
 > The project is in **public beta**. The core feature set is functional but UI bugs, polish items, and additional UI options remain. We will reach **v1.0.0** when the feature set is stable and beta exit criteria are met (see below).
 >
-> Latest released: **0.2.0** (Linux/Ubuntu desktop support, 2026-09-20). Next: **0.3.0** (installers, portable builds, and package managers).
+> Latest released: **0.2.1** (maintenance: bundle checks in CI, hash-pinned installs, curl_cffi removed, 2026-10-14). Next: **0.3.0** (installers, portable builds, and package managers).
 >
 > Earlier private development history (up through internal version 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md). The reasoning behind the version reset to 0.1.0 lives in [docs-internal/VERSIONING.md](docs-internal/VERSIONING.md).
 
@@ -113,8 +113,8 @@ Ship the app the way users on each OS expect to get it, while keeping the no-ins
 - ⬜ Updater copy honesty fix in the meantime ("download the new version", not "run the installer")
 - ⬜ **Windows package manager: winget** (submit manifest to `microsoft/winget-pkgs`)
 - ⬜ **Linux package managers / native packages**: AppImage, plus `.deb` (Debian/Ubuntu) and `.rpm` (Fedora); explore Flatpak / AUR
-- ⬜ **Restore a green SonarCloud gate on `main`** (tracked in [#33](https://github.com/NX1X/yt-dlp-studio/issues/33)). The 0.2.0 cleanup took the project from 99 open issues to 20, and the 7 that remain are all install-hardening: `pip install -e .[dev]` in `build.yml` / `release.yml` / `bump-yt-dlp-engine.yml` (S8541 wheel-only, S8544 unlocked resolution) plus no lock file (S8565). The fix is the deferred refactor to `pip install --no-deps -e .` plus hash-pinned dev tooling, which needs `requirements/lock.txt` regenerated with the dev extras.
-- ⬜ Review the one open security hotspot (`update_checker.py`, `session.mount("http://", ...)`, S5332). The app only ever calls the HTTPS GitHub API, so the `http://` retry adapter mount can simply be dropped. It is why "hotspots reviewed" sits at 0% and fails the gate.
+- ✅ **Hash-pin every CI install** *(done in 0.2.1)*: the `pip install -e .[dev]` steps became `--require-hashes -r requirements/dev.txt`, clearing the 6 Scorecard `PinnedDependenciesID` alerts and Sonar S8541/S8544. Whether the SonarCloud gate itself turns green is tracked in [#33](https://github.com/NX1X/yt-dlp-studio/issues/33).
+- ✅ Removed the `http://` retry adapter mount in `update_checker.py` (Sonar hotspot S5332) *(done in 0.2.1)*.
 - ⬜ Note: released binaries remain **unsigned for now** (no code-signing certificate - see the signing plan under v1.0.0); Sigstore provenance already covers cryptographic verification
 - ⬜ **Containerized reproducible builds with [Dagger](https://dagger.io)**: move lint, tests, and the **Linux** PyInstaller build into a Dagger module (`dagger call ...`) that runs the same containerized pipeline locally and in CI. Real win: the Linux glibc floor is pinned by the container base image instead of the GitHub runner image, so the binary's compatibility floor is reproducible and no longer drifts with `ubuntu-22.04`. The Windows EXE build stays on a native `windows-latest` runner (Dagger runs Linux containers only). Blocked for now: pin to a stable Dagger release (0.21.x); the 1.0 beta line cannot yet install its Python SDK (`v1@v1` ref bug). Keep harden-runner egress allowlists and Sigstore provenance intact.
 
@@ -270,12 +270,12 @@ We welcome contributions to YT-DLP Studio! If you have ideas for new features or
 
 ## Version History
 
-Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.2.0** (2026-09-20). Next: **0.3.0** (distribution: installers and package managers). Earlier private development history (internal 0.1.0 to 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md).
+Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.2.1** (2026-10-14). Next: **0.3.0** (distribution: installers and package managers). Earlier private development history (internal 0.1.0 to 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md).
 
 ---
 
-**Last Updated:** 2026-09-23
-**Current Version:** 0.2.0 released, 0.3.0 next (Public Beta)
+**Last Updated:** 2026-10-14
+**Current Version:** 0.2.1 released, 0.3.0 next (Public Beta)
 **Status:** Active Development
 
 For more information, visit: https://nx1xlab.dev/nxtools
