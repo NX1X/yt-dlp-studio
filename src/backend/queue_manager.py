@@ -13,9 +13,11 @@ import json
 import os
 import shutil
 import tempfile
+import time
+from functools import partial
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QTimer, Signal
+from PySide6.QtCore import QObject, Qt, QTimer, Signal
 
 from ..models.download_queue import DownloadQueue
 from ..models.download_task import DownloadTask, TaskStatus
@@ -105,11 +107,32 @@ class QueueManager(QObject):
         task_failed: Emitted when a task fails (task_index, error)
         all_completed: Emitted when all tasks are done
 
+    The int in these signals is the task's index at the moment of the
+    signal. It is -1 if the task is no longer in the queue.
+
+    Workers:
+        Workers are keyed by task identity (``id(task)``), never by queue
+        index, because indexes shift on remove, clear and reorder. A worker
+        stays referenced until its QThread ``finished`` signal, so a running
+        thread is never garbage collected:
+
+        - ``workers``: running downloads. They use a download slot.
+        - ``_stopping``: cancelled by ``stop_all`` and still winding down.
+          They keep their slot until ``finished``, so a stop cannot push
+          the number of running threads over ``max_concurrent``.
+        - ``_finishing``: reported their result and are returning from
+          ``run()``. They no longer use a slot.
+
+        All worker signals use explicit ``Qt.QueuedConnection`` to bound
+        methods of this object, so every slot runs on the GUI thread.
+
     Persistence:
         Pass ``persist_path`` to keep the queue across restarts. Nothing is
         written until ``load_queue()`` has run, so an empty queue at startup
         can never overwrite a saved one. Without ``persist_path`` the queue
         lives in memory only (this is what the tests use by default).
+        Changes are saved after a short delay (``SAVE_DELAY_MS``), so a
+        burst of changes, such as adding a playlist, writes the file once.
     """
 
     # Signals
@@ -129,6 +152,11 @@ class QueueManager(QObject):
     MAX_AUTO_RETRIES = 1
     # Delay before an automatic retry starts, in milliseconds
     AUTO_RETRY_DELAY_MS = 5000
+    # Delay between a queue change and the save, in milliseconds. Changes
+    # inside this window are written together.
+    SAVE_DELAY_MS = 250
+    # Total time shutdown() waits for running workers to stop, in milliseconds
+    SHUTDOWN_WAIT_MS = 4000
 
     def __init__(self, max_concurrent: int = 3, notification_manager=None, persist_path: Path | None = None):
         """
@@ -141,11 +169,22 @@ class QueueManager(QObject):
         """
         super().__init__()
         self.queue = DownloadQueue(max_concurrent=max_concurrent)
-        self.workers: dict[int, DownloadWorker] = {}  # task_index -> worker
+        # id(task) -> worker for running downloads. The worker holds the
+        # task, so the id cannot be reused while the entry exists.
+        self.workers: dict[int, DownloadWorker] = {}
+        # id(worker) -> worker, kept until QThread.finished (see class doc)
+        self._stopping: dict[int, DownloadWorker] = {}
+        self._finishing: dict[int, DownloadWorker] = {}
+        self._shutting_down = False
         self._auto_start = True  # Auto-start next task when one completes
         self.notification_manager = notification_manager  # v1.7.0
         self.persist_path = Path(persist_path) if persist_path is not None else None
         self._persistence_enabled = False  # set by load_queue(), cleared by shutdown()
+        self._save_pending = False
+        self._save_timer = QTimer(self)
+        self._save_timer.setSingleShot(True)
+        self._save_timer.setInterval(self.SAVE_DELAY_MS)
+        self._save_timer.timeout.connect(self.flush_save)
         self.auto_retry_delay_ms = self.AUTO_RETRY_DELAY_MS
         # Tasks waiting for their automatic retry, keyed by id(). The value
         # keeps a reference so the id cannot be reused while it waits.
@@ -196,7 +235,7 @@ class QueueManager(QObject):
             return False
 
         # Check if task is currently downloading
-        if task.is_active() and index in self.workers:
+        if task.is_active() and self.get_worker(task) is not None:
             logger.warning(f"Cannot remove active task at index {index}")
             return False
 
@@ -258,11 +297,59 @@ class QueueManager(QObject):
         self._fill_slots()
 
     def stop_all(self) -> None:
-        """Stop all active downloads."""
+        """
+        Stop all active downloads.
+
+        Each worker is cancelled and moved to ``_stopping``. It stays
+        referenced, and keeps its download slot, until its thread emits
+        ``finished``. Pending tasks then start as before, unless paused.
+        """
         logger.info("Stopping all active downloads")
-        for _index, worker in self.workers.items():
+        for worker in list(self.workers.values()):
             worker.cancel()
+            self._stopping[id(worker)] = worker
         self.workers.clear()
+
+    def get_worker(self, task: DownloadTask) -> DownloadWorker | None:
+        """
+        Get the running worker of a task.
+
+        Args:
+            task: Task in the queue
+
+        Returns:
+            The worker, or None if the task is not downloading
+        """
+        return self.workers.get(id(task))
+
+    def cancel_task(self, index: int) -> bool:
+        """
+        Cancel one task (user action).
+
+        A downloading task is cancelled through its worker; the worker then
+        reports the cancel and frees its slot. A pending task is removed.
+
+        Args:
+            index: Task index
+
+        Returns:
+            True if a cancel was requested or the task was removed
+        """
+        task = self.queue.get_task(index)
+        if task is None:
+            return False
+        worker = self.get_worker(task)
+        if worker is not None:
+            worker.cancel()
+            logger.info(f"Cancel requested for downloading task at index {index}")
+            return True
+        if task.status == TaskStatus.PENDING:
+            return self.remove_task(index)
+        return False
+
+    def _slots_in_use(self) -> int:
+        """Running downloads plus cancelled ones that are still winding down."""
+        return len(self.workers) + len(self._stopping)
 
     def clear_completed(self) -> int:
         """
@@ -363,7 +450,9 @@ class QueueManager(QObject):
         pending_format = FormatHandler.get_format_string(pending_task.quality)
         pending_audio_only = getattr(pending_task, "audio_only", False)
 
-        for worker in self.workers.values():
+        # Cancelled workers still winding down may still write their temp
+        # files, so they count as running here too.
+        for worker in [*self.workers.values(), *self._stopping.values()]:
             running_task = worker.task
             if running_task.url != pending_task.url:
                 continue
@@ -382,19 +471,20 @@ class QueueManager(QObject):
         queue or retrying several failed tasks can free more than one slot
         at once, so call it until it stops starting new workers.
         """
-        while True:
+        while not self._shutting_down:
             before = len(self.workers)
             self._try_start_next()
-            after = len(self.workers)
-            if after <= before or after >= self.queue.max_concurrent:
+            if len(self.workers) <= before or self._slots_in_use() >= self.queue.max_concurrent:
                 break
 
     def _try_start_next(self) -> None:
         """Try to start next pending task if capacity available."""
+        if self._shutting_down:
+            return
         # A worker sets its task to DOWNLOADING from its own thread, a moment
         # after start(). Count the workers too, so that several calls in a
         # row cannot start more than max_concurrent downloads.
-        if len(self.workers) >= self.queue.max_concurrent:
+        if self._slots_in_use() >= self.queue.max_concurrent:
             logger.debug("Max concurrent downloads reached, waiting...")
             return
         if not self.queue.can_start_new_download():
@@ -410,6 +500,10 @@ class QueueManager(QObject):
         for i, task in enumerate(self.queue.get_all_tasks()):
             if task.status != TaskStatus.PENDING:
                 continue
+            # A task stays PENDING until its worker thread runs. Never
+            # start a second worker for a task that already has one.
+            if self.get_worker(task) is not None:
+                continue
             if self._has_conflicting_download(task):
                 logger.info(
                     f"Deferring task {i} ({task.url[:60]}) — "
@@ -421,7 +515,7 @@ class QueueManager(QObject):
             break
 
         if next_task is None:
-            if len(self.workers) == 0:
+            if not self.workers and not self._stopping:
                 logger.info("All tasks completed")
                 self.all_completed.emit()
             return
@@ -433,7 +527,7 @@ class QueueManager(QObject):
         Start downloading a task.
 
         Args:
-            index: Task index in queue
+            index: Task index in queue (for the log only)
             task: DownloadTask to download
         """
         logger.info(f"Starting task {index}: {task.url}")
@@ -441,38 +535,59 @@ class QueueManager(QObject):
         # Create worker
         worker = DownloadWorker(task)
 
-        # Connect signals
-        worker.download_started.connect(lambda title: self._on_task_started(index, title))
-        worker.download_completed.connect(lambda filename: self._on_task_completed(index, filename))
-        # Pass the task object too: the index can point at another task after
-        # a reorder, and auto-retry must act on the task that really failed.
-        worker.download_failed.connect(lambda error: self._on_task_failed(index, error, task))
-        worker.progress_updated.connect(lambda data: self._on_task_progress(index, data))
+        # Bound methods of this QObject with an explicit queued connection:
+        # the worker emits from its own thread, and every slot must run on
+        # the GUI thread. The worker is passed along, not the queue index,
+        # because the index can change while the download runs.
+        queued = Qt.ConnectionType.QueuedConnection
+        worker.download_started.connect(partial(self._on_worker_started, worker), queued)
+        worker.download_completed.connect(partial(self._on_worker_completed, worker), queued)
+        worker.download_failed.connect(partial(self._on_worker_failed, worker), queued)
+        worker.progress_updated.connect(partial(self._on_worker_progress, worker), queued)
+        worker.finished.connect(partial(self._on_worker_finished, worker), queued)
 
         # Store worker and start
-        self.workers[index] = worker
+        self.workers[id(task)] = worker
         worker.start()
 
-    def _on_task_started(self, index: int, title: str) -> None:
+    def _index_of(self, task: DownloadTask | None) -> int:
+        """Current queue index of a task, or -1 if it is not in the queue."""
+        if task is None:
+            return -1
+        index = self.queue.index_of(task)
+        return -1 if index is None else index
+
+    def _release_worker(self, worker: DownloadWorker) -> None:
+        """
+        Free the download slot of a worker that reported its result.
+
+        The worker stays referenced in ``_finishing`` until its thread
+        emits ``finished``. A worker in ``_stopping`` stays there.
+        """
+        key = id(worker.task)
+        if self.workers.get(key) is worker:
+            del self.workers[key]
+            self._finishing[id(worker)] = worker
+
+    def _on_worker_started(self, worker: DownloadWorker, title: str) -> None:
         """Handle task started."""
+        index = self._index_of(worker.task)
         logger.info(f"Task {index} started: {title}")
         self.task_started.emit(index, title)
         self.queue_updated.emit()
 
-    def _on_task_completed(self, index: int, filename: str) -> None:
+    def _on_worker_completed(self, worker: DownloadWorker, filename: str) -> None:
         """Handle task completed."""
+        task = worker.task
+        index = self._index_of(task)
         logger.info(f"Task {index} completed: {filename}")
 
         # Send desktop notification (v1.7.0)
         if self.notification_manager:
-            task = self.queue.get_task(index)
-            if task:
-                file_size = task.get_file_size_str() if hasattr(task, "get_file_size_str") else ""
-                self.notification_manager.notify_download_complete(filename, file_size)
+            file_size = task.get_file_size_str() if hasattr(task, "get_file_size_str") else ""
+            self.notification_manager.notify_download_complete(filename, file_size)
 
-        # Remove worker
-        if index in self.workers:
-            del self.workers[index]
+        self._release_worker(worker)
 
         self.task_completed.emit(index, filename)
         self.queue_updated.emit()
@@ -481,31 +596,29 @@ class QueueManager(QObject):
         if self._auto_start:
             self._try_start_next()
 
-    def _on_task_failed(self, index: int, error: str, task: DownloadTask | None = None) -> None:
+    def _on_worker_failed(self, worker: DownloadWorker, error: str) -> None:
         """
         Handle task failed (also called for a cancelled task).
 
         Args:
-            index: Task index when the task started
+            worker: The worker that failed
             error: Error message from the worker
-            task: The task that failed. If None, the task at ``index`` is used.
         """
+        task = worker.task
+        index = self._index_of(task)
         logger.error(f"Task {index} failed: {error}")
 
-        # Remove worker (keep it here to read the detailed error below)
-        worker = self.workers.pop(index, None)
-
-        if task is None:
-            task = self.queue.get_task(index)
+        self._release_worker(worker)
 
         # The worker reports a short "Download failed"; the yt-dlp reason is
         # kept on its wrapper. Use both to decide on an automatic retry.
         detail = getattr(getattr(worker, "wrapper", None), "_last_error", None)
-        will_retry = task is not None and self._should_auto_retry(task, error, detail)
+        will_retry = not self._shutting_down and self._should_auto_retry(task, error, detail)
 
         # Send desktop notification (v1.7.0). Skip it when an automatic retry
-        # follows; the user hears about the final result instead.
-        if self.notification_manager and task and not will_retry:
+        # follows; the user hears about the final result instead. Also skip
+        # it for the cancels that shutdown() causes.
+        if self.notification_manager and not will_retry and not self._shutting_down:
             title = task.url[:50] + "..." if len(task.url) > 50 else task.url
             self.notification_manager.notify_download_error(title, error)
 
@@ -519,9 +632,38 @@ class QueueManager(QObject):
         if self._auto_start:
             self._try_start_next()
 
-    def _on_task_progress(self, index: int, progress_data: dict) -> None:
+    def _on_worker_progress(self, worker: DownloadWorker, progress_data: dict) -> None:
         """Handle task progress update."""
-        self.task_progress.emit(index, progress_data)
+        index = self._index_of(worker.task)
+        if index >= 0:
+            self.task_progress.emit(index, progress_data)
+
+    def _on_worker_finished(self, worker: DownloadWorker) -> None:
+        """
+        Drop the last reference to a worker whose thread has ended.
+
+        A cancelled worker from ``stop_all`` frees its download slot only
+        here, so pending tasks may start now.
+        """
+        freed_slot = self._stopping.pop(id(worker), None) is not None
+        self._finishing.pop(id(worker), None)
+
+        task = worker.task
+        if self.workers.get(id(task)) is worker:
+            # The thread ended without reporting a result. Should not
+            # happen (run() catches every exception), but never leave a
+            # task stuck in DOWNLOADING with a dead worker.
+            logger.warning(f"Worker ended without a result: {task.url[:60]}")
+            del self.workers[id(task)]
+            freed_slot = True
+            if task.status in (TaskStatus.PENDING, TaskStatus.DOWNLOADING):
+                task.fail("Download stopped unexpectedly")
+                self.queue_updated.emit()
+
+        worker.deleteLater()
+
+        if freed_slot and self._auto_start:
+            self._fill_slots()
 
     def set_max_concurrent(self, max_concurrent: int) -> None:
         """
@@ -624,6 +766,8 @@ class QueueManager(QObject):
         """Set a task back to pending for its automatic retry, if still wanted."""
         if self._pending_auto_retries.pop(id(task), None) is None:
             return  # retried by hand meanwhile
+        if self._shutting_down:
+            return  # the app is closing; never start a download now
         if self.queue.index_of(task) is None or task.status != TaskStatus.ERROR:
             return  # removed or changed meanwhile
 
@@ -711,26 +855,74 @@ class QueueManager(QObject):
             self._fill_slots()
         return len(restored)
 
-    def shutdown(self) -> None:
+    def shutdown(self, wait_ms: int | None = None) -> None:
         """
-        Save the queue one last time and stop saving.
+        Save the queue, then stop every download and wait for the threads.
 
-        Call on clean shutdown. Running downloads are not cancelled here;
-        they are saved as in-progress and continue as pending on the next
-        start. Later signals from those workers do not overwrite the file.
+        Call once on clean shutdown, on the GUI thread.
+
+        1. No new download starts after this call (also not from a pending
+           auto-retry timer).
+        2. The queue is saved at once. Running downloads are saved as
+           in-progress and continue as pending on the next start.
+        3. Saving stops, so the cancels below cannot change the file.
+        4. Every worker is cancelled, then waited for. The total wait is at
+           most ``wait_ms`` (default ``SHUTDOWN_WAIT_MS``) for all workers
+           together. A worker still running after that is logged.
+
+        Args:
+            wait_ms: Total time to wait for the workers, in milliseconds
         """
-        if self._persistence_enabled:
-            self.save_queue()
+        self._shutting_down = True
+        self._pending_auto_retries.clear()
+
+        self.flush_save()
         self._persistence_enabled = False
 
+        running = [*self.workers.values(), *self._stopping.values(), *self._finishing.values()]
+        for worker in running:
+            worker.cancel()
+
+        budget_ms = self.SHUTDOWN_WAIT_MS if wait_ms is None else wait_ms
+        deadline = time.monotonic() + budget_ms / 1000
+        for worker in running:
+            remaining_ms = max(0, int((deadline - time.monotonic()) * 1000))
+            if not worker.wait(remaining_ms):
+                logger.warning(f"Download worker did not stop within {budget_ms} ms: {worker.task.url[:60]}")
+
+    def flush_save(self) -> bool:
+        """
+        Write a pending save now.
+
+        Returns:
+            True if the file was written
+        """
+        self._save_timer.stop()
+        if not self._save_pending:
+            return False
+        self._save_pending = False
+        if not self._persistence_enabled:
+            return False
+        return self.save_queue()
+
     def _on_queue_changed(self) -> None:
-        """Save after every queue change (not on progress ticks)."""
-        self._autosave()
+        """
+        Schedule a save after a queue change (not on progress ticks).
+
+        The single-shot timer restarts on every change, so a burst of
+        changes (for example a playlist of many items) writes the file once.
+        """
+        if not self._persistence_enabled:
+            return
+        self._save_pending = True
+        self._save_timer.start()
 
     def _autosave(self) -> None:
-        """Save if persistence is on."""
-        if self._persistence_enabled:
-            self.save_queue()
+        """Save now, including any pending change (used for pause and resume)."""
+        if not self._persistence_enabled:
+            return
+        self._save_pending = True
+        self.flush_save()
 
     def _read_queue_file(self) -> tuple[list[DownloadTask], bool]:
         """

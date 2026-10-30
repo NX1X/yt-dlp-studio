@@ -538,16 +538,11 @@ class QueueTab(QWidget):
         Args:
             row: Task row index
         """
-        task = self.queue_manager.get_all_tasks()[row]
-        if task.status == TaskStatus.DOWNLOADING:
-            # Cancel the running worker
-            if row in self.queue_manager.workers:
-                self.queue_manager.workers[row].cancel()
-                logger.info(f"Cancelled downloading task at row {row}")
-        elif task.status == TaskStatus.PENDING:
-            # Remove pending task
-            self.queue_manager.remove_task(row)
-            logger.info(f"Removed pending task at row {row}")
+        # The manager finds the worker by task, not by row: rows shift when
+        # tasks are removed or reordered. A running task is cancelled; a
+        # pending task without a worker is removed.
+        if self.queue_manager.cancel_task(row):
+            logger.info(f"Cancelled or removed task at row {row}")
 
     def _on_retry_task(self, row: int) -> None:
         """

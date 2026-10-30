@@ -22,6 +22,12 @@ NETWORK_ERROR = "ERROR: [youtube] abc: Unable to download webpage: <urlopen erro
 
 
 @pytest.fixture(autouse=True)
+def _app(qapp):
+    """The debounced save uses a QTimer, which needs a Qt application."""
+    return qapp
+
+
+@pytest.fixture(autouse=True)
 def mock_worker_class():
     """Replace DownloadWorker so starting a task never runs a real download."""
     with patch("src.backend.queue_manager.DownloadWorker") as worker_class:
@@ -62,14 +68,20 @@ def read_queue_file(path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def saved(manager):
+    """Write any debounced save now and return the file content."""
+    manager.flush_save()
+    return read_queue_file(manager.persist_path)
+
+
 def fail_task(manager, index, error, detail=None):
     """Simulate a worker that failed task `index` with `error`."""
     task = manager.queue.get_task(index)
     task.fail(error)
-    worker = Mock()
+    worker = Mock(task=task)
     worker.wrapper._last_error = detail
-    manager.workers[index] = worker
-    manager._on_task_failed(index, error, task)
+    manager.workers[id(task)] = worker
+    manager._on_worker_failed(worker, error)
     return task
 
 
@@ -385,7 +397,7 @@ class TestBadFiles:
         manager.load_queue()
         manager.add_task(make_task())
 
-        assert read_queue_file(queue_path)["version"] == 1
+        assert saved(manager)["version"] == 1
         assert queue_path.with_name("download_queue.json.bad").read_text(encoding="utf-8") == "garbage"
 
 
@@ -412,14 +424,14 @@ class TestAutosave:
 
         manager.add_task(make_task(0))
         manager.add_task(make_task(1))
-        assert len(read_queue_file(queue_path)["tasks"]) == 2
+        assert len(saved(manager)["tasks"]) == 2
 
         manager.move_task_down(0)
-        urls = [t["url"] for t in read_queue_file(queue_path)["tasks"]]
+        urls = [t["url"] for t in saved(manager)["tasks"]]
         assert urls == [make_task(1).url, make_task(0).url]
 
         manager.remove_task(0)
-        urls = [t["url"] for t in read_queue_file(queue_path)["tasks"]]
+        urls = [t["url"] for t in saved(manager)["tasks"]]
         assert urls == [make_task(0).url]
 
     def test_clear_failed_saves(self, queue_path):
@@ -429,10 +441,10 @@ class TestAutosave:
         manager.add_task(make_task(0))
         manager.get_all_tasks()[0].fail("x")
         manager.queue_updated.emit()
-        assert len(read_queue_file(queue_path)["tasks"]) == 1
+        assert len(saved(manager)["tasks"]) == 1
 
         manager.clear_failed()
-        assert read_queue_file(queue_path)["tasks"] == []
+        assert saved(manager)["tasks"] == []
 
     def test_status_change_saves(self, queue_path):
         manager = make_manager(queue_path)
@@ -440,10 +452,11 @@ class TestAutosave:
         manager.pause_queue()
         manager.add_task(make_task(0))
 
-        manager.get_all_tasks()[0].start()
-        manager._on_task_started(0, "Title")
+        task = manager.get_all_tasks()[0]
+        task.start()
+        manager._on_worker_started(Mock(task=task), "Title")
 
-        assert read_queue_file(queue_path)["tasks"][0]["status"] == "downloading"
+        assert saved(manager)["tasks"][0]["status"] == "downloading"
 
     def test_completed_task_leaves_the_file(self, queue_path):
         manager = make_manager(queue_path)
@@ -451,10 +464,11 @@ class TestAutosave:
         manager.pause_queue()
         manager.add_task(make_task(0))
 
-        manager.get_all_tasks()[0].complete("video.mp4")
-        manager._on_task_completed(0, "video.mp4")
+        task = manager.get_all_tasks()[0]
+        task.complete("video.mp4")
+        manager._on_worker_completed(Mock(task=task), "video.mp4")
 
-        assert read_queue_file(queue_path)["tasks"] == []
+        assert saved(manager)["tasks"] == []
 
     def test_pause_and_resume_save_the_paused_state(self, queue_path):
         manager = make_manager(queue_path)
@@ -487,9 +501,11 @@ class TestAutosave:
         manager.load_queue()
         manager.pause_queue()
         manager.add_task(make_task(0))
+        manager.flush_save()
 
         with patch.object(manager, "save_queue") as save:
-            manager._on_task_progress(0, {"percent": 10.0})
+            manager._on_worker_progress(Mock(task=manager.get_all_tasks()[0]), {"percent": 10.0})
+            manager.flush_save()
             save.assert_not_called()
 
 
@@ -577,8 +593,8 @@ class TestManualRetry:
         assert task.status == TaskStatus.PENDING
         assert task.error_message == ""
         assert task.retry_count == 0
-        assert 0 in manager.workers
-        assert read_queue_file(queue_path)["tasks"][0]["status"] == "pending"
+        assert manager.get_worker(task) is not None
+        assert saved(manager)["tasks"][0]["status"] == "pending"
 
     def test_retry_when_paused_does_not_start(self, mock_worker_class):
         manager = QueueManager(max_concurrent=3)
@@ -737,11 +753,11 @@ class TestAutoRetry:
     def test_cancelled_task_is_not_retried(self, qtbot, manager):
         task = manager.get_all_tasks()[0]
         task.cancel()
-        worker = Mock()
+        worker = Mock(task=task)
         worker.wrapper._last_error = NETWORK_ERROR
-        manager.workers[0] = worker
+        manager.workers[id(task)] = worker
 
-        manager._on_task_failed(0, "Download cancelled", task)
+        manager._on_worker_failed(worker, "Download cancelled")
         qtbot.wait(50)
 
         assert task.status == TaskStatus.CANCELLED
@@ -751,7 +767,7 @@ class TestAutoRetry:
         manager._auto_start = True
         task = fail_task(manager, 0, "Download failed", detail=NETWORK_ERROR)
 
-        qtbot.waitUntil(lambda: 0 in manager.workers, timeout=2000)
+        qtbot.waitUntil(lambda: manager.get_worker(task) is not None, timeout=2000)
         assert task.status == TaskStatus.PENDING
         assert mock_worker_class.call_count == 1
 
@@ -815,4 +831,4 @@ class TestAutoRetry:
         task = fail_task(manager, 0, "Download failed", detail=NETWORK_ERROR)
         qtbot.waitUntil(lambda: task.status == TaskStatus.PENDING, timeout=2000)
 
-        assert read_queue_file(queue_path)["tasks"][0]["retry_count"] == 1
+        assert saved(manager)["tasks"][0]["retry_count"] == 1

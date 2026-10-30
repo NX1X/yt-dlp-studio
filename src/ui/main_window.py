@@ -242,8 +242,9 @@ class MainWindow(QMainWindow):
                 # Cancel download
                 self.download_tab.current_worker.cancel()
 
-        # Save the download queue last, once the close is certain. Running
-        # queue downloads are saved as in-progress and resume next start.
+        # Once the close is certain: save the download queue (running
+        # downloads are saved as in-progress and resume next start), then
+        # cancel the queue workers and wait for them, at most 4 s in total.
         self.queue_manager.shutdown()
 
         # Remove the tray icon now, so no stale icon stays in the tray.
