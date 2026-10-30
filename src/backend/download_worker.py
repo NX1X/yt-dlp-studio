@@ -206,7 +206,7 @@ class DownloadWorker(QThread):
     def _handle_success(self) -> None:
         """Handle successful download completion (v3.0.0 - added success alert)."""
         logger.info("Download completed successfully")
-        filename = self.task.filename or "video file"
+        filename = self.task.filename or ("audio file" if self.task.audio_only else "video file")
         self.task.complete(filename)
         self.log_message.emit(f"Download completed: {filename}")
 
