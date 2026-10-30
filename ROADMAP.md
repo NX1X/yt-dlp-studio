@@ -9,7 +9,7 @@ Website: https://nx1xlab.dev/nxtools
 
 > The project is in **public beta**. The core feature set is functional but UI bugs, polish items, and additional UI options remain. We will reach **v1.0.0** when the feature set is stable and beta exit criteria are met (see below).
 >
-> Latest released: **0.2.1** (maintenance: bundle checks in CI, hash-pinned installs, curl_cffi removed, 2026-10-14). Next: **0.3.0** (installers, portable builds, and package managers).
+> Latest released: **0.2.1** (maintenance: bundle checks in CI, hash-pinned installs, curl_cffi removed, 2026-10-30). Next: **0.3.0** (installers, portable builds, and package managers).
 >
 > Earlier private development history (up through internal version 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md). The reasoning behind the version reset to 0.1.0 lives in [docs-internal/VERSIONING.md](docs-internal/VERSIONING.md).
 
@@ -259,7 +259,7 @@ We welcome contributions to YT-DLP Studio! If you have ideas for new features or
 
 ## Version History
 
-Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.2.1** (2026-10-14). Next: **0.3.0** (distribution: installers and package managers). Earlier private development history (internal 0.1.0 to 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md).
+Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.2.1** (2026-10-30). Next: **0.3.0** (distribution: installers and package managers). Earlier private development history (internal 0.1.0 to 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md).
 
 ---
 

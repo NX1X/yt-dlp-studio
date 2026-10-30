@@ -21,7 +21,7 @@ _(no entries yet)_
 
 ---
 
-## [0.2.1] - 2026-10-14
+## [0.2.1] - 2026-10-30
 
 ### Maintenance release: removes curl_cffi, hash-pins every CI install, and makes CI check the contents of each built executable.
 

@@ -1,6 +1,6 @@
 # YT-DLP Studio v0.2.1 - Release Notes
 
-**Release Date:** 2026-10-14
+**Release Date:** 2026-10-30
 **Status:** Public Beta
 
 > This file describes the **current release**. For full per-version history, see [CHANGELOG.md](CHANGELOG.md). For planned future work, see [ROADMAP.md](ROADMAP.md).
