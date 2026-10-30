@@ -427,9 +427,10 @@ class QueueTab(QWidget):
             QMessageBox.warning(self, tr("msg_file_not_found"), tr("msg_file_path_unknown"))
             return
 
-        file_path = os.path.join(task.output_directory, task.filename)
+        file_path = task.output_path()
 
-        if not os.path.exists(file_path):
+        # The file may have been moved or deleted after the download.
+        if not os.path.isfile(file_path):
             QMessageBox.warning(self, tr("msg_file_not_found"), f"{tr('msg_file_not_found_desc')}:\n{file_path}")
             return
 

@@ -445,3 +445,82 @@ def test_existing_output_files_filters_missing(tmp_path):
     assert _existing_output_files(info) == [str(real)]
     assert _existing_output_files(None) == []
     assert _existing_output_files({"id": "x"}) == []
+
+
+# ---------- download result: output paths and title ----------
+
+
+def test_download_exposes_output_files_and_title(monkeypatch, tmp_path):
+    out = tmp_path / "Me at the zoo_240p.mp4"
+    out.write_bytes(b"x")
+    info = {"title": "Me at the zoo", "requested_downloads": [{"filepath": str(out)}]}
+    ok, wrapper = _run_download_returning(monkeypatch, tmp_path, info)
+    assert ok is True
+    assert wrapper.last_output_files == [str(out)]
+    assert wrapper.last_title == "Me at the zoo"
+    assert wrapper.last_error is None
+
+
+def test_output_files_are_a_copy(monkeypatch, tmp_path):
+    out = tmp_path / "video.mp4"
+    out.write_bytes(b"x")
+    info = {"requested_downloads": [{"filepath": str(out)}]}
+    _, wrapper = _run_download_returning(monkeypatch, tmp_path, info)
+    wrapper.last_output_files.clear()
+    assert wrapper.last_output_files == [str(out)]
+
+
+def test_empty_title_gives_none(monkeypatch, tmp_path):
+    out = tmp_path / "video.mp4"
+    out.write_bytes(b"x")
+    info = {"title": "", "requested_downloads": [{"filepath": str(out)}]}
+    _, wrapper = _run_download_returning(monkeypatch, tmp_path, info)
+    assert wrapper.last_title is None
+
+
+def test_failed_download_has_no_output_files(monkeypatch, tmp_path):
+    info = {"title": "Gone", "requested_downloads": [{"filepath": str(tmp_path / "gone.mp4")}]}
+    ok, wrapper = _run_download_returning(monkeypatch, tmp_path, info)
+    assert ok is False
+    assert wrapper.last_output_files == []
+    assert wrapper.last_title is None
+    assert wrapper.last_error == wrapper._last_error
+    assert "without writing a file" in wrapper.last_error
+
+
+def test_result_is_reset_on_each_download(monkeypatch, tmp_path):
+    """A failed second download must not keep the first download's result."""
+    from src.backend import yt_dlp_wrapper as mod
+
+    out = tmp_path / "first.mp4"
+    out.write_bytes(b"x")
+    results = [
+        {"title": "First", "requested_downloads": [{"filepath": str(out)}]},
+        None,
+    ]
+
+    class _SequenceYDL(_CapturingYDL):
+        def extract_info(self, url, download=True):
+            return results.pop(0)
+
+    monkeypatch.setattr(mod, "YoutubeDL", _SequenceYDL)
+    wrapper = mod.YtDlpWrapper()
+    kwargs = {"url": "https://example.com/v", "output_dir": str(tmp_path), "format_string": "best"}
+
+    assert wrapper.download(**kwargs) is True
+    assert wrapper.last_title == "First"
+    assert wrapper.last_error is None
+
+    assert wrapper.download(**kwargs) is False
+    assert wrapper.last_output_files == []
+    assert wrapper.last_title is None
+    assert wrapper.last_error
+
+
+def test_new_wrapper_has_empty_result():
+    from src.backend.yt_dlp_wrapper import YtDlpWrapper
+
+    w = YtDlpWrapper()
+    assert w.last_output_files == []
+    assert w.last_title is None
+    assert w.last_error is None

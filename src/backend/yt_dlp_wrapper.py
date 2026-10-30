@@ -152,7 +152,30 @@ class YtDlpWrapper:
         self._download_cancelled = False
         self._last_error = None
         self._last_error_type = None
+        # Result of the last successful download() (reset on every call)
+        self._last_output_files: list[str] = []
+        self._last_title: str | None = None
         logger.debug("YtDlpWrapper initialized")
+
+    @property
+    def last_error(self) -> str | None:
+        """Error message of the last failed download, or None."""
+        return self._last_error
+
+    @property
+    def last_output_files(self) -> list[str]:
+        """Final file paths of the last successful download.
+
+        These are the post-processed paths yt-dlp reports (merged .mp4,
+        converted .mp3), and each one existed when the download finished.
+        The list is empty before a download and after a failed one.
+        """
+        return list(self._last_output_files)
+
+    @property
+    def last_title(self) -> str | None:
+        """Video title of the last successful download, or None."""
+        return self._last_title
 
     def _get_ffmpeg_location(self) -> str | None:
         """
@@ -488,7 +511,8 @@ class YtDlpWrapper:
             auto_number_duplicates: If True, add (1), (2) etc. to duplicate files instead of failing
 
         Returns:
-            True if download successful, False otherwise
+            True if download successful, False otherwise. On success,
+            ``last_output_files`` and ``last_title`` hold the result.
 
         Example:
             >>> wrapper = YtDlpWrapper(progress_callback=my_callback)
@@ -526,6 +550,10 @@ class YtDlpWrapper:
         logger.info("=" * 80)
 
         self._download_cancelled = False
+        self._last_error = None
+        self._last_error_type = None
+        self._last_output_files = []
+        self._last_title = None
 
         # Detect FFmpeg location (for PyInstaller bundled exe)
         logger.info("\n[STEP 1/5] Detecting FFmpeg location...")
@@ -736,7 +764,8 @@ class YtDlpWrapper:
                 # Never report success without a file on disk (see
                 # _existing_output_files). Raising routes this through the
                 # normal failure path so the UI shows the error.
-                if not _existing_output_files(info_dict):
+                output_files = _existing_output_files(info_dict)
+                if not output_files:
                     reason = log_bridge.last_error or "no error was reported"
                     raise RuntimeError(f"yt-dlp finished without writing a file: {reason}")
 
@@ -949,6 +978,10 @@ class YtDlpWrapper:
                 logger.info("\n" + "=" * 80)
                 logger.info("✓✓✓ DOWNLOAD COMPLETED SUCCESSFULLY ✓✓✓")
                 logger.info("=" * 80)
+                # Set only on success, so a failure never leaves stale paths.
+                self._last_output_files = output_files
+                title = info_dict.get("title")
+                self._last_title = title if isinstance(title, str) and title else None
                 return True
 
         except Exception as e:
