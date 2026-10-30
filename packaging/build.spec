@@ -9,18 +9,12 @@
 import os
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_all, collect_data_files
+from PyInstaller.utils.hooks import collect_data_files
 
 # Spec lives in packaging/, project root is one level up
 project_root = Path(SPECPATH).parent
 
 block_cipher = None
-
-# curl_cffi ships native libcurl-impersonate binaries, cacert.pem, and
-# CFFI-generated extension modules. PyInstaller's static analysis misses
-# the data files and the dynamic _wrapper module, so we ask the official
-# helper to collect everything (datas + binaries + hidden imports).
-_curl_cffi_datas, _curl_cffi_binaries, _curl_cffi_hidden = collect_all('curl_cffi')
 
 a = Analysis(
     [str(project_root / 'launcher.py')],
@@ -41,16 +35,12 @@ a = Analysis(
         (str(project_root / 'ffmpeg' / 'bin' / 'avutil-60.dll'), '.'),
         (str(project_root / 'ffmpeg' / 'bin' / 'swresample-6.dll'), '.'),
         (str(project_root / 'ffmpeg' / 'bin' / 'swscale-9.dll'), '.'),
-        # curl_cffi native binaries (libcurl-impersonate)
-        *_curl_cffi_binaries,
     ],
     datas=[
         # Include yt_dlp engine (vendored)
         (str(project_root / 'vendor' / 'yt_dlp_engine'), 'yt_dlp_engine'),
         # Include resources
         (str(project_root / 'src' / 'resources'), 'src/resources'),
-        # curl_cffi data files (cacert.pem, CFFI headers)
-        *_curl_cffi_datas,
         # yt-dlp-ejs solver scripts (lib.min.js / core.min.js) - DATA files, so
         # hiddenimports alone does not bundle them. Without this, YouTube
         # JS-challenge solving fails at runtime and formats can be lost.
@@ -67,10 +57,6 @@ a = Analysis(
         'yt_dlp_ejs',
         'yt_dlp_ejs.yt',
         'yt_dlp_ejs.yt.solver',
-        # Browser-impersonation HTTP client. yt-dlp probes for it via
-        # `from yt_dlp.dependencies import curl_cffi`; the full submodule
-        # set is added below via collect_all() above.
-        *_curl_cffi_hidden,
         # PySide6 GUI framework
         'PySide6.QtCore',
         'PySide6.QtGui',
@@ -200,6 +186,10 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
+        # Never bundle curl_cffi, even if the build environment has it installed:
+        # it is banned by the project's software-origin policy, and the vendored
+        # yt-dlp would otherwise pick it up automatically.
+        'curl_cffi',
         'matplotlib',
         'numpy',
         'pandas',

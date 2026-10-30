@@ -45,8 +45,8 @@ jobs:
         # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
         # This job calls `gh release view` (api.github.com), curls the
         # yt-dlp tarball + SHA2-256SUMS from github.com release URLs (which
-        # redirect to objects.githubusercontent.com), `pip install -e .`
-        # without --require-hashes (so PyPI/pythonhosted are needed), and
+        # redirect to objects.githubusercontent.com), hash-pinned installs
+        # from PyPI (so PyPI/pythonhosted are needed), and
         # finally `git push` + `gh pr create`. All hosts are covered by the
         # baseline + pypi entries below; no Sigstore endpoints (no
         # attestation step in this job).
@@ -253,25 +253,23 @@ jobs:
 
       - name: Sanity checks
         if: steps.resolve.outputs.skip != 'true'
-        # Hash-pinned install path. requirements/lock.txt is compiled from
-        # pyproject.toml runtime deps with --generate-hashes, so the entire
-        # runtime tree (PySide6, requests, curl_cffi, etc.) is fetched only
-        # if every wheel hash matches the lockfile. `.[dev]` then layers
-        # pytest/pytest-qt/etc on top using the lockfile as a constraint set,
-        # so a Shai-Hulud-class pypi attack cannot downgrade or substitute
-        # a transitive dep that has already been pinned. This mirrors the
-        # pattern used by build.yml/test and release.yml/test.
+        # Hash-pinned install path. requirements/lock.txt (runtime) and
+        # requirements/dev.txt (runtime + dev tools, constrained by lock.txt)
+        # are both compiled with --generate-hashes, so every wheel is fetched
+        # only if its hash matches. There is no editable install: conftest.py
+        # puts the repo on sys.path, so a Shai-Hulud-class PyPI attack has no
+        # unpinned install to ride in on. Mirrors build.yml and release.yml.
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip==26.1.2 --only-binary :all:
-          pip install --require-hashes -r requirements/lock.txt --only-binary :all:
-          pip install -e .[dev]
+          python -m pip install --require-hashes -r requirements/lock.txt --only-binary :all:
+          python -m pip install --require-hashes -r requirements/dev.txt --only-binary :all:
           python scripts/check_imports.py
 
       - name: Run pytest
         if: steps.resolve.outputs.skip != 'true'
-        # pytest / pytest-qt / pytest-cov are installed by the `[dev]` extra
-        # in the previous step; no further unhashed install needed here.
+        # pytest / pytest-qt / pytest-cov come from requirements/dev.txt in
+        # the previous step; no further install is needed here.
         # test_queue_tab used to be excluded here because it was locale-
         # sensitive; it now pins the UI language to English internally, so the
         # full suite runs.

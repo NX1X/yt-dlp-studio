@@ -50,20 +50,11 @@ except ImportError as e:
     raise ImportError("Could not import yt-dlp. Please ensure yt_dlp_engine is properly set up.") from e
 
 
-# Resolve the impersonation target once. yt-dlp wants an ImpersonateTarget
-# instance, not a string. We default to "chrome" because YouTube has the
-# best behavior with a Chrome fingerprint (no 429 on subtitle endpoints
-# in practice). If curl_cffi is not installed the import below will fail,
-# in which case we simply do not pass `impersonate` to yt-dlp and the
-# original "no impersonate target is available" warning resurfaces.
-try:
-    from yt_dlp.networking.impersonate import ImpersonateTarget
-
-    _DEFAULT_IMPERSONATE_TARGET: "ImpersonateTarget | None" = ImpersonateTarget.from_str("chrome")
-    logger.info(f"Impersonation target resolved: {_DEFAULT_IMPERSONATE_TARGET}")
-except Exception as e:
-    _DEFAULT_IMPERSONATE_TARGET = None
-    logger.warning(f"Could not resolve impersonation target ({e}); falling back to no impersonation.")
+# Browser impersonation is deliberately not used. yt-dlp implements it through
+# curl_cffi, which this project does not ship (see the curl_cffi entry in the
+# 0.2.1 CHANGELOG and the `excludes` list in packaging/build*.spec). YouTube
+# rate limits are handled instead by sleep_interval_subtitles,
+# sleep_interval_requests and _make_subtitles_non_fatal below.
 
 
 class _YtDlpLogBridge:
@@ -316,12 +307,6 @@ class YtDlpWrapper:
         if deno_path:
             ydl_opts["js_runtimes"] = {"deno": {"path": deno_path}}
 
-        # Browser impersonation (curl_cffi). Set when available so YouTube
-        # treats us like a real browser and stops 429'ing subtitle/metadata
-        # endpoints.
-        if _DEFAULT_IMPERSONATE_TARGET is not None:
-            ydl_opts["impersonate"] = _DEFAULT_IMPERSONATE_TARGET
-
         try:
             with YoutubeDL(ydl_opts) as ydl:
                 info_dict = ydl.extract_info(url, download=False)
@@ -374,12 +359,6 @@ class YtDlpWrapper:
         deno_path = self._get_deno_location()
         if deno_path:
             ydl_opts["js_runtimes"] = {"deno": {"path": deno_path}}
-
-        # Browser impersonation (curl_cffi). Subtitle listings are an HTTPS
-        # endpoint that is particularly aggressive about rate-limiting clients
-        # that do not impersonate a browser.
-        if _DEFAULT_IMPERSONATE_TARGET is not None:
-            ydl_opts["impersonate"] = _DEFAULT_IMPERSONATE_TARGET
 
         try:
             with YoutubeDL(ydl_opts) as ydl:
@@ -603,16 +582,6 @@ class YtDlpWrapper:
         if deno_path:
             ydl_opts["js_runtimes"] = {"deno": {"path": deno_path}}
 
-        # Browser impersonation (curl_cffi). Without this, YouTube's
-        # subtitle and comments endpoints return HTTP 429 on what looks like
-        # an automated client, which in turn would have aborted the whole
-        # video download (see ignoreerrors comment above).
-        if _DEFAULT_IMPERSONATE_TARGET is not None:
-            ydl_opts["impersonate"] = _DEFAULT_IMPERSONATE_TARGET
-            logger.info(f"✓ Browser impersonation enabled: {_DEFAULT_IMPERSONATE_TARGET}")
-        else:
-            logger.warning("⚠ Browser impersonation unavailable (curl_cffi missing); some endpoints may 429")
-
         # Set video container format if specified (only for video downloads - not audio-only)
         if video_container is not None and not audio_only:
             ydl_opts["merge_output_format"] = video_container
@@ -643,9 +612,9 @@ class YtDlpWrapper:
 
             ydl_opts["subtitleslangs"] = langs
             ydl_opts["subtitlesformat"] = "srt"
-            # YouTube rate-limits subtitle requests aggressively without browser
-            # impersonation. Sleeping ~2s between subtitle downloads avoids the
-            # HTTP 429 cascade that would otherwise abort the video download.
+            # YouTube rate-limits subtitle requests aggressively. Sleeping ~2s
+            # between subtitle downloads avoids the HTTP 429 cascade that would
+            # otherwise abort the video download.
             ydl_opts["sleep_interval_subtitles"] = 2
             logger.info(f"✓ Subtitle download enabled: {len(langs)} languages (2s spacing)")
 
@@ -678,7 +647,7 @@ class YtDlpWrapper:
         # When subtitles AND comments are both enabled, the comment phase
         # burns through YouTube's per-IP rate-limit budget BEFORE the
         # subtitle HTTP request goes out, so the subtitle download gets
-        # 429'd even with Chrome impersonation. Adding a 1s gap between
+        # 429'd. Adding a 1s gap between
         # every API request pre-empts that 429 cascade. It costs ~10-30s
         # extra during the comment phase but lets subtitles actually land.
         # Single-flag scenarios do not need this (no rate-limit pressure).
