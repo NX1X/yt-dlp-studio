@@ -107,7 +107,8 @@ class TestSelectAsset:
         monkeypatch.setattr("src.backend.update_checker.os.name", "nt")
         c = UpdateChecker()
         assert c._select_asset({"assets": [{"name": "x.zip", "browser_download_url": "z"}]}).url == "z"
-        assert c._select_asset({"assets": [{"name": "x.bin", "browser_download_url": "b"}]}).url == "b"
+        # No known Windows artifact: offer nothing, never an arbitrary first asset.
+        assert c._select_asset({"assets": [{"name": "x.bin", "browser_download_url": "b"}]}) is None
         assert c._select_asset({"assets": []}) is None
 
     def test_prefers_linux_archive(self, monkeypatch):
@@ -197,7 +198,11 @@ class TestDownloadUpdate:
         c = UpdateChecker()
         c._session = FakeSession(FakeResponse(headers={"content-length": str(len(data))}, chunks=[data]))
         out = tmp_path / "app.exe"
-        result = c.download_update("https://x/app.exe", str(out), expected_digest=f"sha256:{digest}")
+        result = c.download_update(
+            "https://github.com/NX1X/yt-dlp-studio/releases/download/v9.9.9/app.exe",
+            str(out),
+            expected_digest=f"sha256:{digest}",
+        )
         assert isinstance(result, DownloadResult)
         assert result.success is True
         assert out.exists()
@@ -208,7 +213,11 @@ class TestDownloadUpdate:
         c = UpdateChecker()
         c._session = FakeSession(FakeResponse(headers={"content-length": str(len(data))}, chunks=[data]))
         out = tmp_path / "app.exe"
-        result = c.download_update("https://x/app.exe", str(out), expected_digest="sha256:" + "0" * 64)
+        result = c.download_update(
+            "https://github.com/NX1X/yt-dlp-studio/releases/download/v9.9.9/app.exe",
+            str(out),
+            expected_digest="sha256:" + "0" * 64,
+        )
         assert result.success is False
         assert result.error == "verify_failed"
         assert not out.exists()
@@ -218,7 +227,9 @@ class TestDownloadUpdate:
         c = UpdateChecker()
         c._session = FakeSession(FakeResponse(headers={"content-length": str(len(data))}, chunks=[data]))
         out = tmp_path / "app.exe"
-        result = c.download_update("https://x/app.exe", str(out), expected_digest=None)
+        result = c.download_update(
+            "https://github.com/NX1X/yt-dlp-studio/releases/download/v9.9.9/app.exe", str(out), expected_digest=None
+        )
         assert result.success is False
         assert result.error == "no_digest"
         assert out.exists()
@@ -226,6 +237,10 @@ class TestDownloadUpdate:
     def test_http_error(self, tmp_path: Path):
         c = UpdateChecker()
         c._session = FakeSession(FakeResponse(status_code=404))
-        result = c.download_update("https://x/app.exe", str(tmp_path / "a.exe"), expected_digest="x")
+        result = c.download_update(
+            "https://github.com/NX1X/yt-dlp-studio/releases/download/v9.9.9/app.exe",
+            str(tmp_path / "a.exe"),
+            expected_digest="x",
+        )
         assert result.success is False
         assert result.error == "download_failed"
