@@ -337,9 +337,11 @@ jobs:
       run: |
         $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
         if (-not (Test-Path $iscc)) { Write-Error "Inno Setup 6 (ISCC.exe) not found on this runner"; exit 1 }
-        $iv = (Get-Item $iscc).VersionInfo.ProductVersion
-        Write-Host "Inno Setup $iv"
-        if (-not $iv.StartsWith("6.")) { Write-Error "Expected Inno Setup 6.x, found $iv"; exit 1 }
+        # ISCC.exe carries no version resource (reads as 0.0.0.0), so check the
+        # banner it prints instead, for example "Inno Setup 6 Command-Line Compiler".
+        $banner = (& $iscc /? 2>&1 | Select-Object -First 3) -join " "
+        Write-Host "ISCC: $banner"
+        if ($banner -notmatch 'Inno Setup 6\b') { Write-Error "Expected Inno Setup 6, got: $banner"; exit 1 }
         $version = [regex]::Match((Get-Content src\__init__.py -Raw), '__version__\s*=\s*"([^"]+)"').Groups[1].Value
         if (-not $version) { Write-Error "could not read __version__ from src/__init__.py"; exit 1 }
         $numeric = ([regex]::Match($version, '^\d+\.\d+\.\d+').Value) + ".0"
