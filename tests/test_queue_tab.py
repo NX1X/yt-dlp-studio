@@ -305,6 +305,59 @@ class TestQueueTabClearOperations:
             mock_clear.assert_called_once()
 
 
+class TestQueueTabRetry:
+    """Test the retry controls."""
+
+    def test_retry_all_button_text(self, queue_tab):
+        assert queue_tab.retry_failed_button.text() == "Retry All Failed"
+        assert queue_tab.retry_failed_button.toolTip() == "Retry every failed download in the queue"
+
+    def test_retry_all_button_disabled_without_failed_tasks(self, queue_tab, queue_manager, sample_task):
+        assert queue_tab.retry_failed_button.isEnabled() is False
+        with patch.object(queue_manager, "_try_start_next"):
+            queue_manager.add_task(sample_task)
+        assert queue_tab.retry_failed_button.isEnabled() is False
+
+    def test_retry_all_button_enabled_with_failed_task(self, queue_tab, queue_manager, sample_task):
+        with patch.object(queue_manager, "_try_start_next"):
+            queue_manager.add_task(sample_task)
+        sample_task.fail("Download failed")
+        queue_manager.queue_updated.emit()
+        assert queue_tab.retry_failed_button.isEnabled() is True
+
+    def test_retry_all_button_click(self, qtbot, queue_tab, queue_manager, sample_task):
+        with patch.object(queue_manager, "_try_start_next"):
+            queue_manager.add_task(sample_task)
+        sample_task.fail("Download failed")
+        queue_manager.queue_updated.emit()
+
+        with patch.object(queue_manager, "retry_all_failed", return_value=1) as mock_retry:
+            qtbot.mouseClick(queue_tab.retry_failed_button, Qt.LeftButton)
+            mock_retry.assert_called_once()
+
+    def test_retry_all_resets_failed_task(self, qtbot, queue_tab, queue_manager, sample_task):
+        queue_manager.pause_queue()
+        queue_manager.add_task(sample_task)
+        sample_task.fail("Download failed")
+        queue_manager.queue_updated.emit()
+
+        qtbot.mouseClick(queue_tab.retry_failed_button, Qt.LeftButton)
+
+        assert sample_task.status == TaskStatus.PENDING
+        assert queue_tab.queue_table.item(0, 3).text() == "PENDING"
+        assert queue_tab.retry_failed_button.isEnabled() is False
+
+    def test_row_retry_button_uses_queue_manager(self, queue_tab, queue_manager, sample_task):
+        with patch.object(queue_manager, "_try_start_next"):
+            queue_manager.add_task(sample_task)
+        sample_task.fail("Download failed")
+        queue_manager.queue_updated.emit()
+
+        with patch.object(queue_manager, "retry_task", return_value=True) as mock_retry:
+            queue_tab._on_retry_task(0)
+            mock_retry.assert_called_once_with(0)
+
+
 class TestQueueTabProgressUpdates:
     """Test progress update handling."""
 

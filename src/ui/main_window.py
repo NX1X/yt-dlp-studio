@@ -11,7 +11,7 @@ from PySide6.QtWidgets import QMainWindow, QMessageBox, QStatusBar, QTabWidget
 from ..backend.config_manager import ConfigManager
 from ..backend.history_manager import HistoryManager
 from ..backend.queue_manager import QueueManager
-from ..utils.constants import APP_NAME, WINDOW_MIN_HEIGHT, WINDOW_MIN_WIDTH
+from ..utils.constants import APP_DATA_DIR, APP_NAME, WINDOW_MIN_HEIGHT, WINDOW_MIN_WIDTH
 from ..utils.logger import get_logger
 from ..utils.translations import get_translation_manager, tr
 from .about_tab import AboutTab
@@ -60,8 +60,13 @@ class MainWindow(QMainWindow):
 
         self.notification_manager = NotificationManager(self)
 
-        # Create queue manager with notification support (v1.7.0)
-        self.queue_manager = QueueManager(max_concurrent=3, notification_manager=self.notification_manager)
+        # Create queue manager with notification support (v1.7.0). The queue
+        # file sits next to the history file in APP_DATA_DIR.
+        self.queue_manager = QueueManager(
+            max_concurrent=3,
+            notification_manager=self.notification_manager,
+            persist_path=APP_DATA_DIR / QueueManager.QUEUE_FILE,
+        )
 
         # Create history manager (v2.0.0)
         self.history_manager = HistoryManager()
@@ -70,6 +75,9 @@ class MainWindow(QMainWindow):
         self._apply_theme()
         self._apply_rtl_layout()
         self._restore_window_state()
+        # Restore the saved queue after the Queue tab exists, so the tab
+        # shows the restored tasks. Saving starts only after this call.
+        self.queue_manager.load_queue()
         self._maybe_check_updates_on_startup()
         logger.info("MainWindow initialized")
 
@@ -233,6 +241,10 @@ class MainWindow(QMainWindow):
             else:
                 # Cancel download
                 self.download_tab.current_worker.cancel()
+
+        # Save the download queue last, once the close is certain. Running
+        # queue downloads are saved as in-progress and resume next start.
+        self.queue_manager.shutdown()
 
         # Remove the tray icon now, so no stale icon stays in the tray.
         self.notification_manager.hide_tray_icon()
