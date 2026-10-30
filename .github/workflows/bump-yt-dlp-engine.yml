@@ -262,8 +262,8 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip==26.1.2 --only-binary :all:
-          pip install --require-hashes -r requirements/lock.txt --only-binary :all:
-          pip install --require-hashes -r requirements/dev.txt --only-binary :all:
+          python -m pip install --require-hashes -r requirements/lock.txt --only-binary :all:
+          python -m pip install --require-hashes -r requirements/dev.txt --only-binary :all:
           python scripts/check_imports.py
 
       - name: Run pytest
