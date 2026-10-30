@@ -489,7 +489,7 @@ class TestShutdown:
         manager.add_task(task)
         manager.resume_queue()
         worker = manager.get_worker(task)
-        worker.wrapper._last_error = "Unable to download webpage: <urlopen error timed out>"
+        worker.wrapper.last_error = "Unable to download webpage: <urlopen error timed out>"
         task.fail("Download failed")
         manager._on_worker_failed(worker, "Download failed")
         assert task.retry_count == 1  # retry scheduled
@@ -506,7 +506,7 @@ class TestShutdown:
         task = make_task(0)
         manager.add_task(task)
         worker = manager.get_worker(task)
-        worker.wrapper._last_error = "Unable to download webpage: <urlopen error timed out>"
+        worker.wrapper.last_error = "Unable to download webpage: <urlopen error timed out>"
 
         manager.shutdown(wait_ms=100)
         task.fail("Download failed")

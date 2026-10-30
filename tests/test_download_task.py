@@ -1,5 +1,7 @@
 """Tests for src/models/download_task.py."""
 
+import os
+
 from src.models.download_task import DownloadTask, TaskStatus
 
 
@@ -45,6 +47,36 @@ class TestDownloadTaskCreation:
         assert task.url == "https://youtube.com/watch?v=test"
         assert task.quality == "720p (HD)"
         assert task.audio_only is True
+
+
+class TestDownloadTaskOutputPath:
+    """Tests for output_path() and title."""
+
+    def test_no_filename_gives_empty_path(self):
+        task = DownloadTask(url="https://example.com", output_directory="/tmp", quality="Best Quality")
+        assert task.title == ""
+        assert task.output_path() == ""
+
+    def test_joins_directory_and_filename(self, tmp_path):
+        task = DownloadTask(url="https://example.com", output_directory=str(tmp_path), quality="Best Quality")
+        task.complete("clip.mp4")
+        assert task.output_path() == os.path.join(str(tmp_path), "clip.mp4")
+
+    def test_expands_user_folder(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
+        task = DownloadTask(url="https://example.com", output_directory="~", quality="Best Quality")
+        task.complete("clip.mp4")
+        assert task.output_path() == os.path.join(str(tmp_path), "clip.mp4")
+
+    def test_title_survives_save_and_load(self):
+        task = DownloadTask(url="https://example.com", output_directory="/tmp", quality="Best Quality")
+        task.title = "Me at the zoo"
+        assert DownloadTask.from_dict(task.to_dict()).title == "Me at the zoo"
+
+    def test_old_queue_file_without_title_loads(self):
+        data = {"url": "https://example.com", "output_directory": "/tmp", "quality": "Best Quality"}
+        assert DownloadTask.from_dict(data).title == ""
 
 
 class TestDownloadTaskLifecycle:

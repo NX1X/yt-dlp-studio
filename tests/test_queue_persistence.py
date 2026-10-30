@@ -79,7 +79,7 @@ def fail_task(manager, index, error, detail=None):
     task = manager.queue.get_task(index)
     task.fail(error)
     worker = Mock(task=task)
-    worker.wrapper._last_error = detail
+    worker.wrapper.last_error = detail
     manager.workers[id(task)] = worker
     manager._on_worker_failed(worker, error)
     return task
@@ -108,6 +108,7 @@ class TestTaskSerialization:
         task.status = TaskStatus.ERROR
         task.error_message = "boom"
         task.filename = "video.mp4"
+        task.title = "A video"
 
         restored = DownloadTask.from_dict(json.loads(json.dumps(task.to_dict())))
 
@@ -129,6 +130,7 @@ class TestTaskSerialization:
             "status",
             "error_message",
             "filename",
+            "title",
             "created_at",
         ):
             assert getattr(restored, name) == getattr(task, name), name
@@ -754,7 +756,7 @@ class TestAutoRetry:
         task = manager.get_all_tasks()[0]
         task.cancel()
         worker = Mock(task=task)
-        worker.wrapper._last_error = NETWORK_ERROR
+        worker.wrapper.last_error = NETWORK_ERROR
         manager.workers[id(task)] = worker
 
         manager._on_worker_failed(worker, "Download cancelled")

@@ -4,6 +4,7 @@ These tests mock yt-dlp to verify the signal flow and state transitions
 without performing real downloads.
 """
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -34,6 +35,8 @@ class TestDownloadWorkerSuccess:
         mock_instance = MockWrapper.return_value
         mock_instance.get_video_info.return_value = MagicMock(title="Test Video")
         mock_instance.download.return_value = True
+        mock_instance.last_output_files = [os.path.join("/tmp", "Test Video_1080p.mp4")]
+        mock_instance.last_title = "Test Video"
 
         task = DownloadTask(url="https://example.com/video", output_directory="/tmp", quality="Best Quality")
         worker = DownloadWorker(task)
@@ -45,6 +48,10 @@ class TestDownloadWorkerSuccess:
 
         assert task.status == TaskStatus.COMPLETED
         assert len(completed_signals) == 1
+        # The real file name from yt-dlp, not the "video file" fallback
+        assert completed_signals == ["Test Video_1080p.mp4"]
+        assert task.filename == "Test Video_1080p.mp4"
+        assert task.title == "Test Video"
 
 
 class TestDownloadWorkerCompletionLabel:
@@ -65,6 +72,9 @@ class TestDownloadWorkerCompletionLabel:
         mock_instance = MockWrapper.return_value
         mock_instance.get_video_info.return_value = MagicMock(title="Test Media")
         mock_instance.download.return_value = True
+        # yt-dlp reported no output path, so the worker uses its fallback.
+        mock_instance.last_output_files = []
+        mock_instance.last_title = None
 
         task = DownloadTask(
             url="https://example.com/media",
