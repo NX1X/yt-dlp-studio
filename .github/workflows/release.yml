@@ -331,6 +331,36 @@ jobs:
       # scripts and every YouTube download failed; this check catches that.
       run: python scripts/check_bundle.py dist/yt-dlp-studio.exe
 
+    - name: Build installer
+      # Per-user Inno Setup installer around the SAME one-file EXE the portable
+      # download ships (packaging/installer.iss). Inno Setup is preinstalled on
+      # the windows-2022 and windows-2025 runner images; fail fast if it is
+      # missing or not the 6.x line the script was written for.
+      run: |
+        $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+        if (-not (Test-Path $iscc)) { Write-Error "Inno Setup 6 (ISCC.exe) not found on this runner"; exit 1 }
+        $iv = (Get-Item $iscc).VersionInfo.ProductVersion
+        Write-Host "Inno Setup $iv"
+        if (-not $iv.StartsWith("6.")) { Write-Error "Expected Inno Setup 6.x, found $iv"; exit 1 }
+        $version = [regex]::Match((Get-Content src\__init__.py -Raw), '__version__\s*=\s*"([^"]+)"').Groups[1].Value
+        if (-not $version) { Write-Error "could not read __version__ from src/__init__.py"; exit 1 }
+        $numeric = ([regex]::Match($version, '^\d+\.\d+\.\d+').Value) + ".0"
+        Write-Host "AppVersion=$version AppVersionNumeric=$numeric"
+        & $iscc /Qp "/DAppVersion=$version" "/DAppVersionNumeric=$numeric" packaging\installer.iss
+        if ($LASTEXITCODE -ne 0) { Write-Error "ISCC failed with exit code $LASTEXITCODE"; exit 1 }
+        $setup = Get-ChildItem dist\YT-DLP-Studio-Setup-*.exe | Select-Object -First 1
+        if (-not $setup) { Write-Error "installer not produced"; exit 1 }
+        Write-Host "Built $($setup.Name) ($([math]::Round($setup.Length / 1MB, 1)) MB)"
+
+    - name: Test installer
+      # Silent per-user install, launch the INSTALLED GUI headless until it logs
+      # "started successfully", silent uninstall (user data must survive), then
+      # reinstall and uninstall with /PURGEDATA=yes (user data must go).
+      run: |
+        $setup = (Get-ChildItem dist\YT-DLP-Studio-Setup-*.exe | Select-Object -First 1).FullName
+        powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test_installer.ps1 -Setup $setup
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+
     - name: Verify build
       run: |
         if (-Not (Test-Path "dist/yt-dlp-studio.exe")) {
@@ -383,6 +413,9 @@ jobs:
         $version = $env:VERSION
         Copy-Item -Path "dist/yt-dlp-studio.exe" -Destination "YT-DLP Studio.exe"
         Write-Host "Standalone exe: YT-DLP Studio.exe"
+        # Top level, so the release job's artifacts/* glob picks it up.
+        Copy-Item -Path "dist/YT-DLP-Studio-Setup-$version.exe" -Destination "YT-DLP-Studio-Setup-$version.exe"
+        Write-Host "Installer: YT-DLP-Studio-Setup-$version.exe"
 
     - name: Upload Windows artifact
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -391,6 +424,7 @@ jobs:
         path: |
           yt-dlp-studio-*-Windows.zip
           YT-DLP Studio.exe
+          YT-DLP-Studio-Setup-*.exe
 
   build-linux:
     name: Build Linux Executable

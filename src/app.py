@@ -11,7 +11,7 @@ from PySide6.QtWidgets import QApplication
 
 from .backend.config_manager import ConfigManager
 from .ui.main_window import MainWindow
-from .utils.constants import APP_NAME, APP_VERSION
+from .utils.constants import APP_NAME, APP_USER_MODEL_ID, APP_VERSION
 from .utils.deno_installer import ensure_deno_installed
 from .utils.logger import get_logger
 
@@ -34,6 +34,17 @@ class App:
         logger.info(f"Initializing {APP_NAME} v{APP_VERSION}")
 
         ensure_deno_installed()
+
+        # Windows: claim the same AppUserModelID the installer puts on the
+        # shortcuts, before any window opens. Without it the taskbar shows a
+        # second, ungrouped button next to the pinned shortcut.
+        if sys.platform == "win32":
+            try:
+                import ctypes
+
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_USER_MODEL_ID)
+            except (AttributeError, OSError) as e:
+                logger.debug(f"Could not set AppUserModelID: {e}")
 
         # Create QApplication
         self.qt_app = QApplication(sys.argv)

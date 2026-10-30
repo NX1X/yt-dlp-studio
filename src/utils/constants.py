@@ -13,6 +13,9 @@ from .. import __version__
 # Application Information
 APP_NAME = "YT-DLP Studio"
 APP_VERSION = __version__
+# Windows taskbar identity. Must match AppUserModelID in packaging/installer.iss,
+# which the installer puts on the Start-menu and desktop shortcuts.
+APP_USER_MODEL_ID = "NX1X.YTDLPStudio"
 APP_AUTHOR = "NX1X"
 APP_ORGANIZATION = "NXTools"
 APP_WEBSITE = "https://nx1xlab.dev"
