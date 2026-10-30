@@ -35,12 +35,8 @@ python -m venv .venv
 # macOS / Linux:
 source .venv/bin/activate
 
-# Install runtime + dev dependencies (hash-pinned, the same set CI uses)
-pip install --require-hashes -r requirements/dev.txt
-
-# After changing dependencies in pyproject.toml, regenerate the locks
-# (needs uv; applies the 14-day cooldown and resolves for every platform):
-# scripts/relock.sh
+# Install runtime + dev dependencies
+pip install -e .[dev]
 
 # Install pre-commit hooks (recommended)
 pre-commit install

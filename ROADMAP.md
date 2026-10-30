@@ -5,11 +5,11 @@ Website: https://nx1xlab.dev/nxtools
 
 ---
 
-## Current Version: 0.2.1 released · 0.3.0 next (Public Beta)
+## Current Version: 0.2.0 released · 0.3.0 next (Public Beta)
 
 > The project is in **public beta**. The core feature set is functional but UI bugs, polish items, and additional UI options remain. We will reach **v1.0.0** when the feature set is stable and beta exit criteria are met (see below).
 >
-> Latest released: **0.2.1** (maintenance: bundle checks in CI, hash-pinned installs, curl_cffi removed, 2026-10-30). Next: **0.3.0** (installers, portable builds, and package managers).
+> Latest released: **0.2.0** (Linux/Ubuntu desktop support, 2026-09-20). Next: **0.3.0** (installers, portable builds, and package managers).
 >
 > Earlier private development history (up through internal version 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md). The reasoning behind the version reset to 0.1.0 lives in [docs-internal/VERSIONING.md](docs-internal/VERSIONING.md).
 
@@ -61,8 +61,7 @@ Website: https://nx1xlab.dev/nxtools
 - ✅ Metadata download (.info.json)
 - ✅ Download speed limiting
 - ✅ Playlist support
-- ✅ Queue management system (up to 3 concurrent downloads, pause and resume the queue)
-- ✅ Batch download: paste many URLs, or import them from a text file
+- ✅ Queue management system
 - ✅ Download history tracking
 - ✅ Auto-numbering for duplicate downloads
 
@@ -107,62 +106,75 @@ First officially built and published Linux desktop package, alongside the existi
 - ⬜ **Website:** add the Linux download to the website, and update docs + marketing to say the app is available for **Windows and Linux** (was Windows-only). Lives in the separate `yt-dlp-studio-website` repo.
 - ⬜ **Website SEO / GEO pass:** update on-page keywords for cross-platform reach (e.g. "yt-dlp GUI for Windows and Linux", "Linux video downloader", "Ubuntu / Debian / Fedora yt-dlp desktop app", "open-source YouTube downloader"), refresh page titles + meta descriptions + OpenGraph/Twitter cards, add/verify JSON-LD `SoftwareApplication` structured data listing both `operatingSystem` values, keep `sitemap.xml` / `robots.txt` / `llms.txt` current so AI answer engines surface the Linux support too.
 
-### Path to 1.0
+### v0.3.0 - Distribution: Installer, Portable & Package Managers
+Ship the app the way users on each OS expect to get it, while keeping the no-install option.
+- ⬜ **Windows: two artifacts** - the current **portable** EXE/ZIP *plus* a per-user **installer** (Inno Setup, no admin required: Start-menu shortcut, uninstaller, stable install path)
+- ⬜ In-place updater enabled by the installer's stable path (retires the "two copies" limitation - see `docs/UPDATE_SERVICE_NOTES.md`)
+- ⬜ Updater copy honesty fix in the meantime ("download the new version", not "run the installer")
+- ⬜ **Windows package manager: winget** (submit manifest to `microsoft/winget-pkgs`)
+- ⬜ **Linux package managers / native packages**: AppImage, plus `.deb` (Debian/Ubuntu) and `.rpm` (Fedora); explore Flatpak / AUR
+- ⬜ **Restore a green SonarCloud gate on `main`** (tracked in [#33](https://github.com/NX1X/yt-dlp-studio/issues/33)). The 0.2.0 cleanup took the project from 99 open issues to 20, and the 7 that remain are all install-hardening: `pip install -e .[dev]` in `build.yml` / `release.yml` / `bump-yt-dlp-engine.yml` (S8541 wheel-only, S8544 unlocked resolution) plus no lock file (S8565). The fix is the deferred refactor to `pip install --no-deps -e .` plus hash-pinned dev tooling, which needs `requirements/lock.txt` regenerated with the dev extras.
+- ⬜ Review the one open security hotspot (`update_checker.py`, `session.mount("http://", ...)`, S5332). The app only ever calls the HTTPS GitHub API, so the `http://` retry adapter mount can simply be dropped. It is why "hotspots reviewed" sits at 0% and fails the gate.
+- ⬜ Note: released binaries remain **unsigned for now** (no code-signing certificate - see the signing plan under v1.0.0); Sigstore provenance already covers cryptographic verification
+- ⬜ **Containerized reproducible builds with [Dagger](https://dagger.io)**: move lint, tests, and the **Linux** PyInstaller build into a Dagger module (`dagger call ...`) that runs the same containerized pipeline locally and in CI. Real win: the Linux glibc floor is pinned by the container base image instead of the GitHub runner image, so the binary's compatibility floor is reproducible and no longer drifts with `ubuntu-22.04`. The Windows EXE build stays on a native `windows-latest` runner (Dagger runs Linux containers only). Blocked for now: pin to a stable Dagger release (0.21.x); the 1.0 beta line cannot yet install its Python SDK (`v1@v1` ref bug). Keep harden-runner egress allowlists and Sigstore provenance intact.
 
-Planned on 2026-10-30. Each release ships only when CI is green (including the
-bundle check), a real download test passes, and the Windows build is smoke-tested
-by hand.
+### v0.4.0 - Enhanced Download Management
+- ⬜ **Refactor `YtDlpWrapper.download()`** - split the ~500-line method (SonarCloud S3776 cognitive complexity 136, S107 15 params) into cohesive helpers plus a `DownloadOptions` object, with live download testing. Currently `# NOSONAR`-suppressed on the critical path rather than rushed into the 0.2.0 merge.
+- ⬜ Resume interrupted downloads
+- ⬜ Download scheduling (download at specific time)
+- ⬜ Batch download from text file (multiple URLs)
+- ⬜ Browser extension integration (download from browser)
+- ⬜ Automatic retry on failure
+- ⬜ **Reliable desktop notifications + system tray on both Windows and Linux.**
+  Today notifications use Qt's `QSystemTrayIcon` with a plyer fallback; on
+  desktops without a tray (e.g. stock GNOME) completion toasts silently fail
+  (`plyer.platforms` is not bundled and there is no dbus backend). Rework to a
+  robust cross-platform path - Qt-native notifications and/or a `notify-send`
+  fallback on Linux - and a proper always-available tray icon on both OSes.
+  **Confirmed on Windows too** (v0.2.0 test): the frozen EXE logs
+  `Could not send notification: No usable implementation found!` on every
+  download, so it is not just stock GNOME. As part of this rework, fix the
+  **false-success log line**: after the failure warning the code still logs
+  `Notification sent`, which is misleading; only log success when a
+  notification actually dispatched.
+- ⬜ **Fix audio-only completion label** (cosmetic): an audio-only download logs
+  `Task N completed: video file`. Report "audio file" (or the actual output
+  type) instead of hardcoded "video file".
 
-| Release | Theme | Goal |
-|---|---|---|
-| 0.3.0 | Installable | Real installers on Windows and Linux, and updates that replace the app |
-| 0.4.0 | Reliable | Fix known bugs, simplify the download path, test the UI |
-| 0.5.0 | Complete | Add the missing basics: cookies, filename templates, format options |
-| 1.0.0 | Stable | Feature freeze and beta exit |
+### v0.5.0 - Advanced Format Options
+- ⬜ Custom format string builder (advanced users)
+- ⬜ Video codec selection (H.264, H.265, VP9, AV1)
+- ⬜ Audio codec selection (AAC, Opus, Vorbis)
+- ⬜ Bitrate control for video and audio
+- ⬜ Frame rate control
 
-### v0.3.0 - Installable
-Ship the app the way users on each OS expect, and keep the no-install option.
-- ⬜ **Windows installer:** a per-user Inno Setup installer that needs no admin rights. It adds a Start-menu shortcut, an uninstaller and a stable install path. The portable EXE and ZIP stay.
-- ⬜ **In-place updates:** the updater downloads the new installer, runs it silently and restarts the app. This removes the "two copies" limitation (see `docs/UPDATE_SERVICE_NOTES.md`).
-- ⬜ **Portable copy:** honest updater text ("download the new version", not "run the installer").
-- ⬜ **Uninstall keeps user data:** settings and download history stay unless the user chooses to delete them.
-- ⬜ **CI installer test** on a Windows runner: silent install, launch, silent uninstall, then check that user data survives.
-- ⬜ **Linux packages:** AppImage, `.deb` (Debian, Ubuntu) and `.rpm` (Fedora). CI builds and smoke-launches each one. The `.tar.gz` with `install.sh` stays. Packaging tools are checked against the project's software-origin policy before use.
-- ⬜ **winget:** submit a manifest to `microsoft/winget-pkgs` after the installer ships.
-- ✅ **Hash-pin every CI install** *(done in 0.2.1)*: the `pip install -e .[dev]` steps became `--require-hashes -r requirements/dev.txt`, clearing the 6 Scorecard `PinnedDependenciesID` alerts and Sonar S8541/S8544. Whether the SonarCloud gate itself turns green is tracked in [#33](https://github.com/NX1X/yt-dlp-studio/issues/33).
-- ✅ Removed the `http://` retry adapter mount in `update_checker.py` (Sonar hotspot S5332) *(done in 0.2.1)*.
-- Note: release binaries stay **unsigned** until the signing work under v1.0.0. Sigstore provenance already lets users verify downloads.
+### v0.5.0 / v0.6.0 - Expanded Site Support
+yt-dlp already extracts from 1000+ sites; surface more of them without taking on
+a huge manual-test burden.
+- ⬜ **Tested tier** (shown as "Supported"): the sites hand-verified each release - YouTube, Instagram, TikTok, Facebook, Twitter/X.
+- ⬜ **Experimental tier** ("powered by yt-dlp - 1000+ sites, untested"): expose the rest with a clear not-officially-tested label so breakage is expected, not surprising. Zero added test burden.
+- ⬜ **Automated extractor tester** (replaces manual site checks): a scheduled CI job that runs info-extraction only (no full download) against one known public URL per tested site and reports which extractors still work, catching upstream breakage automatically.
 
-### v0.4.0 - Reliable
-Fix what is known to be broken, and make the download path safe to change.
-- ⬜ **Delete dead code:** `src/ui/video_player_widget.py`, `src/ui/filter_dialog.py` and `src/ui/bandwidth_widget.py` (431 statements). Nothing imports them.
-- ⬜ **Refactor `YtDlpWrapper.download()`:** split the ~500-line method (SonarCloud S3776 cognitive complexity 136, S107 with 15 parameters) into helpers plus a `DownloadOptions` object. Pin the current behaviour with tests first, and run a live download test before merging.
-- ⬜ **Desktop notifications that work** on Windows and Linux. Today every download logs `Could not send notification: No usable implementation found!` on Windows, and toasts fail on desktops without a tray (for example stock GNOME). Use Qt-native notifications, with `notify-send` as the Linux fallback, and a tray icon that is always available.
-- ⬜ **Fix the false log line:** the code logs `Notification sent` even after a failed notification. Log success only when a notification was sent.
-- ⬜ **Fix the audio-only label:** an audio-only download logs `Task N completed: video file`. Report the real output type.
-- ⬜ **Keep the queue across restarts:** save pending and unfinished tasks, and resume them on the next start. yt-dlp already continues `.part` files; the app does not yet save its queue.
-- ⬜ **Retry failed tasks:** a Retry button, plus one automatic retry for network errors. (yt-dlp already retries up to 10 times inside one download.)
-- ⬜ **UI tests** for the Download tab (9% covered today), Settings (9%), History (8%) and the update dialog (0%). Target: about 70% overall coverage (41% today).
-- ⬜ **Weekly extractor check in CI:** info extraction only (no download), against one public URL per tested site, so upstream breakage shows up early.
+### v0.6.0 - Post-Processing
+- ⬜ Built-in video trimmer (cut segments)
+- ⬜ Video merger (combine multiple videos)
+- ⬜ Watermark addition
+- ⬜ Custom FFmpeg post-processing commands
+- ⬜ Automatic file organization (by channel, date, etc.)
 
-### v0.5.0 - Complete
-Add the basics users expect before 1.0.
-- ⬜ **Cookies from the browser** for private and age-restricted videos. Without them these downloads fail today ("Sign in ... Use --cookies-from-browser"). Firefox first. Unverified: Chrome on Windows may not work, because of Chrome's app-bound cookie encryption; check this during implementation.
-- ⬜ **Filename templates** (for example `%(uploader)s - %(title)s`).
-- ⬜ **Format options:** video codec (H.264, H.265, VP9, AV1), audio codec (AAC, Opus, Vorbis), and a custom format string for advanced users.
-- ⬜ **Proxy setting.**
-- ⬜ **Site tiers:** "Tested" for the sites checked every release (YouTube, Instagram, TikTok, Facebook, X), and "Experimental" for the other 1000+ yt-dlp sites, clearly labelled as untested.
-- ⬜ **Versioned config and history files,** with migration of older files. v1.0 promises these formats stay compatible, so they need a version field first.
+### v0.7.0 - Social Features
+- ⬜ Channel/Playlist monitoring (auto-download new videos)
+- ⬜ Download notifications via email/Discord/Telegram
+- ⬜ Share download configurations (export/import presets)
+- ⬜ Cloud storage integration (Google Drive, Dropbox, OneDrive)
 
 ### v1.0.0 - Stable Release / Beta Exit
 The first non-beta release. Reached when:
-- ⬜ Every 0.3.0 to 0.5.0 item has shipped, or was moved to "After 1.0" by decision
 - ⬜ No known critical UI bugs
 - ⬜ Feature set frozen (no breaking changes planned for short term)
 - ⬜ Config and history file formats stable (backwards-compatibility commitment begins here)
-- ⬜ Tested clean on Windows 10 and Windows 11: CI on two Windows runner versions, plus a manual checklist
+- ⬜ Tested clean on Windows 10 and Windows 11
 - ⬜ Documentation complete (user guide, troubleshooting, install guide)
-- ⬜ The repository is public, so users can download releases and the in-app updater can find them
 - ⬜ Windows release executable is Authenticode code-signed via the
   [SignPath Foundation](https://signpath.org/) free OSS program (kills the
   SmartScreen "Unknown publisher" warning). Application pending - process,
@@ -180,22 +192,21 @@ The first non-beta release. Reached when:
   key-management decisions (keyless vs. managed), and end-user verification
   instructions live in [docs-internal/SIGSTORE_SIGNING.md](docs-internal/SIGSTORE_SIGNING.md).
 
-### After 1.0 (not scheduled)
-Kept as ideas. None of these block 1.0.
-- Download scheduling (download at a set time)
-- Browser extension (send a link from the browser)
-- Bitrate and frame-rate control
-- Custom FFmpeg post-processing commands
-- Automatic file organization (by channel, date, and so on)
-- Channel and playlist monitoring (download new videos automatically)
-- Download notifications by email or Discord
-- Export and import download presets
-- Cloud storage (Google Drive, Dropbox, OneDrive)
-- More Linux formats: Flatpak and AUR
-- macOS build (`.app`, `.dmg`); PyInstaller is platform-native, so this needs a macOS CI runner
-- Android app; a separate effort, likely with a different UI toolkit
-- Plugin system, web interface, API server, full UI redesign
-- **Containerized reproducible builds with [Dagger](https://dagger.io)**: move lint, tests, and the **Linux** PyInstaller build into a Dagger module (`dagger call ...`) that runs the same containerized pipeline locally and in CI. Real win: the Linux glibc floor is pinned by the container base image instead of the GitHub runner image. The Windows EXE build stays on a native `windows-latest` runner (Dagger runs Linux containers only). Blocked for now: pin to a stable Dagger release (0.21.x); the 1.0 beta line cannot yet install its Python SDK (`v1@v1` ref bug).
+### v1.1.0 - More Platforms (macOS / Android)
+
+> **Linux desktop is done** - shipped in **v0.2.0** (platform-aware binary resolution, `.desktop` + PNG icons, `install.sh`, Linux CI build with smoke-launch). Native Linux packages (AppImage / `.deb` / `.rpm` / Flatpak) are tracked under **v0.3.0**.
+
+- ⬜ macOS build (.app, .dmg) - PyInstaller is platform-native, so this needs a macOS CI runner
+- ⬜ Android app (mobile version) - separate effort, likely a different UI toolkit
+
+### v2.0.0 - Major Overhaul
+- ⬜ Complete UI redesign (modern, sleek interface)
+- ⬜ Plugin system (community extensions)
+- ⬜ Web interface (browser-based control)
+- ⬜ API server (remote control)
+- ⬜ Multi-threaded downloads (concurrent downloads)
+- ⬜ Download manager improvements
+- ⬜ Built-in media player (preview before download)
 
 ---
 
@@ -204,6 +215,7 @@ Kept as ideas. None of these block 1.0.
 ### Download Features
 - Video preview before download (thumbnail gallery, duration, size estimate)
 - Smart quality selection (based on internet speed)
+- Age-restricted video support (authentication)
 - Live stream recording (save ongoing streams)
 - 360° video download support
 
@@ -237,9 +249,8 @@ Kept as ideas. None of these block 1.0.
 
 The following features are **NOT** planned for YT-DLP Studio:
 
-- ❌ Built-in video or media player (use VLC, MPC-HC, or other players)
-- ❌ Video editing, including trimming, merging and watermarks (use dedicated video editors)
-- ❌ Telegram integration (excluded by the project's software-origin policy)
+- ❌ Built-in video player (use VLC, MPC-HC, or other players)
+- ❌ Video editing suite (use dedicated video editors)
 - ❌ Torrent/P2P downloads (out of scope)
 - ❌ DRM-protected content download (illegal)
 - ❌ Screen recording (different use case)
@@ -259,12 +270,12 @@ We welcome contributions to YT-DLP Studio! If you have ideas for new features or
 
 ## Version History
 
-Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.2.1** (2026-10-30). Next: **0.3.0** (distribution: installers and package managers). Earlier private development history (internal 0.1.0 to 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md).
+Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.2.0** (2026-09-20). Next: **0.3.0** (distribution: installers and package managers). Earlier private development history (internal 0.1.0 to 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md).
 
 ---
 
-**Last Updated:** 2026-10-30
-**Current Version:** 0.2.1 released, 0.3.0 next (Public Beta)
+**Last Updated:** 2026-09-23
+**Current Version:** 0.2.0 released, 0.3.0 next (Public Beta)
 **Status:** Active Development
 
 For more information, visit: https://nx1xlab.dev/nxtools
