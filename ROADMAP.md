@@ -5,11 +5,11 @@ Website: https://nx1xlab.dev/nxtools
 
 ---
 
-## Current Version: 0.2.1 released · 0.3.0 next (Public Beta)
+## Current Version: 0.3.0 released · 0.3.1 next (Public Beta)
 
 > The project is in **public beta**. The core feature set is functional but UI bugs, polish items, and additional UI options remain. We will reach **v1.0.0** when the feature set is stable and beta exit criteria are met (see below).
 >
-> Latest released: **0.2.1** (maintenance: bundle checks in CI, hash-pinned installs, curl_cffi removed, 2026-10-30). Next: **0.3.0** (installers, portable builds, and package managers).
+> Latest released: **0.3.0** (Windows installer, in-place updates, queue that survives a restart, 2026-10-31). Next: **0.3.1** (Linux packages and winget).
 >
 > Earlier private development history (up through internal version 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md). The reasoning behind the version reset to 0.1.0 lives in [docs-internal/VERSIONING.md](docs-internal/VERSIONING.md).
 
@@ -120,28 +120,32 @@ by hand.
 | 0.5.0 | Complete | Add the missing basics: cookies, filename templates, format options |
 | 1.0.0 | Stable | Feature freeze and beta exit |
 
-### v0.3.0 - Installable
+### v0.3.0 - Installable  *(released 2026-10-31)*
 Ship the app the way users on each OS expect, and keep the no-install option.
-- ⬜ **Windows installer:** a per-user Inno Setup installer that needs no admin rights. It adds a Start-menu shortcut, an uninstaller and a stable install path. The portable EXE and ZIP stay.
-- ⬜ **In-place updates:** the updater downloads the new installer, runs it silently and restarts the app. This removes the "two copies" limitation (see `docs/UPDATE_SERVICE_NOTES.md`).
-- ⬜ **Portable copy:** honest updater text ("download the new version", not "run the installer").
-- ⬜ **Uninstall keeps user data:** settings and download history stay unless the user chooses to delete them.
-- ⬜ **CI installer test** on a Windows runner: silent install, launch, silent uninstall, then check that user data survives.
-- ⬜ **Linux packages:** AppImage, `.deb` (Debian, Ubuntu) and `.rpm` (Fedora). CI builds and smoke-launches each one. The `.tar.gz` with `install.sh` stays. Packaging tools are checked against the project's software-origin policy before use.
-- ⬜ **winget:** submit a manifest to `microsoft/winget-pkgs` after the installer ships.
+- ✅ **Windows installer** (#61): a per-user Inno Setup installer that needs no admin rights. It adds a Start-menu shortcut, an uninstaller and a stable install path. The portable EXE and ZIP stay.
+- ✅ **In-place updates** (#64): the updater downloads the new installer, runs it silently and restarts the app. This removes the "two copies" limitation (see `docs/UPDATE_SERVICE_NOTES.md`).
+- ✅ **Portable copy** (#64): honest updater text ("download the new version", not "run the installer").
+- ✅ **Uninstall keeps user data** (#61): settings and download history stay unless the user chooses to delete them.
+- ✅ **CI installer test** (#61) on a Windows runner: silent install, launch, silent uninstall, then check that user data survives.
 - ✅ **Hash-pin every CI install** *(done in 0.2.1)*: the `pip install -e .[dev]` steps became `--require-hashes -r requirements/dev.txt`, clearing the 6 Scorecard `PinnedDependenciesID` alerts and Sonar S8541/S8544. Whether the SonarCloud gate itself turns green is tracked in [#33](https://github.com/NX1X/yt-dlp-studio/issues/33).
 - ✅ Removed the `http://` retry adapter mount in `update_checker.py` (Sonar hotspot S5332) *(done in 0.2.1)*.
+- ✅ Also in 0.3.0, from the 0.4.0 list: the queue survives a restart and failed tasks can be retried (#63), desktop notifications work (#62), the real file name is shown and opened (#65), and the History tab records downloads (#66).
 - Note: release binaries stay **unsigned** until the signing work under v1.0.0. Sigstore provenance already lets users verify downloads.
+
+### v0.3.1 - Linux packages and winget
+Moved from 0.3.0 so the Windows installer could ship first.
+- ⬜ **Linux packages:** AppImage, `.deb` (Debian, Ubuntu) and `.rpm` (Fedora). CI builds and smoke-launches each one. The `.tar.gz` with `install.sh` stays. Packaging tools are checked against the project's software-origin policy before use.
+- ⬜ **winget:** submit a manifest to `microsoft/winget-pkgs` after the installer ships.
 
 ### v0.4.0 - Reliable
 Fix what is known to be broken, and make the download path safe to change.
-- ⬜ **Delete dead code:** `src/ui/video_player_widget.py`, `src/ui/filter_dialog.py` and `src/ui/bandwidth_widget.py` (431 statements). Nothing imports them.
+- ✅ **Delete dead code:** `src/ui/video_player_widget.py`, `src/ui/filter_dialog.py` and `src/ui/bandwidth_widget.py` (431 statements). Nothing imports them.
 - ⬜ **Refactor `YtDlpWrapper.download()`:** split the ~500-line method (SonarCloud S3776 cognitive complexity 136, S107 with 15 parameters) into helpers plus a `DownloadOptions` object. Pin the current behaviour with tests first, and run a live download test before merging.
-- ⬜ **Desktop notifications that work** on Windows and Linux. Today every download logs `Could not send notification: No usable implementation found!` on Windows, and toasts fail on desktops without a tray (for example stock GNOME). Use Qt-native notifications, with `notify-send` as the Linux fallback, and a tray icon that is always available.
-- ⬜ **Fix the false log line:** the code logs `Notification sent` even after a failed notification. Log success only when a notification was sent.
-- ⬜ **Fix the audio-only label:** an audio-only download logs `Task N completed: video file`. Report the real output type.
-- ⬜ **Keep the queue across restarts:** save pending and unfinished tasks, and resume them on the next start. yt-dlp already continues `.part` files; the app does not yet save its queue.
-- ⬜ **Retry failed tasks:** a Retry button, plus one automatic retry for network errors. (yt-dlp already retries up to 10 times inside one download.)
+- ✅ **Desktop notifications that work** on Windows and Linux. Today every download logs `Could not send notification: No usable implementation found!` on Windows, and toasts fail on desktops without a tray (for example stock GNOME). Use Qt-native notifications, with `notify-send` as the Linux fallback, and a tray icon that is always available.
+- ✅ **Fix the false log line:** the code logs `Notification sent` even after a failed notification. Log success only when a notification was sent.
+- ✅ **Fix the audio-only label:** an audio-only download logs `Task N completed: video file`. Report the real output type.
+- ✅ **Keep the queue across restarts:** save pending and unfinished tasks, and resume them on the next start. yt-dlp already continues `.part` files; the app does not yet save its queue.
+- ✅ **Retry failed tasks:** a Retry button, plus one automatic retry for network errors. (yt-dlp already retries up to 10 times inside one download.)
 - ⬜ **UI tests** for the Download tab (9% covered today), Settings (9%), History (8%) and the update dialog (0%). Target: about 70% overall coverage (41% today).
 - ⬜ **Weekly extractor check in CI:** info extraction only (no download), against one public URL per tested site, so upstream breakage shows up early.
 
@@ -259,12 +263,12 @@ We welcome contributions to YT-DLP Studio! If you have ideas for new features or
 
 ## Version History
 
-Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.2.1** (2026-10-30). Next: **0.3.0** (distribution: installers and package managers). Earlier private development history (internal 0.1.0 to 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md).
+Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.3.0** (2026-10-31). Next: **0.3.1** (Linux packages and winget). Earlier private development history (internal 0.1.0 to 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md).
 
 ---
 
-**Last Updated:** 2026-10-30
-**Current Version:** 0.2.1 released, 0.3.0 next (Public Beta)
+**Last Updated:** 2026-10-31
+**Current Version:** 0.3.0 released, 0.3.1 next (Public Beta)
 **Status:** Active Development
 
 For more information, visit: https://nx1xlab.dev/nxtools
