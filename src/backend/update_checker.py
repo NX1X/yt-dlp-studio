@@ -11,7 +11,10 @@ driven from a background QThread (see src/ui/update_dialog.py).
 import hashlib
 import hmac
 import os
+import re
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import requests
 from packaging import version
@@ -76,6 +79,82 @@ class _Asset:
     size: int = 0
     digest: str = ""  # normalized lowercase sha256 hex, or "" if unknown
     extras: dict = field(default_factory=dict)
+
+
+# The Windows installer (packaging/installer.iss) is named
+# YT-DLP-Studio-Setup-<version>.exe and writes install.ini next to the EXE.
+_SETUP_ASSET_RE = re.compile(r"yt-dlp-studio-setup(-[A-Za-z0-9._+]+)?\.exe", re.IGNORECASE)
+
+# Hosts an update may be downloaded from (GitHub release assets redirect to
+# the githubusercontent CDNs). Anything else is refused before any byte is
+# written.
+_ALLOWED_DOWNLOAD_HOSTS = frozenset(
+    {"github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com"}
+)
+# Hard cap when the release does not publish a size.
+_MAX_DOWNLOAD_BYTES = 1024 * 1024 * 1024
+
+
+def _is_allowed_download_url(url: str | None) -> bool:
+    """True for an https URL on a GitHub release-asset host."""
+    from urllib.parse import urlparse
+
+    try:
+        parsed = urlparse(url or "")
+    except ValueError:
+        return False
+    return parsed.scheme == "https" and (parsed.hostname or "").lower() in _ALLOWED_DOWNLOAD_HOSTS
+
+
+def safe_asset_filename(name: str | None) -> str | None:
+    """Return ``name`` if it is a plain file name, else None.
+
+    The release asset name comes from the GitHub API and becomes a path under
+    the Downloads folder. Refuse anything that is not a single, ordinary file
+    name: path separators, drive letters or NTFS streams (":"), "." / "..",
+    control characters, or leading/trailing spaces and dots.
+    """
+    if not name:
+        return None
+    if name != name.strip() or name.endswith("."):
+        return None
+    if name in (".", "..") or any(sep in name for sep in ("/", "\\", ":")):
+        return None
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in name):
+        return None
+    return name
+
+
+def sha256_of_file(path: str) -> str:
+    """Hex SHA-256 of a file, read in chunks."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(_CHUNK_SIZE), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def is_installed_copy(exe_dir: Path | None = None) -> bool:
+    """Return True when this app runs from a copy installed by the Windows installer.
+
+    The installer writes ``install.ini`` with ``kind=inno`` next to the EXE. A
+    portable copy (the ZIP or the standalone EXE) has no such file, and running
+    from source never counts as installed.
+
+    Args:
+        exe_dir: Folder to check. Defaults to the folder of the running EXE.
+    """
+    if exe_dir is None:
+        if os.name != "nt" or not getattr(sys, "frozen", False):
+            return False
+        exe_dir = Path(sys.executable).resolve().parent
+    marker = exe_dir / "install.ini"
+    try:
+        with open(marker, encoding="utf-8", errors="replace") as f:
+            text = f.read(4096)
+    except OSError:
+        return False
+    return re.search(r"^\s*kind\s*=\s*inno\s*$", text, re.IGNORECASE | re.MULTILINE) is not None
 
 
 def _normalize_digest(raw: str | None) -> str:
@@ -187,6 +266,7 @@ class UpdateChecker:
                 "html_url": release_data.get("html_url", ""),
                 "download_url": asset.url if asset else release_data.get("html_url"),
                 "asset_name": asset.extras.get("name", "") if asset else "",
+                "update_kind": self.update_kind_for(asset.extras.get("name", "")) if asset else "archive",
                 "size": asset.size if asset else 0,
                 "digest": asset.digest if asset else "",
                 "assets": release_data.get("assets", []),
@@ -234,7 +314,10 @@ class UpdateChecker:
             _Asset, or None if the release has no matching asset.
         """
         assets = release_data.get("assets", []) or []
-        chosen = self._select_linux_asset(assets) if os.name != "nt" else self._select_windows_asset(assets)
+        if os.name != "nt":
+            chosen = self._select_linux_asset(assets)
+        else:
+            chosen = self._select_windows_asset(assets, installed=is_installed_copy())
         return self._make_asset(chosen) if chosen else None
 
     @staticmethod
@@ -259,16 +342,40 @@ class UpdateChecker:
         return None
 
     @staticmethod
-    def _select_windows_asset(assets: list[dict]) -> dict | None:
-        """Prefer an installer/.exe, then a .zip, then the first asset."""
+    def _select_windows_asset(assets: list[dict], installed: bool = False) -> dict | None:
+        """Pick the Windows asset that matches how this copy was installed.
+
+        An installed copy updates through the installer
+        (YT-DLP-Studio-Setup-<version>.exe), which replaces it in place. A
+        portable copy gets the standalone EXE, then the ZIP. Releases before
+        0.3.0 have no installer, so an installed copy falls back to the
+        portable choice there.
+        """
+        if installed:
+            for asset in assets:
+                if _SETUP_ASSET_RE.fullmatch(asset.get("name", "")):
+                    return asset
         for asset in assets:
-            name = asset.get("name", "").lower()
-            if name.endswith(".exe") or "setup" in name or "installer" in name:
+            name = asset.get("name", "")
+            if name.lower().endswith(".exe") and not _SETUP_ASSET_RE.fullmatch(name):
                 return asset
         for asset in assets:
             if asset.get("name", "").lower().endswith(".zip"):
                 return asset
-        return assets[0] if assets else None
+        # No known Windows artifact: offer nothing rather than an arbitrary
+        # first asset (which could be the installer, a checksum file or a
+        # script).
+        return None
+
+    @staticmethod
+    def update_kind_for(asset_name: str) -> str:
+        """Classify an update asset: "installer", "portable" or "archive"."""
+        name = asset_name or ""
+        if _SETUP_ASSET_RE.fullmatch(name):
+            return "installer"
+        if name.lower().endswith(".exe"):
+            return "portable"
+        return "archive"
 
     def download_update(
         self,
@@ -301,23 +408,37 @@ class UpdateChecker:
         logger.info(f"Downloading update from: {download_url}")
         want = _normalize_digest(expected_digest)
 
+        part_path = output_path + ".part"
         try:
+            if not _is_allowed_download_url(download_url):
+                logger.error(f"Refusing update download from an unexpected URL: {download_url}")
+                return DownloadResult(success=False, error="download_failed")
+
             response = self._session.get(download_url, stream=True, timeout=30)
 
             if response.status_code != 200:
                 logger.error(f"Download failed with status {response.status_code}")
                 return DownloadResult(success=False, error="download_failed")
+            if not _is_allowed_download_url(getattr(response, "url", None) or download_url):
+                logger.error(f"Update download was redirected to an unexpected URL: {response.url}")
+                return DownloadResult(success=False, error="download_failed")
 
             total_size = int(response.headers.get("content-length", 0))
+            limit = total_size + 1024 * 1024 if total_size > 0 else _MAX_DOWNLOAD_BYTES
             downloaded = 0
             hasher = hashlib.sha256()
 
-            with open(output_path, "wb") as f:
+            # Write to a .part file; only a verified (or knowingly unverified)
+            # download gets the real name, so a broken or partial download
+            # never looks like a runnable installer.
+            with open(part_path, "wb") as f:
                 for chunk in response.iter_content(chunk_size=_CHUNK_SIZE):
                     if chunk:
+                        downloaded += len(chunk)
+                        if downloaded > limit:
+                            raise OSError(f"update download exceeds the expected size ({limit} bytes)")
                         f.write(chunk)
                         hasher.update(chunk)
-                        downloaded += len(chunk)
                         if progress_callback and total_size > 0:
                             progress_callback(downloaded, total_size)
 
@@ -328,6 +449,7 @@ class UpdateChecker:
                 # (the user can still install it manually) but refuse to
                 # auto-launch it.
                 logger.warning("No verifiable digest published for this release; download is unverified")
+                os.replace(part_path, output_path)
                 return DownloadResult(
                     success=False,
                     file_path=output_path,
@@ -338,7 +460,7 @@ class UpdateChecker:
             if not hmac.compare_digest(actual, want):
                 logger.error(f"Integrity check FAILED (expected {want}, got {actual}); deleting file")
                 try:
-                    os.remove(output_path)
+                    os.remove(part_path)
                 except OSError:
                     pass
                 return DownloadResult(
@@ -348,6 +470,7 @@ class UpdateChecker:
                     actual_digest=actual,
                 )
 
+            os.replace(part_path, output_path)
             logger.info(f"Update downloaded and verified (sha256={actual}): {output_path}")
             return DownloadResult(
                 success=True,
@@ -358,6 +481,10 @@ class UpdateChecker:
 
         except Exception:
             logger.exception("Download error")
+            try:
+                os.remove(part_path)
+            except OSError:
+                pass
             return DownloadResult(success=False, error="download_failed")
 
     def get_current_version(self) -> str:

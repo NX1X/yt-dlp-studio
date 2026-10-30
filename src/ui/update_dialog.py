@@ -6,6 +6,7 @@ Network work (the GitHub check and the installer download) runs on
 background QThreads so the UI never freezes.
 """
 
+import hmac
 import os
 import subprocess
 from pathlib import Path
@@ -22,7 +23,14 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from ..backend.update_checker import DownloadResult, UpdateChecker, UpdateCheckResult
+from ..backend.update_checker import (
+    DownloadResult,
+    UpdateChecker,
+    UpdateCheckResult,
+    is_installed_copy,
+    safe_asset_filename,
+    sha256_of_file,
+)
 from ..utils.logger import get_logger
 from ..utils.translations import tr
 
@@ -220,7 +228,7 @@ class UpdateDialog(QDialog):
         # Prefer the real asset filename published on the release (keeps the
         # correct extension - .exe on Windows, .tar.gz on Linux). Fall back to
         # a platform-appropriate default only if the release omitted it.
-        asset_name = (self.release_info.get("asset_name") or "").strip()
+        asset_name = safe_asset_filename(self.release_info.get("asset_name"))
         if asset_name:
             filename = asset_name
         elif os.name == "nt":
@@ -228,6 +236,11 @@ class UpdateDialog(QDialog):
         else:
             filename = f"yt-dlp-studio-{self.release_info['version']}-Linux.tar.gz"
         output_path = output_dir / filename
+        # Defence in depth: the file must land directly in the Downloads folder.
+        if output_path.resolve().parent != output_dir.resolve():
+            logger.error(f"Refusing update path outside the Downloads folder: {output_path}")
+            QMessageBox.warning(self, tr("dialog_download_error"), tr("msg_no_download_url"))
+            return
 
         size_bytes = self.release_info.get("size", 0)
         size_str = f"{size_bytes / (1024 * 1024):.1f} MB" if size_bytes else tr("text_unknown_size")
@@ -313,20 +326,59 @@ class UpdateDialog(QDialog):
                 self.accept()
                 return
 
-            reply = QMessageBox.question(
-                self,
-                tr("dialog_download_complete_update"),
-                tr("msg_download_verified_install", path=result.file_path),
-                QMessageBox.Yes | QMessageBox.No,
-            )
-
-            if reply == QMessageBox.Yes:
-                self._run_installer(result.file_path)
-            else:
+            kind = self.release_info.get("update_kind")
+            is_exe = result.file_path.lower().endswith(".exe")
+            if os.name == "nt" and (kind not in ("installer", "portable") or not is_exe):
+                # A ZIP or an unknown asset: never execute it. Show it instead.
+                self._reveal_in_file_manager(result.file_path)
+                self.accept()
+                return
+            if kind == "installer" and not is_installed_copy():
+                # A portable copy must not run the installer silently; that
+                # would create a second, installed copy behind the user's back.
+                logger.warning("Installer update offered to a portable copy; not running it")
                 QMessageBox.information(
                     self,
                     tr("dialog_download_complete_update"),
                     tr("msg_installer_saved", path=result.file_path),
+                )
+                self.accept()
+                return
+
+            if kind == "installer":
+                # Installed copy: the installer replaces this copy in place
+                # and starts the app again (/LAUNCH=yes).
+                reply = QMessageBox.question(
+                    self,
+                    tr("dialog_download_complete_update"),
+                    tr("msg_update_install_restart", version=self.release_info.get("version", "")),
+                    QMessageBox.Yes | QMessageBox.No,
+                )
+                if reply == QMessageBox.Yes:
+                    self._run_installer_silent(result.file_path)
+                else:
+                    QMessageBox.information(
+                        self,
+                        tr("dialog_download_complete_update"),
+                        tr("msg_installer_saved", path=result.file_path),
+                    )
+                    self.accept()
+                return
+
+            # Portable copy: the download is a second, separate copy. Say so.
+            reply = QMessageBox.question(
+                self,
+                tr("dialog_download_complete_update"),
+                tr("msg_portable_update_ready", path=result.file_path),
+                QMessageBox.Yes | QMessageBox.No,
+            )
+            if reply == QMessageBox.Yes:
+                self._launch_and_quit([result.file_path])
+            else:
+                QMessageBox.information(
+                    self,
+                    tr("dialog_download_complete_update"),
+                    tr("msg_portable_update_saved", path=result.file_path),
                 )
                 self.accept()
             return
@@ -360,43 +412,67 @@ class UpdateDialog(QDialog):
                 tr("msg_download_failed_retry"),
             )
 
-    def _run_installer(self, file_path: str):
-        """
-        Run the (already verified) installer and close the application.
+    # Arguments for the Inno Setup installer during an in-place update:
+    # /SILENT shows only a progress window, /SUPPRESSMSGBOXES and /NORESTART
+    # keep it unattended, and /LAUNCH=yes makes it start the app again when it
+    # is done (see the [Run] section of packaging/installer.iss).
+    SILENT_INSTALL_ARGS = ("/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/LAUNCH=yes")
 
-        Args:
-            file_path: Path to installer file
+    def _run_installer_silent(self, file_path: str):
+        """Run the verified installer to update this installed copy in place, then quit.
+
+        The installer closes any copy still running (CloseApplications=force),
+        replaces the EXE and starts the new version.
         """
+        self._launch_and_quit([file_path, *self.SILENT_INSTALL_ARGS])
+
+    def _launch_and_quit(self, argv: list[str]):
+        """Start a verified, downloaded program detached from this app, then quit.
+
+        Only called after the download's SHA-256 matched the published digest.
+        argv is passed as a list, never through a shell.
+        """
+        expected = self.release_info.get("digest", "")
         try:
-            if os.name == "nt":  # Windows
-                os.startfile(file_path)
-            else:
-                subprocess.Popen([file_path])
-
-            logger.info(f"Launched installer: {file_path}")
-
-            QMessageBox.information(
-                self, tr("dialog_installing_update"), tr("msg_installer_confirmation", path=file_path)
+            actual = sha256_of_file(argv[0])
+        except OSError as e:
+            actual = f"unreadable ({e})"
+        if not expected or not hmac.compare_digest(actual, expected):
+            logger.error(f"Update changed after verification; not starting it ({argv[0]})")
+            QMessageBox.critical(
+                self,
+                tr("dialog_verify_failed"),
+                tr("msg_verify_failed", expected=expected or "-", actual=actual),
             )
+            return
+        try:
+            flags = 0
+            if os.name == "nt":
+                flags = getattr(subprocess, "DETACHED_PROCESS", 0x00000008) | getattr(
+                    subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200
+                )
+            subprocess.Popen(argv, close_fds=True, creationflags=flags)  # noqa: S603 - verified file, list argv
+            logger.info(f"Launched update: {argv[0]} (args: {' '.join(argv[1:]) or 'none'})")
 
             from PySide6.QtWidgets import QApplication
 
             QApplication.instance().quit()
 
         except Exception as e:
-            logger.exception("Failed to run installer")
+            logger.exception("Failed to start the downloaded update")
             QMessageBox.critical(
                 self,
                 tr("dialog_installer_error"),
-                tr("msg_installer_launch_failed", error=str(e), path=file_path),
+                tr("msg_installer_launch_failed", error=str(e), path=argv[0]),
             )
 
     def _reveal_in_file_manager(self, file_path: str):
         """
-        Open the folder containing the downloaded archive (Linux/POSIX).
+        Open the folder containing the downloaded file.
 
-        Uses ``xdg-open`` on the parent directory so the user can extract the
-        archive and run its install script. The app is NOT closed - unlike the
+        Explorer on Windows, ``xdg-open`` elsewhere. Used for archives (and any
+        asset that is not a verified installer or portable EXE), so the user
+        can extract and run it themselves. The app is NOT closed - unlike the
         Windows installer flow, there is no executable to hand off to.
 
         Args:
@@ -404,7 +480,10 @@ class UpdateDialog(QDialog):
         """
         folder = str(Path(file_path).parent)
         try:
-            subprocess.Popen(["xdg-open", folder])
+            if os.name == "nt":
+                os.startfile(folder)  # noqa: S606 - opens a folder in Explorer, not a program
+            else:
+                subprocess.Popen(["xdg-open", folder])
             logger.info(f"Opened download folder: {folder}")
             QMessageBox.information(
                 self,
