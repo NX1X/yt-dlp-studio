@@ -43,10 +43,26 @@ _(no entries yet)_
 
 - **The lock file had drifted from `pyproject.toml`.** Renovate raises version bounds but does not regenerate the locks. `requirements/lock.txt` pinned PySide6 6.11.0 while `pyproject.toml` required `>=6.11.2`. CI hid it, because the unhashed `pip install -e .[dev]` that followed upgraded past the lock. The locks are regenerated and now match, and the new consistency test catches this from now on.
 - **`requirements/lock.txt` could not be installed on Python 3.10**, the `requires-python` floor. It was compiled on Python 3.14, which drops `tomli` (PySide6 needs it below 3.11), so `pip install --require-hashes` failed. All three lock files are now compiled with `uv pip compile --universal --python-version 3.10`, which keeps platform and Python-version markers. That also keeps Windows-only packages such as `colorama` in `dev.txt`. Verified: all three files install with zero errors on Python 3.14 and 3.10, and the full test suite passes on both.
-- **The 14-day supply-chain cooldown now covers transitive dependencies too.** pip-compile picks the newest version that fits a bound, and Renovate's `minimumReleaseAge` covers only the direct dependencies it bumps. The first regeneration would have pulled 15 packages younger than 14 days, including PySide6 6.12.0 and its new `pyside6-webengine` dependency. Locks are now built with `--exclude-newer` set 14 days back (2026-09-30 for this release). Verified: all 53 unique pins are at least 14 days old.
+- **The 14-day supply-chain cooldown now covers transitive dependencies too.** pip-compile picks the newest version that fits a bound, and Renovate's `minimumReleaseAge` covers only the direct dependencies it bumps. The first regeneration would have pulled 15 packages younger than 14 days, including PySide6 6.12.0 and its new `pyside6-webengine` dependency. Locks are now built with `--exclude-newer` set 14 days back (2026-10-16 for this release). Verified on 2026-10-30: 75 of the 79 unique pins are at least 14 days old. The other 4 are the security fixes listed under Security, which skip the cooldown on purpose.
 
 ### Security
 
+- **Fixes for 20 Dependabot alerts, plus 11 `virtualenv` CVEs that only `pip-audit` reported.** The alerts close when this release merges to `main`. The locks pinned vulnerable versions of seven packages. All four lock files now pin the patched versions, and `pip-audit` finds no known vulnerabilities in any of them (checked 2026-10-30).
+
+  | Package | Was | Now | Worst alert | Where |
+  | :- | :- | :- | :- | :- |
+  | `certifi` | 2026.4.22 | 2026.10.18 | critical, GHSA-6q48-6c7w-9gw2 (emSign root CAs) | app (`lock.txt`) and CI |
+  | `urllib3` | 2.7.0 | 2.8.0 | high, GHSA-vxq7-64xx-v4gw, GHSA-8988-9cw3-xx77 | app (`lock.txt`) and CI |
+  | `msgpack` | 1.2.1 | 1.2.3 | high, GHSA-j586-36cw-2gc2 | CI tools |
+  | `black` | 26.3.1 | 26.10.1 | high, GHSA-cg8m-r9f2-5wm2 | CI tools |
+  | `filelock` | 3.29.0 | 4.2.1 | high, GHSA-v4x8-3wr5-3wq8 (and 9 more) | CI and dev tools |
+  | `setuptools` | 84.0.0 | 84.1.0 | low, GHSA-xmj3-9gf7-h52w | build tools |
+  | `virtualenv` | 21.14.1 | 21.14.10 | 11 CVEs | dev tools |
+
+  - **Security fixes no longer wait for the 14-day cooldown.** `certifi`, `filelock`, `setuptools` and `virtualenv` fixes were 10 to 13 days old. `scripts/relock.sh` now lets each one through up to a cutoff just after its patched release and no further, so newer releases of the same package still wait. Every other package keeps the 14-day cutoff (2026-10-16 for this release). Renovate follows the same rule: its security PRs now wait 0 days instead of 14 (`.github/renovate.json5`), and regular updates still wait 14 days.
+  - **Known gap:** `dev.txt` keeps `filelock` 4.1.0 for the Python 3.10 CI test job, because `filelock` 4.2.1 needs Python 3.11 or later and no patched release supports 3.10. It is a dev tool only (`virtualenv` pulls it in) and never reaches the app.
+  - **`requirements/ci-tools.txt` is now built by `scripts/relock.sh`** with the same cooldown, `--universal` and Python 3.11. Before, it was compiled by hand with `pip-compile` on Python 3.14 and had no cooldown. It now also pins `pip` itself, which `--require-hashes` needs.
+  - Verified: each lock installs with `--require-hashes` on its target Python (`lock.txt` on 3.10 and 3.14, `dev.txt` and `build-tools.txt` on 3.10, `ci-tools.txt` on 3.11), and the full test suite passes (485 tests).
 - **Every CI `pip install` is now hash-pinned.** The three `pip install -e .[dev]` steps (in `build.yml`, `release.yml` and `bump-yt-dlp-engine.yml`) become `pip install --require-hashes -r requirements/dev.txt --only-binary :all:`. The editable install is gone entirely: `conftest.py` already puts the repo on `sys.path`, and nothing reads the installed package metadata. This clears the 6 open OpenSSF Scorecard `PinnedDependenciesID` alerts and SonarCloud `githubactions:S8541` / `S8544`.
 - **`update_checker.py` mounts its retry adapter for HTTPS only.** It no longer mounts one for `http://`, which nothing used (SonarCloud hotspot `python:S5332`).
 
