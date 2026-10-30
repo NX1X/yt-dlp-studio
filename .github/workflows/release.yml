@@ -423,9 +423,14 @@ jobs:
         $version = $env:VERSION
         Copy-Item -Path "dist/yt-dlp-studio.exe" -Destination "YT-DLP Studio.exe"
         Write-Host "Standalone exe: YT-DLP Studio.exe"
-        # Top level, so the release job's artifacts/* glob picks it up.
-        Copy-Item -Path "dist/YT-DLP-Studio-Setup-$version.exe" -Destination "YT-DLP-Studio-Setup-$version.exe"
-        Write-Host "Installer: YT-DLP-Studio-Setup-$version.exe"
+        # Top level, so the release job's artifacts/* glob picks it up. Copy the
+        # file ISCC produced: it is named from src/__init__.py (0.3.0), while
+        # $version here is the tag (v0.3.0), so a path built from $version
+        # would not exist.
+        $setup = Get-ChildItem dist/YT-DLP-Studio-Setup-*.exe | Select-Object -First 1
+        if (-not $setup) { Write-Error "installer missing from dist/"; exit 1 }
+        Copy-Item -Path $setup.FullName -Destination $setup.Name
+        Write-Host "Installer: $($setup.Name)"
 
     - name: Upload Windows artifact
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -760,7 +765,8 @@ jobs:
           echo
           echo "| Platform | File | Notes |"
           echo "|----------|------|-------|"
-          echo "| **Windows** | \`yt-dlp-studio-...-Windows.zip\` | Includes FFmpeg + Deno. Just extract and run. |"
+          echo "| **Windows (recommended)** | \`YT-DLP-Studio-Setup-....exe\` | Installer, no admin rights needed. Adds a Start-menu shortcut and updates itself in place. Uninstall keeps your settings and history. |"
+          echo "| **Windows (portable)** | \`yt-dlp-studio-...-Windows.zip\` or \`YT-DLP.Studio.exe\` | No install. Includes FFmpeg + Deno. Just extract and run. |"
           echo "| **Linux** | \`yt-dlp-studio-...-Linux.tar.gz\` | Extract and run \`./install.sh\` to add it to your app menu. Requires system FFmpeg. |"
           echo
           echo "### What's changed in ${VERSION}"
