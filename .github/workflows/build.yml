@@ -393,6 +393,7 @@ jobs:
           packages.microsoft.com:443
           pypi.org:443
           raw.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
           results-receiver.actions.githubusercontent.com:443
           security.ubuntu.com:80
           *.blob.core.windows.net:443

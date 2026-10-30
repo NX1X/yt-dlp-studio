@@ -74,7 +74,10 @@ def check(exe: Path) -> list[str]:
     """Return a list of failure messages (empty means the bundle is good)."""
     failures: list[str] = []
     archive = CArchiveReader(str(exe))
-    files = {_normalise(n) for n in archive.toc}
+    # The archive stores Windows paths with backslashes. Compare on the
+    # normalised name, but keep the original key for extract().
+    toc_names = {_normalise(n): n for n in archive.toc}
+    files = set(toc_names)
 
     required = list(REQUIRED_COMMON)
     if exe.suffix.lower() == ".exe":
@@ -101,7 +104,8 @@ def check(exe: Path) -> list[str]:
             failures.append(f"forbidden content: {name}")
 
     # The bundled engine must be the version the app reports.
-    version_src = archive.extract("yt_dlp_engine/yt_dlp/version.py") if "yt_dlp_engine/yt_dlp/version.py" in files else b""
+    version_key = toc_names.get("yt_dlp_engine/yt_dlp/version.py")
+    version_src = archive.extract(version_key) if version_key else b""
     bundled = re.search(rb"__version__\s*=\s*'([^']+)'", version_src or b"")
     constants = (ROOT / "src" / "utils" / "constants.py").read_text(encoding="utf-8")
     expected = re.search(r'YTDLP_VERSION\s*=\s*"([^"]+)"', constants)
