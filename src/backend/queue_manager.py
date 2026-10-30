@@ -16,6 +16,7 @@ import tempfile
 import time
 from functools import partial
 from pathlib import Path
+from urllib.parse import urlparse
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 
@@ -65,6 +66,18 @@ _NON_RETRYABLE_HINTS = (
     "this video is unavailable",
     "video has been removed",
 )
+
+
+def _platform_of(url: str) -> str:
+    """Site name for history, from the URL host ("youtube.com" for www.youtube.com)."""
+    try:
+        host = (urlparse(url or "").hostname or "").lower()
+    except ValueError:
+        return ""
+    for prefix in ("www.", "m."):
+        if host.startswith(prefix):
+            host = host[len(prefix) :]
+    return host
 
 
 def is_auto_retryable(*messages: str | None) -> bool:
@@ -142,6 +155,7 @@ class QueueManager(QObject):
     task_failed = Signal(int, str)  # index, error
     task_progress = Signal(int, dict)  # index, progress_data
     all_completed = Signal()
+    history_recorded = Signal()  # a finished download was added to history
 
     # Queue file name inside APP_DATA_DIR (same folder as the history file)
     QUEUE_FILE = "download_queue.json"
@@ -158,7 +172,13 @@ class QueueManager(QObject):
     # Total time shutdown() waits for running workers to stop, in milliseconds
     SHUTDOWN_WAIT_MS = 4000
 
-    def __init__(self, max_concurrent: int = 3, notification_manager=None, persist_path: Path | None = None):
+    def __init__(
+        self,
+        max_concurrent: int = 3,
+        notification_manager=None,
+        persist_path: Path | None = None,
+        history_manager=None,
+    ):
         """
         Initialize queue manager.
 
@@ -166,6 +186,7 @@ class QueueManager(QObject):
             max_concurrent: Maximum concurrent downloads
             notification_manager: Optional NotificationManager for desktop notifications (v1.7.0)
             persist_path: Optional path of the queue file. None keeps the queue in memory only.
+            history_manager: Optional HistoryManager; finished downloads are recorded there.
         """
         super().__init__()
         self.queue = DownloadQueue(max_concurrent=max_concurrent)
@@ -178,6 +199,7 @@ class QueueManager(QObject):
         self._shutting_down = False
         self._auto_start = True  # Auto-start next task when one completes
         self.notification_manager = notification_manager  # v1.7.0
+        self.history_manager = history_manager
         self.persist_path = Path(persist_path) if persist_path is not None else None
         self._persistence_enabled = False  # set by load_queue(), cleared by shutdown()
         self._save_pending = False
@@ -576,6 +598,25 @@ class QueueManager(QObject):
         self.task_started.emit(index, title)
         self.queue_updated.emit()
 
+    def record_history(self, task: DownloadTask, status: str, error_message: str = "") -> None:
+        """Add a finished download to the download history (GUI thread only).
+
+        Called for queue downloads here, and for single downloads by the
+        Download tab, so both end up in the History tab. A failure that is
+        about to be retried automatically is not recorded; its final result
+        is. Never raises: history is a convenience, not part of the download.
+        """
+        if self.history_manager is None:
+            return
+        try:
+            self.history_manager.add_download(
+                task, status, error_message=error_message, platform=_platform_of(task.url)
+            )
+        except Exception:
+            logger.exception("Could not record the download in history")
+            return
+        self.history_recorded.emit()
+
     def _on_worker_completed(self, worker: DownloadWorker, filename: str) -> None:
         """Handle task completed."""
         task = worker.task
@@ -587,6 +628,7 @@ class QueueManager(QObject):
             file_size = task.get_file_size_str() if hasattr(task, "get_file_size_str") else ""
             self.notification_manager.notify_download_complete(filename, file_size)
 
+        self.record_history(task, "completed")
         self._release_worker(worker)
 
         self.task_completed.emit(index, filename)
@@ -621,6 +663,10 @@ class QueueManager(QObject):
         if self.notification_manager and not will_retry and not self._shutting_down:
             title = task.url[:50] + "..." if len(task.url) > 50 else task.url
             self.notification_manager.notify_download_error(title, error)
+
+        if not will_retry and not self._shutting_down:
+            status = "cancelled" if task.status == TaskStatus.CANCELLED else "failed"
+            self.record_history(task, status, error_message="" if status == "cancelled" else (detail or error))
 
         if will_retry:
             self._schedule_auto_retry(task)

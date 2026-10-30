@@ -29,7 +29,7 @@ from ..backend.playlist_worker import PlaylistWorker
 from ..backend.queue_manager import QueueManager
 from ..backend.subtitle_list_worker import SubtitleListWorker
 from ..backend.video_info_worker import VideoInfoWorker
-from ..models.download_task import DownloadTask
+from ..models.download_task import DownloadTask, TaskStatus
 from ..utils.constants import AUDIO_FORMATS, DEFAULT_AUDIO_FORMAT, DEFAULT_VIDEO_CONTAINER, VIDEO_CONTAINER_FORMATS
 from ..utils.error_handler import ErrorHandler
 from ..utils.logger import get_logger
@@ -860,6 +860,8 @@ class DownloadTab(QWidget):
         """
         logger.info(f"Download completed: {filename}")
         self.log_widget.append_success(f"Download completed: {filename}")
+        if self.current_worker is not None:
+            self.queue_manager.record_history(self.current_worker.task, "completed")
         self.progress_widget.set_success_state()
 
         # Re-enable button
@@ -879,6 +881,13 @@ class DownloadTab(QWidget):
         logger.error(f"Download failed: {error_message}")
         self.log_widget.append_error(f"Download failed: {error_message}")
         self.progress_widget.set_error_state(error_message[:100])
+        if self.current_worker is not None:
+            task = self.current_worker.task
+            status = "cancelled" if task.status == TaskStatus.CANCELLED else "failed"
+            detail = getattr(getattr(self.current_worker, "wrapper", None), "last_error", None)
+            self.queue_manager.record_history(
+                task, status, error_message="" if status == "cancelled" else (detail or error_message)
+            )
 
         # Re-enable button
         self.download_button.setEnabled(True)

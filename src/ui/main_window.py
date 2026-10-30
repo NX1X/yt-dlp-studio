@@ -60,16 +60,18 @@ class MainWindow(QMainWindow):
 
         self.notification_manager = NotificationManager(self)
 
+        # Create history manager (v2.0.0) first: the queue records finished
+        # downloads in it.
+        self.history_manager = HistoryManager()
+
         # Create queue manager with notification support (v1.7.0). The queue
         # file sits next to the history file in APP_DATA_DIR.
         self.queue_manager = QueueManager(
             max_concurrent=3,
             notification_manager=self.notification_manager,
             persist_path=APP_DATA_DIR / QueueManager.QUEUE_FILE,
+            history_manager=self.history_manager,
         )
-
-        # Create history manager (v2.0.0)
-        self.history_manager = HistoryManager()
 
         self._setup_ui()
         self._apply_theme()
@@ -162,6 +164,8 @@ class MainWindow(QMainWindow):
         self.download_tab = DownloadTab(self.config_manager, self.queue_manager)
         self.queue_tab = QueueTab(self.queue_manager)
         self.history_tab = HistoryTab(self.history_manager)
+        # New history entries show up without pressing Refresh.
+        self.queue_manager.history_recorded.connect(self.history_tab.refresh)
         self.settings_tab = SettingsTab(self.config_manager)
         self.about_tab = AboutTab()
 
