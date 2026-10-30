@@ -170,12 +170,28 @@ class MainWindow(QMainWindow):
         # Set as central widget
         self.setCentralWidget(self.tabs)
 
+        # Tray icon for desktop notifications. It is created here, on the GUI
+        # thread, and owned by the notification manager for the window's
+        # lifetime. Without a tray, the manager falls back to notify-send.
+        self.notification_manager.show_window_requested.connect(self._show_from_tray)
+        self.notification_manager.quit_requested.connect(self.close)
+        self.notification_manager.setup_system_tray(self.windowIcon())
+
         # Create status bar
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage(tr("status_bar_ready"))
 
         logger.debug("Main window UI setup complete")
+
+    def _show_from_tray(self) -> None:
+        """Bring the window to the front from the tray icon."""
+        if self.isMinimized():
+            self.showNormal()
+        else:
+            self.show()
+        self.raise_()
+        self.activateWindow()
 
     def _restore_window_state(self) -> None:
         """Restore window size from config."""
@@ -218,6 +234,8 @@ class MainWindow(QMainWindow):
                 # Cancel download
                 self.download_tab.current_worker.cancel()
 
+        # Remove the tray icon now, so no stale icon stays in the tray.
+        self.notification_manager.hide_tray_icon()
         event.accept()
 
     def _apply_theme(self) -> None:
