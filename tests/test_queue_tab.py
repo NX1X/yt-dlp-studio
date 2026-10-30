@@ -520,3 +520,65 @@ class TestQueueTabTableDisplay:
         output_item = queue_tab.queue_table.item(0, 6)
         assert output_item is not None
         assert output_item.text() == sample_task.output_directory
+
+
+class TestQueueTabOpenFile:
+    """The Open file button opens the real downloaded file."""
+
+    def _select_completed(self, queue_tab, queue_manager, task):
+        with patch.object(queue_manager, "_try_start_next"):
+            queue_manager.add_task(task)
+        queue_tab.queue_table.selectRow(0)
+
+    def test_opens_real_file(self, queue_tab, queue_manager, tmp_path):
+        out = tmp_path / "Me at the zoo_240p.mp4"
+        out.write_bytes(b"x")
+        task = DownloadTask(url="https://www.youtube.com/watch?v=x", output_directory=str(tmp_path), quality="240p")
+        task.complete(out.name)
+        self._select_completed(queue_tab, queue_manager, task)
+
+        with (
+            patch("platform.system", return_value="Linux"),
+            patch("subprocess.Popen") as popen,
+            patch("PySide6.QtWidgets.QMessageBox.warning") as warning,
+        ):
+            queue_tab._on_open_file_clicked()
+
+        warning.assert_not_called()
+        popen.assert_called_once_with(["xdg-open", str(out)])
+
+    def test_name_column_shows_file_name(self, queue_tab, queue_manager, tmp_path):
+        task = DownloadTask(url="https://www.youtube.com/watch?v=x", output_directory=str(tmp_path), quality="240p")
+        task.complete("Me at the zoo_240p.mp4")
+        self._select_completed(queue_tab, queue_manager, task)
+        assert queue_tab.queue_table.item(0, 0).text() == "Me at the zoo_240p.mp4"
+
+    def test_moved_or_deleted_file_shows_warning(self, queue_tab, queue_manager, tmp_path):
+        task = DownloadTask(url="https://www.youtube.com/watch?v=x", output_directory=str(tmp_path), quality="240p")
+        task.complete("deleted.mp4")
+        self._select_completed(queue_tab, queue_manager, task)
+
+        with (
+            patch("subprocess.Popen") as popen,
+            patch("PySide6.QtWidgets.QMessageBox.warning") as warning,
+        ):
+            queue_tab._on_open_file_clicked()
+
+        popen.assert_not_called()
+        warning.assert_called_once()
+        assert str(tmp_path / "deleted.mp4") in warning.call_args.args[2]
+
+    def test_folder_with_same_name_is_not_opened(self, queue_tab, queue_manager, tmp_path):
+        (tmp_path / "clip.mp4").mkdir()
+        task = DownloadTask(url="https://www.youtube.com/watch?v=x", output_directory=str(tmp_path), quality="240p")
+        task.complete("clip.mp4")
+        self._select_completed(queue_tab, queue_manager, task)
+
+        with (
+            patch("subprocess.Popen") as popen,
+            patch("PySide6.QtWidgets.QMessageBox.warning") as warning,
+        ):
+            queue_tab._on_open_file_clicked()
+
+        popen.assert_not_called()
+        warning.assert_called_once()

@@ -612,7 +612,7 @@ class QueueManager(QObject):
 
         # The worker reports a short "Download failed"; the yt-dlp reason is
         # kept on its wrapper. Use both to decide on an automatic retry.
-        detail = getattr(getattr(worker, "wrapper", None), "_last_error", None)
+        detail = getattr(getattr(worker, "wrapper", None), "last_error", None)
         will_retry = not self._shutting_down and self._should_auto_retry(task, error, detail)
 
         # Send desktop notification (v1.7.0). Skip it when an automatic retry

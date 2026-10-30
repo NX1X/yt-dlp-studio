@@ -4,6 +4,7 @@ Download task data model.
 This module defines the structure for a download task.
 """
 
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -37,7 +38,9 @@ class DownloadTask:
         eta_seconds: Estimated time remaining in seconds
         file_size: Total file size in bytes
         downloaded_bytes: Bytes downloaded so far
-        filename: Output filename (set after extraction)
+        filename: Name of the downloaded file inside ``output_directory``
+            (set when the download completes)
+        title: Video title (set when yt-dlp reports it)
         error_message: Error message if status is ERROR
         created_at: Timestamp when task was created
         started_at: Timestamp when download started
@@ -55,6 +58,7 @@ class DownloadTask:
     file_size: int = 0
     downloaded_bytes: int = 0
     filename: str = ""
+    title: str = ""
     error_message: str = ""
     created_at: datetime = field(default_factory=datetime.now)
     started_at: datetime | None = None
@@ -86,7 +90,7 @@ class DownloadTask:
         Mark task as completed.
 
         Args:
-            filename: Final output filename
+            filename: Name of the downloaded file inside ``output_directory``
         """
         self.status = TaskStatus.COMPLETED
         self.completed_at = datetime.now()
@@ -226,6 +230,22 @@ class DownloadTask:
         if file_size > 0:
             self.file_size = file_size
 
+    def output_path(self) -> str:
+        """
+        Full path of the downloaded file.
+
+        Joins ``output_directory`` and ``filename``. User (``~``) and
+        environment variables in the folder are expanded, the same way
+        yt-dlp expands its output template.
+
+        Returns:
+            The path, or "" if the task has no filename yet
+        """
+        if not self.filename:
+            return ""
+        directory = os.path.expandvars(os.path.expanduser(self.output_directory))
+        return os.path.join(directory, self.filename)
+
     def is_active(self) -> bool:
         """Check if task is currently active (pending or downloading)."""
         return self.status in (TaskStatus.PENDING, TaskStatus.DOWNLOADING)
@@ -260,6 +280,7 @@ _PERSISTED_FIELDS: dict[str, type | tuple[type, ...]] = {
     "quality": str,
     "audio_only": bool,
     "filename": str,
+    "title": str,
     "error_message": str,
     "download_thumbnail": bool,
     "download_subtitles": bool,
