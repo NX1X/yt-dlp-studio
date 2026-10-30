@@ -9,6 +9,14 @@ on:
 permissions:
   contents: read
 
+# One release run at a time. Every push to main starts this workflow, and two
+# runs for the same new version used to race for the same tag and release.
+# A queued run starts only after the previous one ends, so its check-version
+# job sees the tag that run created and skips. Never cancel a run mid-release.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   check-version:
     name: Check for new version
@@ -331,6 +339,38 @@ jobs:
       # scripts and every YouTube download failed; this check catches that.
       run: python scripts/check_bundle.py dist/yt-dlp-studio.exe
 
+    - name: Build installer
+      # Per-user Inno Setup installer around the SAME one-file EXE the portable
+      # download ships (packaging/installer.iss). Inno Setup is preinstalled on
+      # the windows-2022 and windows-2025 runner images; fail fast if it is
+      # missing or not the 6.x line the script was written for.
+      run: |
+        $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+        if (-not (Test-Path $iscc)) { Write-Error "Inno Setup 6 (ISCC.exe) not found on this runner"; exit 1 }
+        # ISCC.exe carries no version resource (reads as 0.0.0.0), so check the
+        # banner it prints instead, for example "Inno Setup 6 Command-Line Compiler".
+        $banner = (& $iscc /? 2>&1 | Select-Object -First 3) -join " "
+        Write-Host "ISCC: $banner"
+        if ($banner -notmatch 'Inno Setup 6\b') { Write-Error "Expected Inno Setup 6, got: $banner"; exit 1 }
+        $version = [regex]::Match((Get-Content src\__init__.py -Raw), '__version__\s*=\s*"([^"]+)"').Groups[1].Value
+        if (-not $version) { Write-Error "could not read __version__ from src/__init__.py"; exit 1 }
+        $numeric = ([regex]::Match($version, '^\d+\.\d+\.\d+').Value) + ".0"
+        Write-Host "AppVersion=$version AppVersionNumeric=$numeric"
+        & $iscc /Qp "/DAppVersion=$version" "/DAppVersionNumeric=$numeric" packaging\installer.iss
+        if ($LASTEXITCODE -ne 0) { Write-Error "ISCC failed with exit code $LASTEXITCODE"; exit 1 }
+        $setup = Get-ChildItem dist\YT-DLP-Studio-Setup-*.exe | Select-Object -First 1
+        if (-not $setup) { Write-Error "installer not produced"; exit 1 }
+        Write-Host "Built $($setup.Name) ($([math]::Round($setup.Length / 1MB, 1)) MB)"
+
+    - name: Test installer
+      # Silent per-user install, launch the INSTALLED GUI headless until it logs
+      # "started successfully", silent uninstall (user data must survive), then
+      # reinstall and uninstall with /PURGEDATA=yes (user data must go).
+      run: |
+        $setup = (Get-ChildItem dist\YT-DLP-Studio-Setup-*.exe | Select-Object -First 1).FullName
+        powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test_installer.ps1 -Setup $setup
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+
     - name: Verify build
       run: |
         if (-Not (Test-Path "dist/yt-dlp-studio.exe")) {
@@ -383,6 +423,9 @@ jobs:
         $version = $env:VERSION
         Copy-Item -Path "dist/yt-dlp-studio.exe" -Destination "YT-DLP Studio.exe"
         Write-Host "Standalone exe: YT-DLP Studio.exe"
+        # Top level, so the release job's artifacts/* glob picks it up.
+        Copy-Item -Path "dist/YT-DLP-Studio-Setup-$version.exe" -Destination "YT-DLP-Studio-Setup-$version.exe"
+        Write-Host "Installer: YT-DLP-Studio-Setup-$version.exe"
 
     - name: Upload Windows artifact
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -391,6 +434,7 @@ jobs:
         path: |
           yt-dlp-studio-*-Windows.zip
           YT-DLP Studio.exe
+          YT-DLP-Studio-Setup-*.exe
 
   build-linux:
     name: Build Linux Executable
@@ -593,6 +637,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      checks: read   # wait for required checks before tagging
     steps:
     - name: Harden runner
       # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
@@ -629,18 +674,45 @@ jobs:
       # only sets should_release=true when the tag is absent, so the "exists"
       # branch below is just a defensive guard against partial-failure reruns.
       # To ship anything, bump __version__ (a NEW version/tag).
+      # The protect-tags ruleset accepts the tag only when the required checks
+      # on this commit have PASSED. This workflow's own test jobs share those
+      # names with CI's, so a tag pushed while any of them still runs is
+      # refused (v0.2.1's first run failed this way). Wait for every required
+      # check on the commit to finish, then push, with a few retries.
       env:
         VERSION: ${{ needs.check-version.outputs.version }}
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        SHA: ${{ github.sha }}
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null 2>&1; then
           echo "Tag $VERSION already exists - immutable, nothing to do."
-        else
-          git tag -a "$VERSION" -m "Release $VERSION"
-          git push origin "refs/tags/$VERSION"
-          echo "Created and pushed immutable tag $VERSION"
+          exit 0
         fi
+        for i in $(seq 1 40); do
+          # Names of unfinished check runs, matched as fixed strings against
+          # the ruleset's required checks (no regex: jq treats \( as interpolation).
+          pending=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
+            --jq '.check_runs[] | select(.status != "completed") | .name' \
+            | grep -cxF -e 'Tests (ubuntu-latest)' -e 'Tests (windows-latest)' \
+                        -e 'Lint & Format Check' -e 'Analyze (python)' || true)
+          if [ "$pending" = "0" ]; then break; fi
+          echo "Waiting for $pending required check(s) on $SHA to finish ($i/40)"
+          sleep 30
+        done
+        git tag -a "$VERSION" -m "Release $VERSION"
+        for attempt in 1 2 3; do
+          if git push origin "refs/tags/$VERSION"; then
+            echo "Created and pushed immutable tag $VERSION"
+            exit 0
+          fi
+          echo "Tag push refused (attempt $attempt/3); retrying in 60 s"
+          sleep 60
+        done
+        echo "Could not push tag $VERSION: a required check on $SHA may have failed."
+        exit 1
 
     - name: Download Windows artifact
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
