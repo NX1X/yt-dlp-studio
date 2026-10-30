@@ -11,7 +11,10 @@ driven from a background QThread (see src/ui/update_dialog.py).
 import hashlib
 import hmac
 import os
+import re
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import requests
 from packaging import version
@@ -76,6 +79,33 @@ class _Asset:
     size: int = 0
     digest: str = ""  # normalized lowercase sha256 hex, or "" if unknown
     extras: dict = field(default_factory=dict)
+
+
+# The Windows installer (packaging/installer.iss) is named
+# YT-DLP-Studio-Setup-<version>.exe and writes install.ini next to the EXE.
+_SETUP_ASSET_RE = re.compile(r"^yt-dlp-studio-setup(-.+)?\.exe$", re.IGNORECASE)
+
+
+def is_installed_copy(exe_dir: Path | None = None) -> bool:
+    """Return True when this app runs from a copy installed by the Windows installer.
+
+    The installer writes ``install.ini`` with ``kind=inno`` next to the EXE. A
+    portable copy (the ZIP or the standalone EXE) has no such file, and running
+    from source never counts as installed.
+
+    Args:
+        exe_dir: Folder to check. Defaults to the folder of the running EXE.
+    """
+    if exe_dir is None:
+        if os.name != "nt" or not getattr(sys, "frozen", False):
+            return False
+        exe_dir = Path(sys.executable).resolve().parent
+    marker = exe_dir / "install.ini"
+    try:
+        text = marker.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    return re.search(r"^\s*kind\s*=\s*inno\s*$", text, re.IGNORECASE | re.MULTILINE) is not None
 
 
 def _normalize_digest(raw: str | None) -> str:
@@ -187,6 +217,7 @@ class UpdateChecker:
                 "html_url": release_data.get("html_url", ""),
                 "download_url": asset.url if asset else release_data.get("html_url"),
                 "asset_name": asset.extras.get("name", "") if asset else "",
+                "update_kind": self.update_kind_for(asset.extras.get("name", "")) if asset else "archive",
                 "size": asset.size if asset else 0,
                 "digest": asset.digest if asset else "",
                 "assets": release_data.get("assets", []),
@@ -234,7 +265,10 @@ class UpdateChecker:
             _Asset, or None if the release has no matching asset.
         """
         assets = release_data.get("assets", []) or []
-        chosen = self._select_linux_asset(assets) if os.name != "nt" else self._select_windows_asset(assets)
+        if os.name != "nt":
+            chosen = self._select_linux_asset(assets)
+        else:
+            chosen = self._select_windows_asset(assets, installed=is_installed_copy())
         return self._make_asset(chosen) if chosen else None
 
     @staticmethod
@@ -259,16 +293,37 @@ class UpdateChecker:
         return None
 
     @staticmethod
-    def _select_windows_asset(assets: list[dict]) -> dict | None:
-        """Prefer an installer/.exe, then a .zip, then the first asset."""
+    def _select_windows_asset(assets: list[dict], installed: bool = False) -> dict | None:
+        """Pick the Windows asset that matches how this copy was installed.
+
+        An installed copy updates through the installer
+        (YT-DLP-Studio-Setup-<version>.exe), which replaces it in place. A
+        portable copy gets the standalone EXE, then the ZIP. Releases before
+        0.3.0 have no installer, so an installed copy falls back to the
+        portable choice there.
+        """
+        if installed:
+            for asset in assets:
+                if _SETUP_ASSET_RE.match(asset.get("name", "")):
+                    return asset
         for asset in assets:
-            name = asset.get("name", "").lower()
-            if name.endswith(".exe") or "setup" in name or "installer" in name:
+            name = asset.get("name", "")
+            if name.lower().endswith(".exe") and not _SETUP_ASSET_RE.match(name):
                 return asset
         for asset in assets:
             if asset.get("name", "").lower().endswith(".zip"):
                 return asset
         return assets[0] if assets else None
+
+    @staticmethod
+    def update_kind_for(asset_name: str) -> str:
+        """Classify an update asset: "installer", "portable" or "archive"."""
+        name = asset_name or ""
+        if _SETUP_ASSET_RE.match(name):
+            return "installer"
+        if name.lower().endswith(".exe"):
+            return "portable"
+        return "archive"
 
     def download_update(
         self,

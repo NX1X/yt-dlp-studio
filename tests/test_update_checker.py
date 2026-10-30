@@ -81,8 +81,11 @@ class TestVersionCompare:
 
 class TestSelectAsset:
     def test_prefers_exe_with_size_and_digest_on_windows(self, monkeypatch):
-        # Asset selection is platform-aware; force the Windows branch.
+        # Asset selection is platform-aware; force the Windows branch, as an
+        # installed copy (a portable copy must never pick the installer; see
+        # tests/test_inplace_update.py).
         monkeypatch.setattr("src.backend.update_checker.os.name", "nt")
+        monkeypatch.setattr("src.backend.update_checker.is_installed_copy", lambda exe_dir=None: True)
         c = UpdateChecker()
         data = {
             "assets": [

@@ -313,20 +313,40 @@ class UpdateDialog(QDialog):
                 self.accept()
                 return
 
+            if self.release_info.get("update_kind") == "installer":
+                # Installed copy: the installer replaces this copy in place
+                # and starts the app again (/LAUNCH=yes).
+                reply = QMessageBox.question(
+                    self,
+                    tr("dialog_download_complete_update"),
+                    tr("msg_update_install_restart", version=self.release_info.get("version", "")),
+                    QMessageBox.Yes | QMessageBox.No,
+                )
+                if reply == QMessageBox.Yes:
+                    self._run_installer_silent(result.file_path)
+                else:
+                    QMessageBox.information(
+                        self,
+                        tr("dialog_download_complete_update"),
+                        tr("msg_installer_saved", path=result.file_path),
+                    )
+                    self.accept()
+                return
+
+            # Portable copy: the download is a second, separate copy. Say so.
             reply = QMessageBox.question(
                 self,
                 tr("dialog_download_complete_update"),
-                tr("msg_download_verified_install", path=result.file_path),
+                tr("msg_portable_update_ready", path=result.file_path),
                 QMessageBox.Yes | QMessageBox.No,
             )
-
             if reply == QMessageBox.Yes:
-                self._run_installer(result.file_path)
+                self._launch_and_quit([result.file_path])
             else:
                 QMessageBox.information(
                     self,
                     tr("dialog_download_complete_update"),
-                    tr("msg_installer_saved", path=result.file_path),
+                    tr("msg_portable_update_saved", path=result.file_path),
                 )
                 self.accept()
             return
@@ -360,35 +380,45 @@ class UpdateDialog(QDialog):
                 tr("msg_download_failed_retry"),
             )
 
-    def _run_installer(self, file_path: str):
-        """
-        Run the (already verified) installer and close the application.
+    # Arguments for the Inno Setup installer during an in-place update:
+    # /SILENT shows only a progress window, /SUPPRESSMSGBOXES and /NORESTART
+    # keep it unattended, and /LAUNCH=yes makes it start the app again when it
+    # is done (see the [Run] section of packaging/installer.iss).
+    SILENT_INSTALL_ARGS = ("/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/LAUNCH=yes")
 
-        Args:
-            file_path: Path to installer file
+    def _run_installer_silent(self, file_path: str):
+        """Run the verified installer to update this installed copy in place, then quit.
+
+        The installer closes any copy still running (CloseApplications=force),
+        replaces the EXE and starts the new version.
+        """
+        self._launch_and_quit([file_path, *self.SILENT_INSTALL_ARGS])
+
+    def _launch_and_quit(self, argv: list[str]):
+        """Start a verified, downloaded program detached from this app, then quit.
+
+        Only called after the download's SHA-256 matched the published digest.
+        argv is passed as a list, never through a shell.
         """
         try:
-            if os.name == "nt":  # Windows
-                os.startfile(file_path)
-            else:
-                subprocess.Popen([file_path])
-
-            logger.info(f"Launched installer: {file_path}")
-
-            QMessageBox.information(
-                self, tr("dialog_installing_update"), tr("msg_installer_confirmation", path=file_path)
-            )
+            flags = 0
+            if os.name == "nt":
+                flags = getattr(subprocess, "DETACHED_PROCESS", 0x00000008) | getattr(
+                    subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200
+                )
+            subprocess.Popen(argv, close_fds=True, creationflags=flags)  # noqa: S603 - verified file, list argv
+            logger.info(f"Launched update: {argv[0]} (args: {' '.join(argv[1:]) or 'none'})")
 
             from PySide6.QtWidgets import QApplication
 
             QApplication.instance().quit()
 
         except Exception as e:
-            logger.exception("Failed to run installer")
+            logger.exception("Failed to start the downloaded update")
             QMessageBox.critical(
                 self,
                 tr("dialog_installer_error"),
-                tr("msg_installer_launch_failed", error=str(e), path=file_path),
+                tr("msg_installer_launch_failed", error=str(e), path=argv[0]),
             )
 
     def _reveal_in_file_manager(self, file_path: str):
