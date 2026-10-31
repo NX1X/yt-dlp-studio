@@ -379,12 +379,6 @@ pluggy==1.6.0 \
     #   pytest
     #   pytest-cov
     #   pytest-qt
-plyer==2.1.0 \
-    --hash=sha256:1b1772060df8b3045ed4f08231690ec8f7de30f5a004aa1724665a9074eed113 \
-    --hash=sha256:65b7dfb7e11e07af37a8487eb2aa69524276ef70dad500b07228ce64736baa61
-    # via
-    #   -c requirements/lock.txt
-    #   yt-dlp-studio (pyproject.toml)
 pre-commit==4.6.2 \
     --hash=sha256:8f5d7bfb021ecdbcd9d49d89847082dd24172ccde534390081a679ad046e2441 \
     --hash=sha256:e2dde9a75d3bce11bd3831c26d134df00a2803c1d818be6a0383c3dcda25dc4e

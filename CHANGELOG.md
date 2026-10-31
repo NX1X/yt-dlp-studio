@@ -17,7 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no entries yet)_
+### Fixed
+
+- **"Enable Desktop Notifications" now works.** The Settings checkbox did nothing. It is now saved in the config (`notifications_enabled`, default on) and applied when you save, when you reset to defaults, and at startup.
+- **The tray menu is translated.** "Show Window" and "Quit" now come from the translation tables, in English and Hebrew.
+- **`docs/ROADMAP.md` is no longer stale.** It no longer says the removed bandwidth, video player and filter modules exist. It marks notifications and in-place updates as shipped and points to `ROADMAP.md` for the current plan.
+
+### Removed
+
+- **`plyer` dependency.** The frozen build could not use it. Notifications use the tray icon, then `notify-send` on Linux. The lock files lost only the `plyer==2.1.0` entries.
+- **122 unused translation keys**, in both English and Hebrew. Nothing in `src/` or `tests/` used them. Most belonged to removed or replaced UI: the bandwidth, filter and video player modules (#60), an old batch dialog, an old subtitle picker, and an old menu bar.
 
 ---
 

@@ -12,9 +12,6 @@ Backends, tried in this order until one accepts the notification:
 2. ``notify-send`` (libnotify) on Linux when no system tray is available,
    for example stock GNOME. It is called with an argument list, never a
    shell string, because titles come from untrusted video metadata.
-3. ``plyer``, only if it is importable. It is a last resort: the frozen
-   Windows build does not bundle ``plyer.platforms``, so it usually fails
-   there with "No usable implementation found!".
 
 Every ``notify_*`` method returns ``True`` only when a backend accepted the
 notification, and only then logs "Notification sent".
@@ -31,13 +28,9 @@ from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon
 
 from ..utils.constants import APP_NAME
 from ..utils.logger import get_logger
+from ..utils.translations import tr
 
 logger = get_logger()
-
-try:  # Optional last-resort backend. Not bundled in the frozen build.
-    from plyer import notification as _plyer_notification
-except Exception:  # pragma: no cover - depends on the environment
-    _plyer_notification = None
 
 # Seconds to wait for notify-send. It normally returns in well under a
 # second; the cap keeps a stuck D-Bus from freezing the GUI thread for long.
@@ -145,13 +138,13 @@ class NotificationManager(QObject):
         # Keep the menu referenced: setContextMenu does not take ownership.
         self._tray_menu = QMenu()
 
-        show_action = QAction("Show Window", self)
+        show_action = QAction(tr("tray_show_window"), self)
         show_action.triggered.connect(self.show_window_requested.emit)
         self._tray_menu.addAction(show_action)
 
         self._tray_menu.addSeparator()
 
-        quit_action = QAction("Quit", self)
+        quit_action = QAction(tr("tray_quit"), self)
         quit_action.triggered.connect(self.quit_requested.emit)
         self._tray_menu.addAction(quit_action)
 
@@ -343,7 +336,6 @@ class NotificationManager(QObject):
         for name, backend in (
             ("tray", self._send_via_tray),
             ("notify-send", self._send_via_notify_send),
-            ("plyer", self._send_via_plyer),
         ):
             ok, reason = backend(title, message, icon, timeout_ms)
             if ok:
@@ -412,21 +404,6 @@ class NotificationManager(QObject):
             stderr = (result.stderr or b"").decode("utf-8", errors="replace").strip()
             detail = f" ({stderr[:200]})" if stderr else ""
             return False, f"exit code {result.returncode}{detail}"
-        return True, ""
-
-    def _send_via_plyer(self, title: str, message: str, icon, timeout_ms: int) -> tuple[bool, str]:
-        """Last resort: plyer, only if it imported."""
-        if _plyer_notification is None:
-            return False, "not installed"
-        try:
-            _plyer_notification.notify(
-                title=title,
-                message=message,
-                app_name=APP_NAME,
-                timeout=max(1, timeout_ms // 1000),
-            )
-        except Exception as e:
-            return False, f"error: {e}"
         return True, ""
 
     def show_tray_message(self, message: str) -> bool:

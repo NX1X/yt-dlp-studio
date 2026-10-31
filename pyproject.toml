@@ -60,7 +60,6 @@ dependencies = [
     # CVE-2026-25645 (insecure temp-file reuse in extract_zipped_paths).
     "requests>=2.34.2",
     "packaging>=26.3",
-    "plyer>=2.1.0",
     # yt-dlp's external JavaScript solver. Ships the JS challenge solver
     # scripts that the vendored yt-dlp engine needs to handle YouTube's
     # anti-bot challenges. Without it, yt-dlp 2026.06.09+ either warns and
