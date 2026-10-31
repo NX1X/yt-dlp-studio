@@ -27,9 +27,10 @@ This is a **public beta**. The core feature set is functional and the app is usa
 - **Your queue survives a restart.** Close the app with downloads waiting, and they are still there next time.
 - **Retry failed downloads** with one click, or let the app retry a dropped connection once on its own.
 - **Notifications work.** You now get a notice when a download finishes.
+- **Newer download engine and tools:** yt-dlp 2026.10.26 (with the latest YouTube fixes), Deno 2.9.8 and FFmpeg 9.0.2.
 - **The real file name everywhere.** The Queue tab, notifications and "Open file" now use the actual file, and the History tab finally records your downloads.
 
-Coming from v0.2.x? Install v0.3.0 with the new installer once; after that, updates install themselves. Your settings and history carry over. Full detail is in [CHANGELOG.md](CHANGELOG.md).
+Coming from v0.2.x? Install v0.3.0 with the new installer once; after that, updates install themselves. Your settings and history carry over. Running from source now needs Python 3.11 or newer. Full detail is in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -70,7 +71,7 @@ cd yt-dlp-studio
 pip install -e .
 python launcher.py
 ```
-Requires Python 3.10+. On Linux, install FFmpeg first (`sudo apt install ffmpeg`).
+Requires Python 3.11+. On Linux, install FFmpeg first (`sudo apt install ffmpeg`).
 
 ---
 

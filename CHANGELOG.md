@@ -36,6 +36,14 @@ _(no entries yet)_
 - **The download queue survives a restart** (#63). Pending, running and failed tasks are saved to `download_queue.json` (with a format version) next to the history file, and restored on the next start. A paused queue stays paused. A damaged file never stops the app from starting; it is kept as `download_queue.json.bad`.
 - **Retry failed downloads** (#63): a Retry button per task, a "Retry All Failed" button, and one automatic retry for network errors only (never for private, geo-blocked, removed or copyrighted videos).
 
+### Changed
+
+- **Bundled yt-dlp engine 2026.08.19 -> 2026.10.26.** Tarball SHA-256 `21f942d258d25cc4e60b4982a25c423460f0bebb835f38e6dfd1fcb140087f95`, matching the `SHA2-256SUMS` file signed by the pinned yt-dlp release key (`AC0CBBE6848D6A873464AF4E57CF65933B5A7581`, GPG "Good signature"). Includes the 2026.10.21 YouTube fixes (a new default `tv_samsung` client, a fix for initial data extraction, clearer error messages). Still uses `yt-dlp-ejs==0.8.0`, unchanged.
+- **Deno 2.9.6 -> 2.9.8** in `deno_installer.py`, `build.yml` and `release.yml`. SHA-256 `cba84b26e0df5ae7f74fc66b86a95b866872a86292ebd84fa1e959927edd93bf`, the same in the publisher's sidecar file, the downloaded asset and the GitHub release digest.
+- **FFmpeg 8.1.2 -> 9.0.2** in `build.yml` and `release.yml` (SHA-256 `4d2060a8b34a940aa47d785142055bb92a63053781e55f2ace4546edd519a8f5`, the same in the download and the GitHub digest). This is a major version: every library file name changed (`avcodec-63`, `avdevice-63`, `avfilter-12`, `avformat-63`, `avutil-61`, `swresample-7`, `swscale-10`, read from the real 9.0.2 archive). `packaging/build.spec` and the CI bundle check were updated to match.
+- **Cooldown override, by decision.** yt-dlp 2026.10.26 (4 days old) and Deno 2.9.8 (9 days old) were taken inside the project's cooldown window (7 and 14 days) because the maintainer asked for the latest versions. yt-dlp's GPG signature check against the pinned key still guards against a hijacked release.
+- **Running from source now needs Python 3.11 or newer** (was 3.10). yt-dlp 2026.10.26 dropped Python 3.10. `requires-python`, the lint targets and the lock files moved to 3.11; the relock only removed packages that 3.10 alone needed. The Windows EXE and the Linux binary bundle their own Python, so they are not affected, and the Linux binary still runs on Ubuntu 22.04.
+
 ### Fixed
 
 - **Desktop notifications never appeared** (#62). The app never created its tray icon, so every notification fell through to a library the EXE cannot use. Notifications now go through the tray icon, then `notify-send` on Linux. "Notification sent" is logged only when a notification really went out.

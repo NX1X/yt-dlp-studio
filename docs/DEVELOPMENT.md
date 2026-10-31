@@ -8,7 +8,7 @@ Guide for developers working on YT-DLP Studio.
 
 ### Prerequisites
 
-- **Python 3.10 or higher**
+- **Python 3.11 or higher**
   ```bash
   python --version
   ```

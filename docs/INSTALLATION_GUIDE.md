@@ -300,7 +300,7 @@ Once installed, you can:
 ## System Requirements
 
 - **OS:** Windows 10/11, Linux, or macOS
-- **Python:** 3.9, 3.10, 3.11, 3.12, or 3.13 (NOT 3.14 yet)
+- **Python:** 3.11 or newer (CI builds and tests on 3.14)
 - **RAM:** 512MB minimum (2GB recommended)
 - **Disk Space:** 500MB (for dependencies + videos)
 - **Internet:** Required for downloading videos

@@ -34,7 +34,7 @@ pip install -e .
 python launcher.py
 ```
 
-Requires Python 3.10 or newer. See the
+Requires Python 3.11 or newer. See the
 [Installation Guide](INSTALLATION_GUIDE.md) for venv and platform notes.
 
 ---
