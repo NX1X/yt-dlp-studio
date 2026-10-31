@@ -208,6 +208,16 @@ class TestCloseBehaviour:
         quit_mock.assert_called_once()
         assert window.notification_manager.has_visible_tray_icon() is False
 
+    def test_quits_even_if_shutdown_fails(self, make_window, config_manager, tray_available, quit_mock):
+        # Quit-on-last-window-closed is off, so a cleanup error must not leave
+        # a hidden process running.
+        window = make_window(config_manager)
+        window.queue_manager.shutdown.side_effect = RuntimeError("boom")
+
+        assert window.close() is True
+
+        quit_mock.assert_called_once()
+
     def test_ctrl_q_quits_in_tray_mode(self, make_window, config_manager, tray_available, quit_mock):
         config_manager.update_config(close_to_tray=True)
         window = make_window(config_manager)

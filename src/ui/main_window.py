@@ -327,20 +327,24 @@ class MainWindow(QMainWindow):
                 # Cancel download
                 self.download_tab.current_worker.cancel()
 
-        # Once the close is certain: save the download queue (running
-        # downloads are saved as in-progress and resume next start), then
-        # cancel the queue workers and wait for them, at most 4 s in total.
-        self.queue_manager.shutdown()
+        try:
+            # Once the close is certain: save the download queue (running
+            # downloads are saved as in-progress and resume next start), then
+            # cancel the queue workers and wait for them, at most 4 s in total.
+            self.queue_manager.shutdown()
 
-        # Remove the tray icon now, so no stale icon stays in the tray.
-        self.notification_manager.hide_tray_icon()
-        event.accept()
-
-        # src/app.py turns off quit-on-last-window-closed, so hiding to the
-        # tray, or closing a dialog while the window is hidden, does not end
-        # the app. Quit the event loop here instead. Outside exec() this
-        # call does nothing.
-        QApplication.quit()
+            # Remove the tray icon now, so no stale icon stays in the tray.
+            self.notification_manager.hide_tray_icon()
+        except Exception:  # noqa: BLE001 - quitting must not depend on cleanup
+            logger.exception("Error during shutdown; quitting anyway")
+        finally:
+            event.accept()
+            # src/app.py turns off quit-on-last-window-closed, so hiding to
+            # the tray, or closing a dialog while the window is hidden, does
+            # not end the app. Quit the event loop here instead, also when
+            # cleanup failed: otherwise a hidden process would stay behind.
+            # Outside exec() this call does nothing.
+            QApplication.quit()
 
     def _apply_theme(self) -> None:
         """Apply modern theme to application (v1.8.0)."""
