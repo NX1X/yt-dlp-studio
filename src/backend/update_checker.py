@@ -83,6 +83,9 @@ class _Asset:
 
 # The Windows installer (packaging/installer.iss) is named
 # YT-DLP-Studio-Setup-<version>.exe and writes install.ini next to the EXE.
+# Linux install kind -> the release asset suffix that updates it.
+_LINUX_PACKAGE_SUFFIXES = {"appimage": ".appimage", "deb": ".deb", "rpm": ".rpm"}
+
 _SETUP_ASSET_RE = re.compile(r"yt-dlp-studio-setup(-[A-Za-z0-9._+]+)?\.exe", re.IGNORECASE)
 
 # Hosts an update may be downloaded from (GitHub release assets redirect to
@@ -148,13 +151,40 @@ def is_installed_copy(exe_dir: Path | None = None) -> bool:
         if os.name != "nt" or not getattr(sys, "frozen", False):
             return False
         exe_dir = Path(sys.executable).resolve().parent
-    marker = exe_dir / "install.ini"
+    return _read_install_kind(exe_dir) == "inno"
+
+
+def linux_install_kind(exe_dir: Path | None = None, environ: dict | None = None) -> str | None:
+    """Return how this Linux copy was installed: "appimage", "deb", "rpm" or None.
+
+    The AppImage runtime sets ``APPIMAGE`` to the path of the running AppImage.
+    The .deb and .rpm packages write ``install.ini`` with ``kind=deb`` or
+    ``kind=rpm`` next to the binary in /opt/yt-dlp-studio. The .tar.gz copy
+    and a run from source return None.
+
+    Args:
+        exe_dir: Folder to check. Defaults to the folder of the running binary.
+        environ: Environment to read. Defaults to ``os.environ``.
+    """
+    if exe_dir is None:
+        if os.name == "nt" or not getattr(sys, "frozen", False):
+            return None
+        exe_dir = Path(sys.executable).resolve().parent
+    if (os.environ if environ is None else environ).get("APPIMAGE"):
+        return "appimage"
+    kind = _read_install_kind(exe_dir)
+    return kind if kind in _LINUX_PACKAGE_SUFFIXES else None
+
+
+def _read_install_kind(exe_dir: Path) -> str | None:
+    """Return the lower-case ``kind`` from ``install.ini`` in exe_dir, if any."""
     try:
-        with open(marker, encoding="utf-8", errors="replace") as f:
+        with open(exe_dir / "install.ini", encoding="utf-8", errors="replace") as f:
             text = f.read(4096)
     except OSError:
-        return False
-    return re.search(r"^\s*kind\s*=\s*inno\s*$", text, re.IGNORECASE | re.MULTILINE) is not None
+        return None
+    match = re.search(r"^\s*kind\s*=\s*([A-Za-z0-9]+)\s*$", text, re.MULTILINE)
+    return match.group(1).lower() if match else None
 
 
 def _normalize_digest(raw: str | None) -> str:
@@ -305,8 +335,8 @@ class UpdateChecker:
         Select the most appropriate downloadable asset for the current OS.
 
         On Windows the priority is installer/.exe -> .zip -> first asset.
-        On Linux it is the Linux archive (name contains "linux" or ends in
-        .tar.gz / .AppImage) -> first asset. The full asset is returned
+        On Linux it is the package that matches how this copy was installed
+        (.AppImage, .deb or .rpm), else the .tar.gz archive. The full asset is returned
         (URL, size and GitHub-published digest) so callers can show an
         accurate size and verify integrity.
 
@@ -315,7 +345,7 @@ class UpdateChecker:
         """
         assets = release_data.get("assets", []) or []
         if os.name != "nt":
-            chosen = self._select_linux_asset(assets)
+            chosen = self._select_linux_asset(assets, kind=linux_install_kind())
         else:
             chosen = self._select_windows_asset(assets, installed=is_installed_copy())
         return self._make_asset(chosen) if chosen else None
@@ -330,14 +360,25 @@ class UpdateChecker:
         )
 
     @staticmethod
-    def _select_linux_asset(assets: list[dict]) -> dict | None:
-        """Prefer a Linux archive; never a Windows .exe/.msi (useless on Linux)."""
+    def _select_linux_asset(assets: list[dict], kind: str | None = None) -> dict | None:
+        """Pick the Linux asset that matches how this copy was installed.
+
+        An AppImage gets the new .AppImage, a .deb install the .deb and an .rpm
+        install the .rpm. Everything else, and a release without that package
+        (before 0.3.1), gets the .tar.gz archive. Never a Windows .exe/.msi.
+        """
+        suffix = _LINUX_PACKAGE_SUFFIXES.get(kind or "")
+        if suffix:
+            for asset in assets:
+                if asset.get("name", "").lower().endswith(suffix):
+                    return asset
+        for wanted in ((".tar.gz", ".tgz"), (".appimage",)):
+            for asset in assets:
+                if asset.get("name", "").lower().endswith(wanted):
+                    return asset
         for asset in assets:
             name = asset.get("name", "").lower()
-            if "linux" in name or name.endswith((".tar.gz", ".tgz", ".appimage")):
-                return asset
-        for asset in assets:
-            if not asset.get("name", "").lower().endswith((".exe", ".msi")):
+            if "linux" in name and not name.endswith((".exe", ".msi", ".deb", ".rpm")):
                 return asset
         return None
 
@@ -369,12 +410,21 @@ class UpdateChecker:
 
     @staticmethod
     def update_kind_for(asset_name: str) -> str:
-        """Classify an update asset: "installer", "portable" or "archive"."""
+        """Classify an update asset.
+
+        Returns "installer" or "portable" (Windows), "appimage" or "package"
+        (a Linux .deb or .rpm), else "archive".
+        """
         name = asset_name or ""
         if _SETUP_ASSET_RE.fullmatch(name):
             return "installer"
-        if name.lower().endswith(".exe"):
+        lower = name.lower()
+        if lower.endswith(".exe"):
             return "portable"
+        if lower.endswith(".appimage"):
+            return "appimage"
+        if lower.endswith((".deb", ".rpm")):
+            return "package"
         return "archive"
 
     def download_update(
