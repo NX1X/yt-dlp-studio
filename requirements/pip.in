@@ -1,0 +1,4 @@
+# pip itself, for the `pip install --upgrade` step at the start of each CI job.
+# Compiled to requirements/pip.txt (hash-pinned) by scripts/relock.sh, constrained
+# to the pip version requirements/dev.txt already uses.
+pip
