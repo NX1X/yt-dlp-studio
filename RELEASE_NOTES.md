@@ -1,4 +1,4 @@
-# YT-DLP Studio v0.3.0 - Release Notes
+# YT-DLP Studio v0.3.1 - Release Notes
 
 **Release Date:** 2026-10-31
 **Status:** Public Beta
@@ -17,7 +17,22 @@ This is a **public beta**. The core feature set is functional and the app is usa
 
 ---
 
-## What's new in v0.3.0
+## What's new in v0.3.1
+
+**Real Linux packages.**
+
+- **Install it like a normal Linux app.** Each release now has a `.deb` for Debian, Ubuntu and Mint, an `.rpm` for Fedora and openSUSE, and an AppImage that runs on any distribution. The `.tar.gz` with `install.sh` is still available.
+- **FFmpeg comes with the package.** The `.deb` and `.rpm` pull in FFmpeg from your distribution and add YT-DLP Studio to your app menu.
+- **Removing it keeps your data.** Removing or purging the package keeps your settings and history in `~/.config/YT-DLP Studio`.
+- **Updates match how you installed.** The update dialog offers the `.deb`, `.rpm` or AppImage that matches your copy, and tells you the next step.
+- **The "Enable Desktop Notifications" setting works.** Before, the checkbox did nothing.
+- **The tray menu is translated** into Hebrew.
+
+Not tested yet: a real `dnf install` on Fedora or openSUSE, and a double-click launch of the AppImage on a desktop. CI builds and checks every package on Ubuntu. Full detail is in [CHANGELOG.md](CHANGELOG.md).
+
+---
+
+## What was new in v0.3.0
 
 **An installer, and updates that replace the app.**
 
@@ -30,7 +45,7 @@ This is a **public beta**. The core feature set is functional and the app is usa
 - **Newer download engine and tools:** yt-dlp 2026.10.26 (with the latest YouTube fixes), Deno 2.9.8 and FFmpeg 9.0.2.
 - **The real file name everywhere.** The Queue tab, notifications and "Open file" now use the actual file, and the History tab finally records your downloads.
 
-Coming from v0.2.x? Install v0.3.0 with the new installer once; after that, updates install themselves. Your settings and history carry over. Running from source now needs Python 3.11 or newer. Full detail is in [CHANGELOG.md](CHANGELOG.md).
+Coming from v0.2.x? Install with the new installer once; after that, updates install themselves. Your settings and history carry over. Running from source now needs Python 3.11 or newer.
 
 ---
 
@@ -55,6 +70,18 @@ Download `YT-DLP-Studio-Setup-<version>.exe` from the [Releases page](https://gi
 For a portable copy, download `yt-dlp-studio-<version>-Windows.zip`, extract it and run `yt-dlp-studio.exe`.
 
 ### Linux (any glibc 2.35+ distro, not just Ubuntu)
+
+Pick the file for your distribution from the [Releases page](https://github.com/NX1X/yt-dlp-studio/releases):
+
+| Distro | File | Install |
+|--------|------|---------|
+| Debian / Ubuntu / Mint | `yt-dlp-studio_<version>_amd64.deb` | `sudo apt install ./yt-dlp-studio_*_amd64.deb` |
+| Fedora / openSUSE | `yt-dlp-studio-<version>-1.x86_64.rpm` | `sudo dnf install ./yt-dlp-studio-*.rpm` |
+| Any distro | `YT-DLP-Studio-<version>-x86_64.AppImage` | `chmod +x YT-DLP-Studio-*.AppImage`, then run it |
+
+The `.deb` and `.rpm` pull in FFmpeg. For the AppImage and the archive below, install FFmpeg yourself first.
+
+Or use the archive:
 ```bash
 # Install FFmpeg with your package manager (required):
 #   Debian/Ubuntu: sudo apt install ffmpeg

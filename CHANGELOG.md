@@ -17,6 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no entries yet)_
+
+---
+
+## [0.3.1] - 2026-10-31
+
+### Linux packages: an AppImage, a `.deb` and an `.rpm` beside the `.tar.gz`, updates that match how you installed, and a working notifications setting.
+
 ### Added
 
 - **Linux packages.** Each release now ships an AppImage, a `.deb` and an `.rpm` beside the `.tar.gz`. All four wrap the same PyInstaller binary. The `.deb` and `.rpm` install into `/opt/yt-dlp-studio`, pull in FFmpeg and add a menu entry. Removing or purging them keeps settings and history in `~/.config/YT-DLP Studio`.

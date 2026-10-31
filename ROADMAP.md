@@ -5,11 +5,11 @@ Website: https://nx1xlab.dev/nxtools
 
 ---
 
-## Current Version: 0.3.0 released · 0.3.1 next (Public Beta)
+## Current Version: 0.3.1 released · 0.4.0 next (Public Beta)
 
 > The project is in **public beta**. The core feature set is functional but UI bugs, polish items, and additional UI options remain. We will reach **v1.0.0** when the feature set is stable and beta exit criteria are met (see below).
 >
-> Latest released: **0.3.0** (Windows installer, in-place updates, queue that survives a restart, 2026-10-31). Next: **0.3.1** (Linux packages and winget).
+> Latest released: **0.3.1** (Linux AppImage, `.deb` and `.rpm` packages, 2026-10-31). Next: **0.4.0** (Reliable).
 >
 > Earlier private development history (up through internal version 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md). The reasoning behind the version reset to 0.1.0 lives in [docs-internal/VERSIONING.md](docs-internal/VERSIONING.md).
 
@@ -132,16 +132,17 @@ Ship the app the way users on each OS expect, and keep the no-install option.
 - ✅ Also in 0.3.0, from the 0.4.0 list: the queue survives a restart and failed tasks can be retried (#63), desktop notifications work (#62), the real file name is shown and opened (#65), and the History tab records downloads (#66).
 - Note: release binaries stay **unsigned** until the signing work under v1.0.0. Sigstore provenance already lets users verify downloads.
 
-### v0.3.1 - Linux packages and winget
+### v0.3.1 - Linux packages and winget  *(released 2026-10-31)*
 Moved from 0.3.0 so the Windows installer could ship first.
-- ⬜ **Linux packages:** AppImage, `.deb` (Debian, Ubuntu) and `.rpm` (Fedora). CI builds and smoke-launches each one. The `.tar.gz` with `install.sh` stays. Packaging tools are checked against the project's software-origin policy before use.
-- ⬜ **winget:** submit a manifest to `microsoft/winget-pkgs` after the installer ships.
+- ✅ **Linux packages** (#69): AppImage, `.deb` (Debian, Ubuntu) and `.rpm` (Fedora). CI builds and smoke-launches each one. The `.tar.gz` with `install.sh` stays. Packaging tools are checked against the project's software-origin policy before use.
+- ⬜ **winget:** submit a manifest to `microsoft/winget-pkgs` for the 0.3.0 installer. Not tied to a release: Microsoft reviews it separately.
+- ✅ Also in 0.3.1 (#70): the "Enable Desktop Notifications" setting works, the tray menu is translated, plyer and 122 unused translation keys are removed.
 
 ### v0.4.0 - Reliable
 Fix what is known to be broken, and make the download path safe to change.
 - ✅ **Delete dead code:** `src/ui/video_player_widget.py`, `src/ui/filter_dialog.py` and `src/ui/bandwidth_widget.py` (431 statements). Nothing imports them.
 - ⬜ **Refactor `YtDlpWrapper.download()`:** split the ~500-line method (SonarCloud S3776 cognitive complexity 136, S107 with 15 parameters) into helpers plus a `DownloadOptions` object. Pin the current behaviour with tests first, and run a live download test before merging.
-- ✅ **Desktop notifications that work** on Windows and Linux. Today every download logs `Could not send notification: No usable implementation found!` on Windows, and toasts fail on desktops without a tray (for example stock GNOME). Use Qt-native notifications, with `notify-send` as the Linux fallback, and a tray icon that is always available.
+- ✅ **Desktop notifications that work** on Windows and Linux. Before 0.3.0, every download logged `Could not send notification: No usable implementation found!` on Windows, and toasts fail on desktops without a tray (for example stock GNOME). Use Qt-native notifications, with `notify-send` as the Linux fallback, and a tray icon that is always available.
 - ✅ **Fix the false log line:** the code logs `Notification sent` even after a failed notification. Log success only when a notification was sent.
 - ✅ **Fix the audio-only label:** an audio-only download logs `Task N completed: video file`. Report the real output type.
 - ✅ **Keep the queue across restarts:** save pending and unfinished tasks, and resume them on the next start. yt-dlp already continues `.part` files; the app does not yet save its queue.
@@ -263,12 +264,12 @@ We welcome contributions to YT-DLP Studio! If you have ideas for new features or
 
 ## Version History
 
-Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.3.0** (2026-10-31). Next: **0.3.1** (Linux packages and winget). Earlier private development history (internal 0.1.0 to 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md).
+Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.3.1** (2026-10-31). Next: **0.4.0** (Reliable). Earlier private development history (internal 0.1.0 to 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md).
 
 ---
 
 **Last Updated:** 2026-10-31
-**Current Version:** 0.3.0 released, 0.3.1 next (Public Beta)
+**Current Version:** 0.3.1 released, 0.4.0 next (Public Beta)
 **Status:** Active Development
 
 For more information, visit: https://nx1xlab.dev/nxtools
