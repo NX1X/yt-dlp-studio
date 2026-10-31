@@ -344,7 +344,7 @@ class TestQueueTabRetry:
         qtbot.mouseClick(queue_tab.retry_failed_button, Qt.LeftButton)
 
         assert sample_task.status == TaskStatus.PENDING
-        assert queue_tab.queue_table.item(0, 3).text() == "PENDING"
+        assert queue_tab.queue_table.item(0, 3).text() == "Pending"
         assert queue_tab.retry_failed_button.isEnabled() is False
 
     def test_row_retry_button_uses_queue_manager(self, queue_tab, queue_manager, sample_task):

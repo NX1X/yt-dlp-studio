@@ -201,12 +201,14 @@ class NotificationManager(QObject):
         if not self.enabled:
             return False
 
-        message = "Download completed"
+        # The video title is user data: it is shown as is, never translated.
         if file_size:
-            message += f" ({file_size})"
+            message = tr("notif_download_complete_msg_size", size=file_size)
+        else:
+            message = tr("notif_download_complete_msg")
 
         sent = self._send_notification(
-            "Download Complete", f"{title}\n{message}", QSystemTrayIcon.MessageIcon.Information
+            tr("notif_download_complete"), f"{title}\n{message}", QSystemTrayIcon.MessageIcon.Information
         )
         if sent:
             logger.info(f"Notification sent: Download complete - {title}")
@@ -226,11 +228,15 @@ class NotificationManager(QObject):
         if not self.enabled:
             return False
 
-        message = "Download failed"
+        # The title and the error reason are external text: shown as is.
         if error:
-            message += f": {error[:50]}"  # Truncate long errors
+            message = tr("notif_download_error_msg_reason", error=error[:50])  # Truncate long errors
+        else:
+            message = tr("notif_download_error_msg")
 
-        sent = self._send_notification("Download Error", f"{title}\n{message}", QSystemTrayIcon.MessageIcon.Critical)
+        sent = self._send_notification(
+            tr("notif_download_error"), f"{title}\n{message}", QSystemTrayIcon.MessageIcon.Critical
+        )
         if sent:
             logger.info(f"Notification sent: Download error - {title}")
         return sent
@@ -250,13 +256,13 @@ class NotificationManager(QObject):
         if not self.enabled:
             return False
 
-        message = f"Completed: {successful}/{total}"
+        message = tr("notif_batch_completed_count", successful=successful, total=total)
         if failed > 0:
-            message += f"\nFailed: {failed}"
+            message += "\n" + tr("notif_batch_failed_count", failed=failed)
 
         icon = QSystemTrayIcon.MessageIcon.Information if failed == 0 else QSystemTrayIcon.MessageIcon.Warning
 
-        sent = self._send_notification("Batch Download Complete", message, icon)
+        sent = self._send_notification(tr("notif_batch_complete"), message, icon)
         if sent:
             logger.info(f"Notification sent: Batch complete - {successful}/{total}")
         return sent
@@ -275,8 +281,8 @@ class NotificationManager(QObject):
             return False
 
         sent = self._send_notification(
-            "Update Available",
-            f"Version {version} is available!\nClick to update.",
+            tr("notif_update_available"),
+            tr("notif_update_available_msg", version=version),
             QSystemTrayIcon.MessageIcon.Information,
         )
         if sent:

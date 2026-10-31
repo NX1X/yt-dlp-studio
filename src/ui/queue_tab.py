@@ -23,6 +23,7 @@ from ..backend.queue_manager import QueueManager
 from ..models.download_task import DownloadTask, TaskStatus
 from ..utils.file_helper import FileHelper
 from ..utils.logger import get_logger
+from ..utils.status_labels import task_status_text
 from ..utils.translations import tr
 
 logger = get_logger()
@@ -287,8 +288,8 @@ class QueueTab(QWidget):
             quality_item = QTableWidgetItem(task.quality)
             self.queue_table.setItem(row, 2, quality_item)
 
-            # Status
-            status_item = QTableWidgetItem(task.status.value.upper())
+            # Status: translated for display only; the stored value stays English.
+            status_item = QTableWidgetItem(task_status_text(task.status))
             status_item.setForeground(self._get_status_color(task.status))
             self.queue_table.setItem(row, 3, status_item)
 
