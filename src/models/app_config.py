@@ -25,6 +25,7 @@ class AppConfig:
         check_updates_on_startup: Run a silent update check at launch
         skipped_update_version: Release version the user chose to skip
         last_update_check: ISO timestamp of the last successful update check
+        notifications_enabled: Show desktop notifications for download events
     """
 
     output_directory: str
@@ -35,6 +36,7 @@ class AppConfig:
     check_updates_on_startup: bool = False
     skipped_update_version: str = ""
     last_update_check: str = ""
+    notifications_enabled: bool = True
 
     def to_dict(self) -> dict[str, Any]:
         """
