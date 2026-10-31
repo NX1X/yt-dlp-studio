@@ -279,6 +279,10 @@ class _CapturingYDL:
         # block exits cleanly (no metadata search, no merge).
         return {"id": "test"}
 
+    def add_post_processor(self, pp, when="post_process"):
+        # The duplicate-numbering hook; this fake never runs it.
+        pass
+
     @property
     def _write_subtitles(self):
         return lambda info, fn: []

@@ -8,6 +8,7 @@ It handles video information extraction and downloading.
 import json
 import os
 import sys
+import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -43,6 +44,9 @@ if _engine_path is not None and str(_engine_path) not in sys.path:
 try:
     from yt_dlp import YoutubeDL
     from yt_dlp import version as ytdlp_version
+    from yt_dlp.postprocessor.common import PostProcessor
+    from yt_dlp.postprocessor.ffmpeg import ACODECS
+    from yt_dlp.utils import replace_extension
 
     logger.info(f"yt-dlp imported successfully. Version: {ytdlp_version.__version__}")
 except ImportError as e:
@@ -137,6 +141,131 @@ def _make_subtitles_non_fatal(ydl: "YoutubeDL") -> None:
             return []
 
     ydl._write_subtitles = _safe_write_subtitles
+
+
+# ---------- auto-numbering of duplicate output files ----------
+#
+# yt-dlp has no auto-numbering of its own. When the setting is on, the
+# wrapper picks the final file name itself, just before yt-dlp computes its
+# output path, and switches the output template for that one download to
+# "<name> (1).%(ext)s", "<name> (2).%(ext)s" and so on.
+#
+# Paths that a running download in this process has chosen are reserved, so
+# two queue workers that download the same video at the same moment get two
+# different names. The check is not atomic against other processes: a second
+# app instance can still pick the same name in the same instant.
+
+_EXT_FIELD = ".%(ext)s"
+_MAX_DUPLICATE_NUMBER = 9999
+
+_reserved_outputs_lock = threading.Lock()
+_reserved_outputs: set[str] = set()
+
+
+def _output_key(path: str) -> str:
+    """Normalise a path for the reservation set (case-insensitive on Windows)."""
+    return os.path.normcase(os.path.abspath(path))
+
+
+def _numbered_template(template: str, number: int) -> str:
+    """Return ``template`` with `` (number)`` added before the extension field.
+
+    Only the literal suffix is added. The title and the other fields stay
+    template fields, so yt-dlp still fills and sanitises them (including
+    ``windowsfilenames``) exactly as for the plain name. The suffix holds no
+    ``%`` or ``$``, so it needs no escaping.
+    """
+    if number <= 0 or not template.endswith(_EXT_FIELD):
+        return template
+    return f"{template[: -len(_EXT_FIELD)]} ({number}){_EXT_FIELD}"
+
+
+def _final_extension(info: dict[str, Any], audio_format: str | None) -> str | None:
+    """Extension of the file the user ends up with.
+
+    For a merged video, ``info['ext']`` already holds the merge container
+    (``merge_output_format`` or the compatible one yt-dlp picked). Audio
+    extraction then renames the file to the codec's extension (``vorbis``
+    gives ``.ogg``, ``m4a`` gives ``.m4a``), see ``ACODECS`` in yt-dlp.
+    """
+    if audio_format:
+        codec = ACODECS.get(audio_format)
+        if codec:
+            return codec[0]
+    return info.get("ext")
+
+
+def _reserve_output_template(
+    ydl: Any, info: dict[str, Any], template: str, audio_format: str | None
+) -> tuple[str, str] | None:
+    """Pick the first free output template for ``info`` and reserve its path.
+
+    The candidate names come from ``ydl.prepare_filename``, so the check uses
+    the sanitised path yt-dlp will really write, with the final extension.
+
+    Returns:
+        ``(template, final_path)``, or None if no name could be computed.
+    """
+    ext = info.get("ext")
+    final_ext = _final_extension(info, audio_format)
+    with _reserved_outputs_lock:
+        for number in range(_MAX_DUPLICATE_NUMBER + 1):
+            candidate = _numbered_template(template, number)
+            if number and candidate == template:
+                return None  # template cannot be numbered
+            filename = ydl.prepare_filename(info, outtmpl=candidate)
+            if not filename:
+                return None
+            if final_ext and ext and final_ext != ext:
+                filename = replace_extension(filename, final_ext, ext)
+            key = _output_key(filename)
+            if key in _reserved_outputs or os.path.exists(filename):
+                continue
+            _reserved_outputs.add(key)
+            return candidate, filename
+    return None
+
+
+def _release_outputs(keys: list[str]) -> None:
+    """Drop reservations made by ``_reserve_output_template``."""
+    with _reserved_outputs_lock:
+        for key in keys:
+            _reserved_outputs.discard(key)
+    keys.clear()
+
+
+class _DuplicateNumberingPP(PostProcessor):
+    """Set a numbered output template when the final file already exists.
+
+    Registered at yt-dlp's ``video`` stage, which runs in ``process_info``
+    after format selection and just before yt-dlp computes the output path.
+    So the temporary files (``.part``, ``.fNNN``), the thumbnail, the
+    subtitles and the post-processors all use the chosen name.
+    """
+
+    def __init__(self, downloader: Any, template: str, audio_format: str | None, reserved: list[str]):
+        super().__init__(downloader)
+        self._template = template
+        self._audio_format = audio_format
+        self._reserved = reserved
+
+    def run(self, info: dict[str, Any]) -> tuple[list[str], dict[str, Any]]:
+        ydl = self._downloader
+        template = self._template
+        try:
+            choice = _reserve_output_template(ydl, info, self._template, self._audio_format)
+        except Exception:
+            # Fall back to the plain name. nooverwrites makes yt-dlp skip an
+            # existing file instead of replacing it.
+            logger.exception("Could not pick a numbered file name; using the plain name")
+            choice = None
+        if choice:
+            template, final_path = choice
+            self._reserved.append(_output_key(final_path))
+            if template != self._template:
+                logger.info(f"✓ File exists, saving as: {os.path.basename(final_path)}")
+        ydl.params["outtmpl"]["default"] = template
+        return [], info
 
 
 class YtDlpWrapper:
@@ -524,7 +653,9 @@ class YtDlpWrapper:
             selected_subtitles: List of specific subtitle languages (overrides subtitle_languages if provided)
             download_metadata: If True, download metadata (description, comments, etc.) as separate files
             download_comments: If True, download comments to a separate .txt file (v2.0.0)
-            auto_number_duplicates: If True, add (1), (2) etc. to duplicate files instead of failing
+            auto_number_duplicates: If True and the final file already exists, save the new
+                one as "name (1).ext", "name (2).ext" and so on. If False, skip the
+                download of an existing file (never overwrite).
 
         Returns:
             True if download successful, False otherwise. On success,
@@ -588,9 +719,10 @@ class YtDlpWrapper:
         else:
             filename_template = "%(title)s_%(height)sp.%(ext)s"
 
+        output_template = os.path.join(output_dir, filename_template)
         ydl_opts = {
             "format": format_string if not audio_only else "bestaudio",  # Force audio-only for audio downloads
-            "outtmpl": os.path.join(output_dir, filename_template),
+            "outtmpl": output_template,
             "progress_hooks": [self._progress_hook],
             "quiet": False,
             "no_warnings": False,
@@ -604,14 +736,15 @@ class YtDlpWrapper:
             "noplaylist": True,  # Never download a full playlist - always download the single video
         }
 
-        # Handle duplicate files
+        # Handle duplicate files. Never overwrite: with auto-numbering on,
+        # _DuplicateNumberingPP picks a free name before the download starts
+        # (see _reserve_output_template); with it off, yt-dlp skips a file
+        # that already exists. nooverwrites also lets yt-dlp reuse finished
+        # intermediate files of an interrupted attempt.
+        ydl_opts["nooverwrites"] = True
         if auto_number_duplicates:
-            # yt-dlp will automatically add (1), (2), etc. to duplicates
-            ydl_opts["nooverwrites"] = False  # Allow yt-dlp to handle numbering
             logger.info("✓ Auto-numbering duplicates enabled")
         else:
-            # Don't overwrite existing files (will skip if exists)
-            ydl_opts["nooverwrites"] = True
             logger.info("✓ Skip duplicates enabled (won't overwrite)")
 
         logger.info("✓ Base options created")
@@ -753,6 +886,10 @@ class YtDlpWrapper:
         log_bridge = _YtDlpLogBridge()
         ydl_opts["logger"] = log_bridge
 
+        # Output paths this download reserved for auto-numbering; released
+        # in the finally block below.
+        reserved_outputs: list[str] = []
+
         try:
             logger.info("\n[STEP 5/5] Initializing yt-dlp and starting download...")
             with YoutubeDL(ydl_opts) as ydl:
@@ -760,6 +897,15 @@ class YtDlpWrapper:
                 if self._download_cancelled:
                     logger.info("Download cancelled before starting")
                     return False
+
+                if auto_number_duplicates:
+                    numbering_pp = _DuplicateNumberingPP(
+                        ydl,
+                        output_template,
+                        audio_format if audio_only else None,
+                        reserved_outputs,
+                    )
+                    ydl.add_post_processor(numbering_pp, when="video")
 
                 # Make subtitle write failures non-fatal so a YouTube 429 on
                 # subtitles cannot abort the video download.
@@ -1014,6 +1160,11 @@ class YtDlpWrapper:
             logger.error("=" * 80)
 
             return False
+
+        finally:
+            # The file exists now (or the download failed), so the
+            # reservation is no longer needed.
+            _release_outputs(reserved_outputs)
 
     def cancel_download(self) -> None:
         """
