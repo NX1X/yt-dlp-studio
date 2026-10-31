@@ -60,7 +60,7 @@ def test_curl_cffi_is_not_a_runtime_dependency():
     Renovate bump or a copy from an older branch.
     """
     # Plain text parsing, not tomllib: tomllib is 3.11+ and the project
-    # supports Python 3.10.
+    # supported Python 3.10 when this was written; harmless on 3.11+.
     text = (_PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     block = text[text.index("\ndependencies = [") + 1 :]  # +1 skips the leading newline
     block = block[: block.index("\n]")]

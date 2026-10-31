@@ -11,9 +11,9 @@
 #   - --universal: resolve platform and Python-version markers for every
 #     target. A lock compiled on Linux otherwise drops Windows-only packages
 #     (colorama for pytest), and a lock compiled on 3.14 drops packages only
-#     older Pythons need (tomli for PySide6 on 3.10). Either one makes
+#     older Pythons need. Either one makes
 #     `pip install --require-hashes` fail on the affected CI runner.
-#   - --python-version 3.10: the requires-python floor.
+#   - --python-version 3.11: the requires-python floor.
 #   - --exclude-newer: the 14-day supply-chain cooldown, applied to every
 #     package including transitive ones (Renovate's minimumReleaseAge only
 #     covers the direct dependencies it bumps).
@@ -70,7 +70,7 @@ for fix in "${security_fixes[@]}"; do
 done
 
 base=(--universal --generate-hashes --exclude-newer "$cutoff" "${exceptions[@]}" --quiet)
-common=("${base[@]}" --python-version 3.10)
+common=("${base[@]}" --python-version 3.11)
 
 echo "Cooldown cutoff: $cutoff (security exceptions: ${security_fixes[*]})"
 uv pip compile pyproject.toml "${common[@]}" -o requirements/lock.txt
