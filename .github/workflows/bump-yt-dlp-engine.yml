@@ -261,7 +261,7 @@ jobs:
         # unpinned install to ride in on. Mirrors build.yml and release.yml.
         run: |
           set -euo pipefail
-          python -m pip install --upgrade pip==26.1.2 --only-binary :all:
+          python -m pip install --require-hashes -r requirements/pip.txt --only-binary :all:
           python -m pip install --require-hashes -r requirements/lock.txt --only-binary :all:
           python -m pip install --require-hashes -r requirements/dev.txt --only-binary :all:
           python scripts/check_imports.py

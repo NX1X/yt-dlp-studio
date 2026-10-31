@@ -49,9 +49,11 @@ security_fixes=(
   # setuptools 84.1.0: GHSA-xmj3-9gf7-h52w (build tools only). 84.2.0
   # followed 27 minutes later, so the cutoff sits between the two.
   setuptools=2026-10-19T20:20:00Z
-  # virtualenv 21.14.10: 11 CVEs found by pip-audit (dev tools only); 10 are
-  # fixed in 21.14.9, the last in 21.14.10.
-  virtualenv=2026-10-18T00:00:00Z
+  # virtualenv 21.14.13: GHSA-cx6f-vjhg-g3cc (high, dev tools only, via
+  # pre-commit). Uploaded 2026-10-22T20:10Z; 21.15.0 followed on 10-27, so
+  # this cutoff lets 21.14.13 through and nothing newer. It also covers the
+  # 11 earlier CVEs fixed in 21.14.9 and 21.14.10.
+  virtualenv=2026-10-23T00:00:00Z
   # urllib3 2.8.0: GHSA-vxq7-64xx-v4gw, GHSA-8988-9cw3-xx77 and 1 more.
   urllib3
   # msgpack 1.2.3: GHSA-j586-36cw-2gc2 (CI tools only).
@@ -74,7 +76,10 @@ echo "Cooldown cutoff: $cutoff (security exceptions: ${security_fixes[*]})"
 uv pip compile pyproject.toml "${common[@]}" -o requirements/lock.txt
 uv pip compile requirements/build-tools.in -c requirements/lock.txt "${common[@]}" -o requirements/build-tools.txt
 uv pip compile pyproject.toml --extra dev -c requirements/lock.txt "${common[@]}" -o requirements/dev.txt
+# pip itself, hash-pinned and constrained to the version dev.txt uses, so CI
+# can upgrade pip with --require-hashes (Scorecard PinnedDependencies).
+uv pip compile requirements/pip.in -c requirements/dev.txt "${common[@]}" -o requirements/pip.txt
 uv pip compile requirements/ci-tools.in "${base[@]}" --python-version 3.11 -o requirements/ci-tools.txt
 
-echo "Regenerated requirements/lock.txt, build-tools.txt, dev.txt and ci-tools.txt."
-echo "Next: run the test suite, then commit the four files together."
+echo "Regenerated requirements/lock.txt, build-tools.txt, dev.txt, pip.txt and ci-tools.txt."
+echo "Next: run the test suite, then commit the five files together."
