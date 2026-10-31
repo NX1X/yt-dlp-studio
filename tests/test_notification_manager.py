@@ -22,12 +22,11 @@ SENT = "Notification sent"
 
 @pytest.fixture
 def manager(qapp):
-    """A manager with no tray, no notify-send and no plyer by default."""
+    """A manager with no tray and no notify-send by default."""
     mgr = NotificationManager()
     with (
         patch.object(nm_module, "_is_linux_like", return_value=True),
         patch.object(nm_module.shutil, "which", return_value=None),
-        patch.object(nm_module, "_plyer_notification", None),
         patch.object(nm_module.subprocess, "run") as run,
     ):
         mgr.run_mock = run
@@ -165,7 +164,7 @@ class TestNotifySendBackend:
         text = warnings[0].getMessage()
         assert "tray: no tray icon" in text
         assert "notify-send: not available" in text
-        assert "plyer: not installed" in text
+        assert "plyer" not in text
         assert _sent_records(caplog) == []
 
     def test_not_tried_off_linux(self, manager):
@@ -205,36 +204,20 @@ class TestNotifySendBackend:
         assert _sent_records(caplog) == []
 
 
-class TestPlyerLastResort:
-    def test_plyer_no_usable_implementation_is_failure(self, manager, caplog):
-        """The exact Windows bug: plyer raises, and nothing may log success."""
-        plyer = MagicMock()
-        plyer.notify.side_effect = NotImplementedError("No usable implementation found!")
+class TestNoPlyer:
+    """plyer was removed: the tray and notify-send are the only backends."""
+
+    def test_module_does_not_reference_plyer(self):
+        assert not hasattr(nm_module, "_plyer_notification")
+        assert not hasattr(NotificationManager, "_send_via_plyer")
+
+    def test_failure_names_only_tray_and_notify_send(self, manager, caplog):
         caplog.set_level(logging.INFO, logger="YT-DLP Studio")
-        with patch.object(nm_module, "_plyer_notification", plyer):
-            assert manager.notify_download_complete("Video") is False
-        plyer.notify.assert_called_once()
+        assert manager.notify_custom("t", "m") is False
         warnings = _warnings(caplog)
         assert len(warnings) == 1
-        assert "plyer: error: No usable implementation found!" in warnings[0].getMessage()
-        assert _sent_records(caplog) == []
-
-    def test_plyer_success(self, manager, caplog):
-        plyer = MagicMock()
-        caplog.set_level(logging.INFO, logger="YT-DLP Studio")
-        with patch.object(nm_module, "_plyer_notification", plyer):
-            assert manager.notify_custom("t", "m") is True
-        assert len(_sent_records(caplog)) == 1
-
-    def test_plyer_not_used_when_notify_send_works(self, manager):
-        plyer = MagicMock()
-        manager.run_mock.return_value = _completed(0)
-        with (
-            patch.object(nm_module, "_plyer_notification", plyer),
-            patch.object(nm_module.shutil, "which", return_value=NOTIFY_SEND),
-        ):
-            assert manager.notify_custom("t", "m") is True
-        plyer.notify.assert_not_called()
+        backends = warnings[0].getMessage().split("Backends tried: ", 1)[1]
+        assert [part.split(":", 1)[0] for part in backends.split("; ")] == ["tray", "notify-send"]
 
 
 class TestNoFalseSuccessLog:
