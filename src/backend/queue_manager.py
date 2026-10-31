@@ -24,6 +24,7 @@ from ..models.download_queue import DownloadQueue
 from ..models.download_task import DownloadTask, TaskStatus
 from ..utils.error_handler import ErrorCategory, ErrorHandler
 from ..utils.logger import get_logger
+from ..utils.translations import tr
 from .download_worker import DownloadWorker
 from .format_handler import FormatHandler
 
@@ -662,7 +663,13 @@ class QueueManager(QObject):
         # it for the cancels that shutdown() causes.
         if self.notification_manager and not will_retry and not self._shutting_down:
             title = task.url[:50] + "..." if len(task.url) > 50 else task.url
-            self.notification_manager.notify_download_error(title, error)
+            # The worker's own "Download failed" and "Download cancelled" are
+            # English: send a translated reason or the yt-dlp reason instead.
+            if task.status == TaskStatus.CANCELLED:
+                reason = tr("status_cancelled")
+            else:
+                reason = detail or ""
+            self.notification_manager.notify_download_error(title, reason)
 
         if not will_retry and not self._shutting_down:
             status = "cancelled" if task.status == TaskStatus.CANCELLED else "failed"
