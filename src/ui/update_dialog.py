@@ -306,13 +306,18 @@ class UpdateDialog(QDialog):
             logger.info(f"Update downloaded and verified: {result.file_path}")
 
             if os.name != "nt":
-                # Linux: the asset is a .tar.gz archive, not a self-running
-                # installer. Reveal it in the file manager so the user can
-                # extract it and run install.sh; the running app is left open.
+                # Linux: nothing is run from here. Reveal the file in the file
+                # manager with the next step for its kind (extract the archive,
+                # open the package, or start the new AppImage); the running app
+                # is left open.
+                reveal_key = {
+                    "appimage": "msg_download_verified_reveal_appimage",
+                    "package": "msg_download_verified_reveal_package",
+                }.get(self.release_info.get("update_kind"), "msg_download_verified_reveal")
                 reply = QMessageBox.question(
                     self,
                     tr("dialog_download_complete_update"),
-                    tr("msg_download_verified_reveal", path=result.file_path),
+                    tr(reveal_key, path=result.file_path),
                     QMessageBox.Yes | QMessageBox.No,
                 )
                 if reply == QMessageBox.Yes:

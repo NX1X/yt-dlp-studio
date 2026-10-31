@@ -85,6 +85,24 @@ Prefer no install? Download `yt-dlp-studio-<version>-Windows.zip`, extract it an
 
 **Linux** (works on any glibc 2.35+ distribution, not just Ubuntu)
 
+Download the package for your distribution from
+[Releases](https://github.com/NX1X/yt-dlp-studio/releases) (0.3.1 and later):
+
+| Distro | File | Install |
+|--------|------|---------|
+| Debian / Ubuntu / Mint | `yt-dlp-studio_<version>_amd64.deb` | `sudo apt install ./yt-dlp-studio_*_amd64.deb` |
+| Fedora / openSUSE | `yt-dlp-studio-<version>-1.x86_64.rpm` | `sudo dnf install ./yt-dlp-studio-*.rpm` (or `sudo zypper install`) |
+| Any distro | `YT-DLP-Studio-<version>-x86_64.AppImage` | `chmod +x YT-DLP-Studio-*.AppImage`, then run it |
+
+The `.deb` and `.rpm` pull in FFmpeg and add YT-DLP Studio to your app menu.
+On Fedora, FFmpeg comes from `ffmpeg-free` or RPM Fusion. Removing either
+package keeps your settings and history in `~/.config/YT-DLP Studio`.
+
+The AppImage needs no install. Install FFmpeg yourself first (see the table
+below). Your desktop may offer to add the AppImage to the app menu.
+
+**Linux archive** (`.tar.gz`, for any distribution)
+
 1. Install FFmpeg with your distro's package manager:
 
    | Distro | Command |

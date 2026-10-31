@@ -443,9 +443,10 @@ jobs:
         python-version: '3.14.7'
 
     - name: Install system dependencies
+      # rpm, rpm2cpio and cpio build and inspect the .rpm package.
       run: |
         sudo apt-get update
-        sudo apt-get install -y libegl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0 libglib2.0-0 libgl1 libfontconfig1
+        sudo apt-get install -y libegl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0 libglib2.0-0 libgl1 libfontconfig1 rpm rpm2cpio cpio
 
     - name: Install dependencies
       # PyInstaller comes from its own hash-locked file (see
@@ -508,11 +509,29 @@ jobs:
         fi
         echo "Smoke test passed: the frozen binary launched and initialized."
 
+    - name: Build Linux packages
+      # AppImage, .deb and .rpm, all wrapping the binary above. The script
+      # downloads appimagetool and the AppImage runtime and checks them by
+      # SHA-256 before use.
+      run: |
+        version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' src/__init__.py)
+        test -n "$version"
+        bash packaging/linux/build_packages.sh "$version" dist/yt-dlp-studio dist/packages
+
+    - name: Test Linux packages
+      # Launches the AppImage, installs the .deb with apt, launches it, purges
+      # it (user data must survive) and launches the extracted .rpm payload.
+      run: bash scripts/test_linux_packages.sh dist/yt-dlp-studio dist/packages
+
     - name: Upload artifact
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: YT-DLP-Studio-Linux
-        path: dist/yt-dlp-studio
+        path: |
+          dist/yt-dlp-studio
+          dist/packages/*.AppImage
+          dist/packages/*.deb
+          dist/packages/*.rpm
         retention-days: 7
 
     - name: Display build info
