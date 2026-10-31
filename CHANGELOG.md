@@ -17,7 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no entries yet)_
+### Added
+
+- **Linux packages.** Each release now ships an AppImage, a `.deb` and an `.rpm` beside the `.tar.gz`. All four wrap the same PyInstaller binary. The `.deb` and `.rpm` install into `/opt/yt-dlp-studio`, pull in FFmpeg and add a menu entry. Removing or purging them keeps settings and history in `~/.config/YT-DLP Studio`.
+- **Updates match the install.** The updater offers an AppImage copy the new AppImage, a `.deb` install the new `.deb` and an `.rpm` install the new `.rpm`. The `.tar.gz` copy still gets the archive. Each kind shows its own next step.
+- **CI tests every Linux package.** CI launches the AppImage headless. It installs the `.deb` with apt, launches it and purges it, then checks that user data survives. It extracts the `.rpm` and launches its payload. Every payload must match the built binary byte for byte.
+
+### Not verified
+
+- The `.rpm` is built and checked on Ubuntu, but no CI job installs it on Fedora or openSUSE. A real `dnf install` is still to be tested.
+- The AppImage runs on the Ubuntu 22.04 runner without FUSE (extract-and-run). A double-click launch on a desktop with FUSE is still to be tested.
 
 ---
 
