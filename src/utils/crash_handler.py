@@ -93,7 +93,7 @@ def _read_log_tail() -> list[str]:
         log_path = Path(LOG_PATH)
         if not log_path.exists():
             return []
-        # Read full file then tail — log is rotated at 5MB so this is bounded.
+        # Read full file then tail: the log is rotated at 5MB so this is bounded.
         text = log_path.read_text(encoding="utf-8", errors="replace")
         return text.splitlines()[-LOG_TAIL_LINES:]
     except Exception:

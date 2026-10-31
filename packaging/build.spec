@@ -61,7 +61,7 @@ a = Analysis(
         'PySide6.QtCore',
         'PySide6.QtGui',
         'PySide6.QtWidgets',
-        # Notifications (plyer not installed — system tray used instead)
+        # Notifications use the Qt system tray (plyer was removed in 0.3.1)
         # Python 3.13/3.14 compatibility - standard library modules not auto-detected
         'optparse',
         'xml.etree',

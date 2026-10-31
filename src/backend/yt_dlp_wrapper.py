@@ -517,7 +517,7 @@ class YtDlpWrapper:
             "no_warnings": True,
             "skip_download": True,
             "listsubtitles": False,  # Don't print to console
-            "noplaylist": True,  # Never process the full playlist — only the single video
+            "noplaylist": True,  # Never process the full playlist, only the single video
         }
 
         if ffmpeg_location:

@@ -94,7 +94,7 @@ AUDIO_FORMATS = {
 DEFAULT_AUDIO_FORMAT = "MP3 (Most Compatible)"
 
 # Thumbnail settings (v1.7.0)
-THUMBNAIL_DOWNLOAD = False  # Thumbnail off by default — user opts in
+THUMBNAIL_DOWNLOAD = False  # Thumbnail off by default; the user opts in
 THUMBNAIL_FORMATS = ["jpg", "png", "webp"]  # Supported formats
 
 # v2.0.0: Metadata Download Options

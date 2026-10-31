@@ -461,7 +461,7 @@ class QueueManager(QObject):
 
         A conflict occurs when two tasks download the same URL with the same
         yt-dlp format string (meaning they'd write to identical temp files).
-        The task is deferred — it will auto-start once the conflicting
+        The task is deferred: it will auto-start once the conflicting
         download finishes.
 
         Args:
@@ -529,7 +529,7 @@ class QueueManager(QObject):
                 continue
             if self._has_conflicting_download(task):
                 logger.info(
-                    f"Deferring task {i} ({task.url[:60]}) — "
+                    f"Deferring task {i} ({task.url[:60]}) - "
                     f"same URL+format already downloading, will auto-start when ready"
                 )
                 continue

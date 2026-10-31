@@ -68,7 +68,7 @@ def ensure_deno_installed() -> Path | None:
     Ensure Deno is available. Downloads it on first run if missing.
 
     Returns the path to the deno binary if installed/found, or None if
-    the platform is unsupported or download failed. Failure is non-fatal —
+    the platform is unsupported or download failed. Failure is non-fatal -
     the app still works without Deno (just with limited YouTube formats).
     """
     if _is_deno_available():
