@@ -10,6 +10,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from .backend.config_manager import ConfigManager
+from .backend.environment import start_environment_log
 from .ui.main_window import MainWindow
 from .utils.constants import APP_NAME, APP_USER_MODEL_ID, APP_VERSION
 from .utils.deno_installer import ensure_deno_installed
@@ -89,6 +90,10 @@ class App:
 
         # Log startup complete
         logger.info(f"{APP_NAME} started successfully")
+
+        # One line with the versions and install kind, for bug reports. It
+        # runs in a background thread because it starts FFmpeg once.
+        start_environment_log()
 
         # Start event loop
         return self.qt_app.exec()
