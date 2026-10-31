@@ -17,7 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no entries yet)_
+### Fixed
+
+- **No console window flash at launch on Windows.** The About tab ran `ffmpeg -version` while the window was built, and Windows opened a console window for it. FFmpeg now starts without a window, only when the About tab is first shown or from a background thread at startup, and at most once per run.
+- **The About tab shows the FFmpeg the downloader uses.** It used to run whatever `ffmpeg` was first on PATH. It now asks the same FFmpeg that downloads use, which is the bundled copy in the Windows EXE.
+
+### Changed
+
+- **One Environment line in the startup log.** Right after "started successfully" the log shows the app, engine, FFmpeg and Deno versions, Python, Qt and the install kind. This helps with bug reports. A failed lookup shows "unknown" and never stops startup.
+- **The impersonation warning is quiet.** yt-dlp warns "no impersonate target is available" on some sites because curl_cffi is not shipped. Downloads still work, so this one message now goes to the log at DEBUG. Other warnings stay at WARNING.
 
 ---
 
