@@ -28,13 +28,13 @@ a = Analysis(
         (str(project_root / 'ffmpeg' / 'bin' / 'ffprobe.exe'), '.'),
         (str(project_root / 'ffmpeg' / 'bin' / 'ffplay.exe'), '.'),
         # Required DLL dependencies
-        (str(project_root / 'ffmpeg' / 'bin' / 'avcodec-62.dll'), '.'),
-        (str(project_root / 'ffmpeg' / 'bin' / 'avdevice-62.dll'), '.'),
-        (str(project_root / 'ffmpeg' / 'bin' / 'avfilter-11.dll'), '.'),
-        (str(project_root / 'ffmpeg' / 'bin' / 'avformat-62.dll'), '.'),
-        (str(project_root / 'ffmpeg' / 'bin' / 'avutil-60.dll'), '.'),
-        (str(project_root / 'ffmpeg' / 'bin' / 'swresample-6.dll'), '.'),
-        (str(project_root / 'ffmpeg' / 'bin' / 'swscale-9.dll'), '.'),
+        (str(project_root / 'ffmpeg' / 'bin' / 'avcodec-63.dll'), '.'),
+        (str(project_root / 'ffmpeg' / 'bin' / 'avdevice-63.dll'), '.'),
+        (str(project_root / 'ffmpeg' / 'bin' / 'avfilter-12.dll'), '.'),
+        (str(project_root / 'ffmpeg' / 'bin' / 'avformat-63.dll'), '.'),
+        (str(project_root / 'ffmpeg' / 'bin' / 'avutil-61.dll'), '.'),
+        (str(project_root / 'ffmpeg' / 'bin' / 'swresample-7.dll'), '.'),
+        (str(project_root / 'ffmpeg' / 'bin' / 'swscale-10.dll'), '.'),
     ],
     datas=[
         # Include yt_dlp engine (vendored)

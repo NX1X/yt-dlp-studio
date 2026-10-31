@@ -173,12 +173,12 @@ jobs:
       # When bumping a version, update the matching SHA-256 in the same commit.
       # Procedure: download the asset locally, run `Get-FileHash -Algorithm SHA256`,
       # cross-check against the publisher's own checksum file, then paste here.
-      DENO_VERSION: "2.9.6"
+      DENO_VERSION: "2.9.8"
       # Cross-checked against
-      # https://github.com/denoland/deno/releases/download/v2.9.6/deno-x86_64-pc-windows-msvc.zip.sha256sum
-      DENO_SHA256: "15e5300b0ba3c3695a7621d90160a746ec9e710228cee639afa9d580f6e3cd11"
-      FFMPEG_VERSION: "8.1.2"
-      FFMPEG_SHA256: "cba748035c21ce1431d0823c7a3a711f38616f89f87a265dceddf9b7f6749d2d"
+      # https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-pc-windows-msvc.zip.sha256sum
+      DENO_SHA256: "cba84b26e0df5ae7f74fc66b86a95b866872a86292ebd84fa1e959927edd93bf"
+      FFMPEG_VERSION: "9.0.2"
+      FFMPEG_SHA256: "4d2060a8b34a940aa47d785142055bb92a63053781e55f2ace4546edd519a8f5"
     steps:
     - name: Harden runner
       # See lint job for rationale. Windows runner, so no apt and disable-sudo

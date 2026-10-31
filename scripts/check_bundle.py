@@ -39,13 +39,13 @@ REQUIRED_WINDOWS = [
     "ffmpeg.exe",
     "ffprobe.exe",
     "deno.exe",
-    "avcodec-62.dll",
-    "avdevice-62.dll",
-    "avfilter-11.dll",
-    "avformat-62.dll",
-    "avutil-60.dll",
-    "swresample-6.dll",
-    "swscale-9.dll",
+    "avcodec-63.dll",
+    "avdevice-63.dll",
+    "avfilter-12.dll",
+    "avformat-63.dll",
+    "avutil-61.dll",
+    "swresample-7.dll",
+    "swscale-10.dll",
 ]
 
 # Pure-Python modules that must be in the embedded PYZ archive.
