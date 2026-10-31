@@ -21,6 +21,43 @@ _(no entries yet)_
 
 ---
 
+## [0.3.0] - 2026-10-31
+
+### Installable: a real Windows installer that updates itself in place, a download queue that survives a restart, and working notifications and history.
+
+### Added
+
+- **Windows installer** (#61). `YT-DLP-Studio-Setup-<version>.exe` installs per user, with no admin rights, into `%LOCALAPPDATA%\Programs\YT-DLP Studio`. It adds a Start-menu shortcut and an optional desktop shortcut, in English or Hebrew. It installs the same one-file EXE as the portable download, so the two cannot drift. The portable EXE and ZIP stay available.
+  - **Uninstall keeps your data.** Settings, download history and logs in `%APPDATA%\YT-DLP Studio` stay. Deleting them needs a Yes in a box that defaults to No, or `/PURGEDATA=yes` for unattended use.
+  - **Tested on a real Windows runner in CI**, on every PR and release: silent install, launch of the installed app until it logs "started successfully", silent uninstall with user data kept, then reinstall and uninstall with `/PURGEDATA=yes`.
+  - The app now sets the same taskbar identity (AppUserModelID) as its shortcuts, so its window groups with the pinned icon.
+- **In-place updates** (#64). An installed copy downloads the new installer, checks its SHA-256 against the published digest, runs it silently and starts again. A portable copy downloads the new portable EXE and says plainly that it is a separate copy that does not replace the running one.
+  - Security hardening from a review of this feature: the file is checked again right before it runs; downloads are written to `<name>.part` until verified; only https downloads from GitHub release hosts are accepted, also after redirects; downloads larger than the published size are stopped; the file name from the GitHub API must be a plain name inside the Downloads folder. A ZIP or an unknown file is shown in Explorer, never run.
+- **The download queue survives a restart** (#63). Pending, running and failed tasks are saved to `download_queue.json` (with a format version) next to the history file, and restored on the next start. A paused queue stays paused. A damaged file never stops the app from starting; it is kept as `download_queue.json.bad`.
+- **Retry failed downloads** (#63): a Retry button per task, a "Retry All Failed" button, and one automatic retry for network errors only (never for private, geo-blocked, removed or copyrighted videos).
+
+### Changed
+
+- **Bundled yt-dlp engine 2026.08.19 -> 2026.10.26.** Tarball SHA-256 `21f942d258d25cc4e60b4982a25c423460f0bebb835f38e6dfd1fcb140087f95`, matching the `SHA2-256SUMS` file signed by the pinned yt-dlp release key (`AC0CBBE6848D6A873464AF4E57CF65933B5A7581`, GPG "Good signature"). Includes the 2026.10.21 YouTube fixes (a new default `tv_samsung` client, a fix for initial data extraction, clearer error messages). Still uses `yt-dlp-ejs==0.8.0`, unchanged.
+- **Deno 2.9.6 -> 2.9.8** in `deno_installer.py`, `build.yml` and `release.yml`. SHA-256 `cba84b26e0df5ae7f74fc66b86a95b866872a86292ebd84fa1e959927edd93bf`, the same in the publisher's sidecar file, the downloaded asset and the GitHub release digest.
+- **FFmpeg 8.1.2 -> 9.0.2** in `build.yml` and `release.yml` (SHA-256 `4d2060a8b34a940aa47d785142055bb92a63053781e55f2ace4546edd519a8f5`, the same in the download and the GitHub digest). This is a major version: every library file name changed (`avcodec-63`, `avdevice-63`, `avfilter-12`, `avformat-63`, `avutil-61`, `swresample-7`, `swscale-10`, read from the real 9.0.2 archive). `packaging/build.spec` and the CI bundle check were updated to match.
+- **Cooldown override, by decision.** yt-dlp 2026.10.26 (4 days old) and Deno 2.9.8 (9 days old) were taken inside the project's cooldown window (7 and 14 days) because the maintainer asked for the latest versions. yt-dlp's GPG signature check against the pinned key still guards against a hijacked release.
+- **Running from source now needs Python 3.11 or newer** (was 3.10). yt-dlp 2026.10.26 dropped Python 3.10. `requires-python`, the lint targets and the lock files moved to 3.11; the relock only removed packages that 3.10 alone needed. The Windows EXE and the Linux binary bundle their own Python, so they are not affected, and the Linux binary still runs on Ubuntu 22.04.
+
+### Fixed
+
+- **Desktop notifications never appeared** (#62). The app never created its tray icon, so every notification fell through to a library the EXE cannot use. Notifications now go through the tray icon, then `notify-send` on Linux. "Notification sent" is logged only when a notification really went out.
+- **The real file name is shown and opened** (#65). Nothing recorded the downloaded file, so the Queue tab, notifications and the "Download complete" box said "video file", and "Open file" could not find the file. They now use the real name and title from yt-dlp.
+- **The History tab never got new entries** (#66). Finished downloads are now recorded: completions, final failures with the real reason, and cancels. A failure that is about to be retried waits for its final result. The tab refreshes on its own.
+- **The queue could run more than 3 downloads at once** (#63). After a restore or "Retry All", a running download could be lost track of when tasks were removed or reordered. Downloads are now tracked by task, threads are kept until they finish, and closing the app cancels running downloads and waits up to 4 seconds for them.
+- **Release pipeline race** (#61). A release could fail to create its tag while its own test jobs were still running, which is what happened to the first v0.2.1 run. Release runs now queue, and the tag waits for the required checks.
+
+### Not verified before release
+
+These need a real Windows desktop, not a CI runner: the interactive installer wizard, the Yes/No box on uninstall, the desktop shortcut, and Windows toast notifications. The first real in-place update happens when 0.3.0 updates to a later release.
+
+---
+
 ## [0.2.1] - 2026-10-30
 
 ### Maintenance release: removes curl_cffi, hash-pins every CI install, and makes CI check the contents of each built executable.
@@ -65,6 +102,13 @@ _(no entries yet)_
   - Verified: each lock installs with `--require-hashes` on its target Python (`lock.txt` on 3.10 and 3.14, `dev.txt` and `build-tools.txt` on 3.10, `ci-tools.txt` on 3.11), and the full test suite passes (485 tests).
 - **Every CI `pip install` is now hash-pinned.** The three `pip install -e .[dev]` steps (in `build.yml`, `release.yml` and `bump-yt-dlp-engine.yml`) become `pip install --require-hashes -r requirements/dev.txt --only-binary :all:`. The editable install is gone entirely: `conftest.py` already puts the repo on `sys.path`, and nothing reads the installed package metadata. This clears the 6 open OpenSSF Scorecard `PinnedDependenciesID` alerts and SonarCloud `githubactions:S8541` / `S8544`.
 - **`update_checker.py` mounts its retry adapter for HTTPS only.** It no longer mounts one for `http://`, which nothing used (SonarCloud hotspot `python:S5332`).
+
+### Also shipped in this release
+
+Two changes merged a few seconds after #58 and were built into the published 0.2.1 (its tag points at `28dcfdf`):
+
+- **LICENSE restored to the verbatim Apache-2.0 text, and a NOTICE file added** (#57). The committed license had drifted from the canonical text in two places. Third-party attribution moved to `NOTICE`.
+- **Three unused UI modules removed** (#60): `video_player_widget.py`, `filter_dialog.py` and `bandwidth_widget.py`, 431 statements that nothing imported. Audio-only downloads are no longer labelled "video file" in the completion fallback.
 
 ### Dependencies
 

@@ -1,6 +1,6 @@
-# YT-DLP Studio v0.2.1 - Release Notes
+# YT-DLP Studio v0.3.0 - Release Notes
 
-**Release Date:** 2026-10-30
+**Release Date:** 2026-10-31
 **Status:** Public Beta
 
 > This file describes the **current release**. For full per-version history, see [CHANGELOG.md](CHANGELOG.md). For planned future work, see [ROADMAP.md](ROADMAP.md).
@@ -17,15 +17,20 @@ This is a **public beta**. The core feature set is functional and the app is usa
 
 ---
 
-## What's new in v0.2.1
+## What's new in v0.3.0
 
-**A maintenance release.** There are no new features, and downloads work as before.
+**An installer, and updates that replace the app.**
 
-- **Safer builds.** Before any release is published, CI now opens the built app and checks that every file it needs is inside. That includes the YouTube challenge solver whose absence broke downloads in v0.1.3.
-- **One library removed.** The app no longer ships `curl_cffi`, a browser-impersonation library. Video, audio and English subtitle downloads were tested without it and work. You may see one new warning in the log about impersonation; it is harmless.
-- **Tighter supply chain.** Every package used to build and test the app is now pinned by hash and is at least 14 days old.
+- **Install it like a normal Windows app.** Download `YT-DLP-Studio-Setup-0.3.0.exe` and run it. It needs no admin rights and adds a Start-menu shortcut. The portable EXE and ZIP are still available.
+- **Updates install themselves.** If you used the installer, accepting an update now installs it and restarts the app. No second copy in your Downloads folder.
+- **Uninstalling keeps your data.** Your settings and download history stay, unless you choose to delete them.
+- **Your queue survives a restart.** Close the app with downloads waiting, and they are still there next time.
+- **Retry failed downloads** with one click, or let the app retry a dropped connection once on its own.
+- **Notifications work.** You now get a notice when a download finishes.
+- **Newer download engine and tools:** yt-dlp 2026.10.26 (with the latest YouTube fixes), Deno 2.9.8 and FFmpeg 9.0.2.
+- **The real file name everywhere.** The Queue tab, notifications and "Open file" now use the actual file, and the History tab finally records your downloads.
 
-Nothing to migrate: your settings, history and download folder carry over. Full detail is in [CHANGELOG.md](CHANGELOG.md).
+Coming from v0.2.x? Install v0.3.0 with the new installer once; after that, updates install themselves. Your settings and history carry over. Running from source now needs Python 3.11 or newer. Full detail is in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -45,7 +50,9 @@ See [CHANGELOG.md](CHANGELOG.md) for the full list, including the frozen-build `
 ## Installation
 
 ### Windows
-Download `yt-dlp-studio-<version>-Windows.zip` from the [Releases page](https://github.com/NX1X/yt-dlp-studio/releases), extract, and run `yt-dlp-studio.exe`. FFmpeg and Deno are bundled - no dependencies.
+Download `YT-DLP-Studio-Setup-<version>.exe` from the [Releases page](https://github.com/NX1X/yt-dlp-studio/releases) and run it. It needs no admin rights. FFmpeg and Deno are bundled, so there are no dependencies.
+
+For a portable copy, download `yt-dlp-studio-<version>-Windows.zip`, extract it and run `yt-dlp-studio.exe`.
 
 ### Linux (any glibc 2.35+ distro, not just Ubuntu)
 ```bash
@@ -66,7 +73,7 @@ cd yt-dlp-studio
 pip install -e .
 python launcher.py
 ```
-Requires Python 3.10+. On Linux, install FFmpeg first (`sudo apt install ffmpeg`).
+Requires Python 3.11+. On Linux, install FFmpeg first (`sudo apt install ffmpeg`).
 
 ---
 

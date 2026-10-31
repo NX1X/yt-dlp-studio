@@ -12,7 +12,7 @@ description = "A user-friendly desktop GUI for yt-dlp — download videos and au
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [
     { name = "NX1X" },
 ]
@@ -43,10 +43,10 @@ classifiers = [
     "Operating System :: Microsoft :: Windows :: Windows 11",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Multimedia :: Sound/Audio",
     "Topic :: Multimedia :: Video",
     "Topic :: Internet :: WWW/HTTP",
@@ -196,11 +196,10 @@ exclude_lines = [
 # ---------------------------------------------------------------------------
 [tool.ruff]
 line-length = 120
-# py310, matching requires-python = ">=3.10" and the 3.10 classifier. Keeping
-# this at py311 previously let 3.11-only idioms (datetime.UTC) slip in and break
-# run-from-source on Python 3.10 - e.g. stock Ubuntu 22.04, whose system Python
-# is 3.10. Pinning it to py310 keeps lint honest about the supported floor.
-target-version = "py310"
+# py311, matching the requires-python floor of 3.11. The floor moved from 3.10
+# to 3.11 in 0.3.0, because the bundled yt-dlp (2026.10.26 and later) dropped
+# 3.10. Keeping the target at the floor keeps lint honest about it.
+target-version = "py311"
 src = ["src", "tests"]
 exclude = [
     "vendor",
@@ -253,7 +252,7 @@ known-first-party = ["src"]
 # ---------------------------------------------------------------------------
 [tool.black]
 line-length = 120
-target-version = ["py310"]
+target-version = ["py311"]
 extend-exclude = '''
 /(
     vendor

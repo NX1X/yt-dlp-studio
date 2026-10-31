@@ -299,7 +299,7 @@ UI shows result dialog
 ### Application Won't Start
 
 **Check:**
-1. Python version: Requires Python 3.10+
+1. Python version: Requires Python 3.11+
    ```bash
    python --version
    ```

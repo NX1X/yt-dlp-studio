@@ -13,7 +13,7 @@ By participating, you are expected to uphold it.
 
 ### Prerequisites
 
-- **Python 3.11+** (3.10 minimum)
+- **Python 3.11+**
 - **Git**
 - **FFmpeg** (for full functionality - bundled with the Windows release; install
   separately on Linux/macOS)
@@ -82,7 +82,7 @@ python launcher.py
 
 | Topic            | Rule                                                     |
 |------------------|----------------------------------------------------------|
-| Python version   | 3.11+ (3.10 minimum)                                     |
+| Python version   | 3.11+                                                    |
 | Line length      | 120 characters                                           |
 | Linter           | `ruff check`                                             |
 | Formatter        | `black` (and `ruff format` for orchestration)            |

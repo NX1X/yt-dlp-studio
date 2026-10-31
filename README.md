@@ -5,7 +5,7 @@
 [![Version](https://img.shields.io/github/v/release/NX1X/yt-dlp-studio?label=version&color=blue)](https://github.com/NX1X/yt-dlp-studio/releases)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-%3E%3D3.10-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue.svg)](https://www.python.org/)
 [![Build YT-DLP Studio](https://github.com/NX1X/yt-dlp-studio/actions/workflows/build.yml/badge.svg)](https://github.com/NX1X/yt-dlp-studio/actions/workflows/build.yml)
 [![Release](https://github.com/NX1X/yt-dlp-studio/actions/workflows/release.yml/badge.svg)](https://github.com/NX1X/yt-dlp-studio/actions/workflows/release.yml)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-yellow?logo=buy-me-a-coffee&logoColor=white)](https://buymeacoffee.com/nx1x)
@@ -69,14 +69,19 @@ See the [Getting Started guide](docs/GETTING_STARTED.md) for how to use each fea
 
 **Requirements:** Windows 10/11, or 64-bit Linux with glibc 2.35+ (Ubuntu
 22.04+, Debian 12+, Fedora 36+, Linux Mint 21+, Arch, and most 2022-and-later
-distributions). Python 3.10+ only if running from source.
+distributions). Python 3.11+ only if running from source. The standalone
+Linux binary needs no Python, so it also runs on Ubuntu 22.04, whose system
+Python is 3.10.
 
 ### Option 1: Standalone executable (no Python)
 
 **Windows**
 
-1. Download the latest `yt-dlp-studio-<version>-Windows.zip` from [Releases](https://github.com/NX1X/yt-dlp-studio/releases)
-2. Extract and run `yt-dlp-studio.exe` (FFmpeg and Deno are bundled)
+1. Download the latest `YT-DLP-Studio-Setup-<version>.exe` from [Releases](https://github.com/NX1X/yt-dlp-studio/releases).
+2. Run it. It needs no admin rights and adds a Start-menu shortcut. FFmpeg and Deno are bundled.
+3. Later updates install themselves from inside the app.
+
+Prefer no install? Download `yt-dlp-studio-<version>-Windows.zip`, extract it and run `yt-dlp-studio.exe`.
 
 **Linux** (works on any glibc 2.35+ distribution, not just Ubuntu)
 
