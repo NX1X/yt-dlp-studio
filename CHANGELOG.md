@@ -17,7 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no entries yet)_
+### Fixed
+
+- **Desktop notifications in Hebrew.** The titles and texts for a finished download, a failed download, a finished batch and an available update now follow the UI language. Video titles stay exactly as they are. The update notification no longer says "Click to update", because a click does not start an update.
+- **A failed download no longer shows "Download failed" twice.** The notification now shows the yt-dlp reason when there is one. A cancelled download shows the translated "Cancelled".
+- **Queue and History status in Hebrew.** The Status column in the Queue tab and the History tab now shows translated text. The English UI shows "Pending" instead of "PENDING". The queue file and the history file still store the English values, so files stay compatible.
+- **The History "clear" confirmation shows a translated status.** It used to show the stored English value inside the Hebrew text.
 
 ---
 
