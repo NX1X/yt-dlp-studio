@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QSystemTrayIcon
 
 import src.utils.notification_manager as nm_module
 from src.utils.notification_manager import NotificationManager
+from src.utils.translations import TRANSLATIONS, get_translation_manager
 
 NOTIFY_SEND = "/usr/bin/notify-send"
 SENT = "Notification sent"
@@ -218,6 +219,45 @@ class TestNoPlyer:
         assert len(warnings) == 1
         backends = warnings[0].getMessage().split("Backends tried: ", 1)[1]
         assert [part.split(":", 1)[0] for part in backends.split("; ")] == ["tray", "notify-send"]
+
+
+class TestTrayMenuTranslations:
+    """The tray menu texts come from the translation tables."""
+
+    @staticmethod
+    def _menu_texts(manager) -> list[str]:
+        return [a.text() for a in manager._tray_menu.actions() if not a.isSeparator()]
+
+    @pytest.mark.parametrize("language", ["en", "he"])
+    def test_menu_uses_translations(self, manager, language):
+        tm = get_translation_manager()
+        previous = tm.get_language()
+        tm.set_language(language)
+        try:
+            with patch.object(QSystemTrayIcon, "isSystemTrayAvailable", return_value=True):
+                assert manager.setup_system_tray() is True
+            expected = [TRANSLATIONS[language]["tray_show_window"], TRANSLATIONS[language]["tray_quit"]]
+            assert self._menu_texts(manager) == expected
+        finally:
+            manager.hide_tray_icon()
+            tm.set_language(previous)
+
+    def test_hebrew_tray_texts(self):
+        assert TRANSLATIONS["he"]["tray_show_window"] == "הצג חלון"
+        assert TRANSLATIONS["he"]["tray_quit"] == "יציאה"
+
+    def test_menu_actions_still_emit_signals(self, manager):
+        with patch.object(QSystemTrayIcon, "isSystemTrayAvailable", return_value=True):
+            manager.setup_system_tray()
+        show, quit_ = (a for a in manager._tray_menu.actions() if not a.isSeparator())
+        shown, quit_seen = [], []
+        manager.show_window_requested.connect(lambda: shown.append(True))
+        manager.quit_requested.connect(lambda: quit_seen.append(True))
+        show.trigger()
+        quit_.trigger()
+        manager.hide_tray_icon()
+        assert shown == [True]
+        assert quit_seen == [True]
 
 
 class TestNoFalseSuccessLog:

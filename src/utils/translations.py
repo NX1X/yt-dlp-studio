@@ -243,6 +243,9 @@ TRANSLATIONS = {
         "notif_download_error": "Download Error",
         "notif_batch_complete": "Batch Download Complete",
         "notif_update_available": "Update Available",
+        # System Tray
+        "tray_show_window": "Show Window",
+        "tray_quit": "Quit",
         # Update Dialog
         "update_title": "Update Available",
         "update_message": "Version {version} is available!\n\nCurrent version: {current}\nNew version: {new}\n\nWould you like to download the update?",
@@ -763,6 +766,9 @@ TRANSLATIONS = {
         "notif_download_error": "שגיאת הורדה",
         "notif_batch_complete": "הורדה קבוצתית הושלמה",
         "notif_update_available": "עדכון זמין",
+        # System Tray
+        "tray_show_window": "הצג חלון",
+        "tray_quit": "יציאה",
         # Update Dialog
         "update_title": "עדכון זמין",
         "update_message": "גרסה {version} זמינה!\n\nגרסה נוכחית: {current}\nגרסה חדשה: {new}\n\nהאם ברצונך להוריד את העדכון?",

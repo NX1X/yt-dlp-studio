@@ -28,6 +28,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon
 
 from ..utils.constants import APP_NAME
 from ..utils.logger import get_logger
+from ..utils.translations import tr
 
 logger = get_logger()
 
@@ -137,13 +138,13 @@ class NotificationManager(QObject):
         # Keep the menu referenced: setContextMenu does not take ownership.
         self._tray_menu = QMenu()
 
-        show_action = QAction("Show Window", self)
+        show_action = QAction(tr("tray_show_window"), self)
         show_action.triggered.connect(self.show_window_requested.emit)
         self._tray_menu.addAction(show_action)
 
         self._tray_menu.addSeparator()
 
-        quit_action = QAction("Quit", self)
+        quit_action = QAction(tr("tray_quit"), self)
         quit_action.triggered.connect(self.quit_requested.emit)
         self._tray_menu.addAction(quit_action)
 
