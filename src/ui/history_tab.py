@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 from ..backend.history_manager import HistoryManager
 from ..utils.file_helper import FileHelper
 from ..utils.logger import get_logger
+from ..utils.status_labels import history_status_text
 from ..utils.translations import tr
 
 logger = get_logger()
@@ -174,8 +175,8 @@ class HistoryTab(QWidget):
             quality_item = QTableWidgetItem(entry.quality)
             self.history_table.setItem(row, 2, quality_item)
 
-            # Status
-            status_item = QTableWidgetItem(entry.status.upper())
+            # Status: translated for display only; the stored value stays English.
+            status_item = QTableWidgetItem(history_status_text(entry.status))
             if entry.status == "completed":
                 status_item.setForeground(Qt.green)
             elif entry.status == "failed":
@@ -214,8 +215,8 @@ class HistoryTab(QWidget):
             quality_item = QTableWidgetItem(entry.quality)
             self.history_table.setItem(row, 2, quality_item)
 
-            # Status
-            status_item = QTableWidgetItem(entry.status.upper())
+            # Status: translated for display only; the stored value stays English.
+            status_item = QTableWidgetItem(history_status_text(entry.status))
             self.history_table.setItem(row, 3, status_item)
 
             # Size
@@ -247,7 +248,7 @@ class HistoryTab(QWidget):
             reply = QMessageBox.question(
                 self,
                 tr("dialog_confirm_clear"),
-                tr("msg_clear_status_confirm", status=status),
+                tr("msg_clear_status_confirm", status=history_status_text(status)),
                 QMessageBox.Yes | QMessageBox.No,
             )
         else:

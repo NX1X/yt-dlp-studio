@@ -21,6 +21,7 @@ jobs:
   check-version:
     name: Check for new version
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     outputs:
@@ -33,7 +34,7 @@ jobs:
       # Tightest list in this workflow: only checkout (with full history),
       # local-only python script, and a `git ls-remote --tags origin` to
       # decide release immutability. Everything contacts github.com.
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: true
@@ -104,6 +105,7 @@ jobs:
     needs: [check-version]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     permissions:
       contents: read
     strategy:
@@ -115,7 +117,7 @@ jobs:
       # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
       # Mirrors build.yml's test job: pip from PyPI, Linux leg uses apt for
       # xvfb/EGL/dbus libs (so disable-sudo MUST be false).
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: false                # Linux leg runs `sudo apt-get`
@@ -174,6 +176,7 @@ jobs:
     needs: [check-version, test]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: windows-latest
+    timeout-minutes: 45
     permissions:
       contents: write
       id-token: write       # OIDC token for Sigstore signing
@@ -196,7 +199,7 @@ jobs:
       # objects.githubusercontent.com for Deno/FFmpeg release downloads, and
       # the four Sigstore endpoints (incl. sigstore.github.com) for the
       # attest-build-provenance step.
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: true                 # Windows; no sudo step
@@ -451,6 +454,7 @@ jobs:
     # distros. 22.04's 2.35 covers Ubuntu 22.04+, Debian 12+, Fedora 36+, and
     # most 2022-and-later distributions. Keep in lockstep with build.yml.
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write       # OIDC token for Sigstore signing
@@ -461,7 +465,7 @@ jobs:
       # Mirrors the Linux test allowlist plus PyInstaller wheel fetches and the
       # Sigstore endpoints required by attest-build-provenance (incl. the often-
       # missed sigstore.github.com). Kept in lockstep with build-windows.
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: false                # `sudo apt-get` for EGL/dbus libs
@@ -664,6 +668,7 @@ jobs:
     needs: [check-version, build-windows, build-linux]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     permissions:
       contents: write
       checks: read   # wait for required checks before tagging
@@ -675,7 +680,7 @@ jobs:
       # asset upload. uploads.github.com is the multipart PUT endpoint for
       # release assets and is required ONLY by this job — without it the
       # release object is created but file uploads silently fail.
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: true
