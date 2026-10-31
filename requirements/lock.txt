@@ -143,10 +143,6 @@ packaging==26.3 \
     --hash=sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79 \
     --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
     # via yt-dlp-studio (pyproject.toml)
-plyer==2.1.0 \
-    --hash=sha256:1b1772060df8b3045ed4f08231690ec8f7de30f5a004aa1724665a9074eed113 \
-    --hash=sha256:65b7dfb7e11e07af37a8487eb2aa69524276ef70dad500b07228ce64736baa61
-    # via yt-dlp-studio (pyproject.toml)
 pyside6==6.11.2 \
     --hash=sha256:0444ac71d0791a19bded35f6d9a94515941f23a6eb7098ca45a1b64a338be697 \
     --hash=sha256:13a3c79816879d9743672a669f1988f74459a78f89a97a2624fae4fe059ffa3a \

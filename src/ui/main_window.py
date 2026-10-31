@@ -61,6 +61,7 @@ class MainWindow(QMainWindow):
         from ..utils.notification_manager import NotificationManager
 
         self.notification_manager = NotificationManager(self)
+        self.notification_manager.set_enabled(self.config_manager.get_config().notifications_enabled)
 
         # Create history manager (v2.0.0) first: the queue records finished
         # downloads in it.
@@ -173,6 +174,7 @@ class MainWindow(QMainWindow):
 
         # Connect settings to download tab (v1.9.0 smart folder logic)
         self.settings_tab.default_folder_changed.connect(self.download_tab.update_output_directory)
+        self.settings_tab.notifications_enabled_changed.connect(self.notification_manager.set_enabled)
 
         # Add tabs with translations (v2.0.0 - added History and About tabs)
         self.tabs.addTab(self.download_tab, tr("tab_download"))

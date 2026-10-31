@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QSystemTrayIcon
 
 import src.utils.notification_manager as nm_module
 from src.utils.notification_manager import NotificationManager
+from src.utils.translations import TRANSLATIONS, get_translation_manager
 
 NOTIFY_SEND = "/usr/bin/notify-send"
 SENT = "Notification sent"
@@ -22,12 +23,11 @@ SENT = "Notification sent"
 
 @pytest.fixture
 def manager(qapp):
-    """A manager with no tray, no notify-send and no plyer by default."""
+    """A manager with no tray and no notify-send by default."""
     mgr = NotificationManager()
     with (
         patch.object(nm_module, "_is_linux_like", return_value=True),
         patch.object(nm_module.shutil, "which", return_value=None),
-        patch.object(nm_module, "_plyer_notification", None),
         patch.object(nm_module.subprocess, "run") as run,
     ):
         mgr.run_mock = run
@@ -165,7 +165,7 @@ class TestNotifySendBackend:
         text = warnings[0].getMessage()
         assert "tray: no tray icon" in text
         assert "notify-send: not available" in text
-        assert "plyer: not installed" in text
+        assert "plyer" not in text
         assert _sent_records(caplog) == []
 
     def test_not_tried_off_linux(self, manager):
@@ -205,36 +205,59 @@ class TestNotifySendBackend:
         assert _sent_records(caplog) == []
 
 
-class TestPlyerLastResort:
-    def test_plyer_no_usable_implementation_is_failure(self, manager, caplog):
-        """The exact Windows bug: plyer raises, and nothing may log success."""
-        plyer = MagicMock()
-        plyer.notify.side_effect = NotImplementedError("No usable implementation found!")
+class TestNoPlyer:
+    """plyer was removed: the tray and notify-send are the only backends."""
+
+    def test_module_does_not_reference_plyer(self):
+        assert not hasattr(nm_module, "_plyer_notification")
+        assert not hasattr(NotificationManager, "_send_via_plyer")
+
+    def test_failure_names_only_tray_and_notify_send(self, manager, caplog):
         caplog.set_level(logging.INFO, logger="YT-DLP Studio")
-        with patch.object(nm_module, "_plyer_notification", plyer):
-            assert manager.notify_download_complete("Video") is False
-        plyer.notify.assert_called_once()
+        assert manager.notify_custom("t", "m") is False
         warnings = _warnings(caplog)
         assert len(warnings) == 1
-        assert "plyer: error: No usable implementation found!" in warnings[0].getMessage()
-        assert _sent_records(caplog) == []
+        backends = warnings[0].getMessage().split("Backends tried: ", 1)[1]
+        assert [part.split(":", 1)[0] for part in backends.split("; ")] == ["tray", "notify-send"]
 
-    def test_plyer_success(self, manager, caplog):
-        plyer = MagicMock()
-        caplog.set_level(logging.INFO, logger="YT-DLP Studio")
-        with patch.object(nm_module, "_plyer_notification", plyer):
-            assert manager.notify_custom("t", "m") is True
-        assert len(_sent_records(caplog)) == 1
 
-    def test_plyer_not_used_when_notify_send_works(self, manager):
-        plyer = MagicMock()
-        manager.run_mock.return_value = _completed(0)
-        with (
-            patch.object(nm_module, "_plyer_notification", plyer),
-            patch.object(nm_module.shutil, "which", return_value=NOTIFY_SEND),
-        ):
-            assert manager.notify_custom("t", "m") is True
-        plyer.notify.assert_not_called()
+class TestTrayMenuTranslations:
+    """The tray menu texts come from the translation tables."""
+
+    @staticmethod
+    def _menu_texts(manager) -> list[str]:
+        return [a.text() for a in manager._tray_menu.actions() if not a.isSeparator()]
+
+    @pytest.mark.parametrize("language", ["en", "he"])
+    def test_menu_uses_translations(self, manager, language):
+        tm = get_translation_manager()
+        previous = tm.get_language()
+        tm.set_language(language)
+        try:
+            with patch.object(QSystemTrayIcon, "isSystemTrayAvailable", return_value=True):
+                assert manager.setup_system_tray() is True
+            expected = [TRANSLATIONS[language]["tray_show_window"], TRANSLATIONS[language]["tray_quit"]]
+            assert self._menu_texts(manager) == expected
+        finally:
+            manager.hide_tray_icon()
+            tm.set_language(previous)
+
+    def test_hebrew_tray_texts(self):
+        assert TRANSLATIONS["he"]["tray_show_window"] == "הצג חלון"
+        assert TRANSLATIONS["he"]["tray_quit"] == "יציאה"
+
+    def test_menu_actions_still_emit_signals(self, manager):
+        with patch.object(QSystemTrayIcon, "isSystemTrayAvailable", return_value=True):
+            manager.setup_system_tray()
+        show, quit_ = (a for a in manager._tray_menu.actions() if not a.isSeparator())
+        shown, quit_seen = [], []
+        manager.show_window_requested.connect(lambda: shown.append(True))
+        manager.quit_requested.connect(lambda: quit_seen.append(True))
+        show.trigger()
+        quit_.trigger()
+        manager.hide_tray_icon()
+        assert shown == [True]
+        assert quit_seen == [True]
 
 
 class TestNoFalseSuccessLog:

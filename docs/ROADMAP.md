@@ -2,6 +2,11 @@
 
 Development roadmap and future plans for YT-DLP Studio.
 
+> **Historical plan.** This file is the old development roadmap. Its version
+> numbers (1.x, 2.0.0) are old plan numbers, not public releases. The current
+> roadmap is [ROADMAP.md](../ROADMAP.md) at the repository root. The current
+> public release is **0.3.0** (2026-10-31).
+
 ---
 
 ## Version 1.0.0 (Released)
@@ -253,32 +258,34 @@ Development roadmap and future plans for YT-DLP Studio.
   - Paste multiple URLs at once
   - **Priority:** HIGH | **Time:** 1 hour
 
-- [ ] **Desktop Notifications**
+- [x] **Desktop Notifications**
   - notification_manager.py exists
-  - Download complete/failed alerts
-  - Settings toggle needed
+  - Download complete/failed alerts work since public 0.3.0 (#62)
+  - Settings toggle is wired after 0.3.0 (see CHANGELOG.md, Unreleased)
   - **Priority:** MEDIUM | **Time:** 1 hour
 
 - [ ] **Bandwidth Monitor**
-  - bandwidth_monitor.py and bandwidth_widget.py exist
+  - bandwidth_widget.py was removed in public 0.2.1 (#60) because nothing used it
+  - bandwidth_monitor.py still exists, but no UI uses it
   - Real-time bandwidth usage display
   - Add tab/widget to UI
   - **Priority:** MEDIUM | **Time:** 1-2 hours
 
-- [ ] **Auto-Update System**
+- [x] **Auto-Update System**
   - update_checker.py and update_dialog.py exist
-  - Check for app updates on startup
-  - One-click update process
+  - Check for app updates on startup (opt-in setting)
+  - One-click update process: in-place updates since public 0.3.0 (#64)
   - **Priority:** HIGH | **Time:** 2 hours
 
 - [ ] **Video Player**
-  - video_player_widget.py exists
+  - video_player_widget.py was removed in public 0.2.1 (#60) because nothing used it
+  - A built-in player is now out of scope (see ROADMAP.md)
   - Preview downloaded videos in-app
   - Add to history tab
   - **Priority:** LOW | **Time:** 2 hours
 
 - [ ] **Download Filters**
-  - filter_dialog.py exists
+  - filter_dialog.py was removed in public 0.2.1 (#60) because nothing used it
   - Filter by duration, view count, date
   - **Priority:** MEDIUM | **Time:** 1-2 hours
 
@@ -630,6 +637,9 @@ Things we WON'T implement:
 
 - ✅ Windows 10
 - ✅ Windows 11
+- ✅ Linux (Ubuntu), since public 0.2.0
+- ✅ Windows installer, since public 0.3.0
+- ✅ Portable version (Windows EXE and ZIP)
 
 ### Version 2.0.0
 
@@ -640,7 +650,6 @@ Things we WON'T implement:
 ### Future (maybe)
 
 - ❓ macOS (if demand exists)
-- ❓ Portable version
 - ❓ Web version (unlikely)
 
 ---
@@ -741,6 +750,6 @@ Things we WON'T implement:
 
 ---
 
-**Last Updated:** 2025-11-09
-**Current Version:** 1.9.0 (released)
-**Next Version:** 2.0.0 (Hebrew Translation)
+**Last Updated:** 2026-10-31
+**Current public version:** 0.3.0 (see [ROADMAP.md](../ROADMAP.md))
+**Old plan version (historical):** 1.9.0 (released), next 2.0.0 (Hebrew Translation)

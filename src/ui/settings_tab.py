@@ -48,6 +48,10 @@ class SettingsTab(QWidget):
     # Signal emitted when default folder changes (v1.9.0)
     default_folder_changed = Signal(str)
 
+    # Emitted with the saved value after a save or a reset, so the main
+    # window can apply it to the NotificationManager.
+    notifications_enabled_changed = Signal(bool)
+
     def __init__(self, config_manager: ConfigManager, parent=None):
         """
         Initialize settings tab.
@@ -230,6 +234,7 @@ class SettingsTab(QWidget):
         self.output_input.setText(config.output_directory)
         self.quality_combo.setCurrentText(config.default_quality)
         self.auto_update_checkbox.setChecked(config.check_updates_on_startup)
+        self.notifications_checkbox.setChecked(config.notifications_enabled)
         logger.debug("Settings loaded into UI")
 
     def _browse_directory(self) -> None:
@@ -283,10 +288,12 @@ class SettingsTab(QWidget):
             output_directory=output_dir,
             default_quality=default_quality,
             check_updates_on_startup=self.auto_update_checkbox.isChecked(),
+            notifications_enabled=self.notifications_checkbox.isChecked(),
         )
 
         if success:
             logger.info("Settings saved successfully")
+            self.notifications_enabled_changed.emit(self.notifications_checkbox.isChecked())
 
             # Emit signal if folder changed (v1.9.0 smart folder logic)
             if output_dir != old_output_dir:
@@ -319,6 +326,7 @@ class SettingsTab(QWidget):
         if reply == QMessageBox.Yes:
             self.config_manager.reset_to_defaults()
             self._load_settings()
+            self.notifications_enabled_changed.emit(self.notifications_checkbox.isChecked())
             logger.info("Settings reset to defaults")
             QMessageBox.information(self, tr("dialog_settings_reset"), tr("msg_all_settings_reset"))
 

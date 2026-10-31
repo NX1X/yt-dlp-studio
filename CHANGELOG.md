@@ -23,6 +23,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Updates match the install.** The updater offers an AppImage copy the new AppImage, a `.deb` install the new `.deb` and an `.rpm` install the new `.rpm`. The `.tar.gz` copy still gets the archive. Each kind shows its own next step.
 - **CI tests every Linux package.** CI launches the AppImage headless. It installs the `.deb` with apt, launches it and purges it, then checks that user data survives. It extracts the `.rpm` and launches its payload. Every payload must match the built binary byte for byte.
 
+### Fixed
+
+- **"Enable Desktop Notifications" now works.** The Settings checkbox did nothing. It is now saved in the config (`notifications_enabled`, default on) and applied when you save, when you reset to defaults, and at startup.
+- **The tray menu is translated.** "Show Window" and "Quit" now come from the translation tables, in English and Hebrew.
+- **`docs/ROADMAP.md` is no longer stale.** It no longer says the removed bandwidth, video player and filter modules exist. It marks notifications and in-place updates as shipped and points to `ROADMAP.md` for the current plan.
+
+### Removed
+
+- **`plyer` dependency.** The frozen build could not use it. Notifications use the tray icon, then `notify-send` on Linux. The lock files lost only the `plyer==2.1.0` entries.
+- **122 unused translation keys**, in both English and Hebrew. Nothing in `src/` or `tests/` used them. Most belonged to removed or replaced UI: the bandwidth, filter and video player modules (#60), an old batch dialog, an old subtitle picker, and an old menu bar.
+
 ### Not verified
 
 - The `.rpm` is built and checked on Ubuntu, but no CI job installs it on Fedora or openSUSE. A real `dnf install` is still to be tested.
