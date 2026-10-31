@@ -17,7 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no entries yet)_
+### Fixed
+
+- **Auto-numbering of duplicate downloads now works.** Before, a second download of the same video at the same quality got the same file name, so yt-dlp overwrote the first file. Now the new file is saved as `name (1).ext`, then `name (2).ext`, and so on. The check uses the final extension (merged `.mp4`, converted `.mp3`) and the file name yt-dlp really writes. Different qualities keep their own names (`_720p`, `_1080p`) and are not numbered. Identical downloads that run at the same time in the queue get different numbers.
 
 ---
 
