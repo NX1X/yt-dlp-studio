@@ -79,3 +79,10 @@ def test_shared_pins_agree_between_locks():
 def test_curl_cffi_never_locked(lock_name):
     """curl_cffi is banned by the project's software-origin policy."""
     assert "curl-cffi" not in _pins(lock_name)
+
+
+def test_pip_lock_matches_dev_lock():
+    """CI upgrades pip from requirements/pip.txt; it must be the pip dev.txt pins."""
+    pip_pins = _pins("pip.txt")
+    assert set(pip_pins) == {"pip"}, f"pip.txt must pin only pip, found {sorted(pip_pins)}"
+    assert pip_pins["pip"] == _pins("dev.txt")["pip"]
