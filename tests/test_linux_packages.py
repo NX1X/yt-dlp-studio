@@ -7,6 +7,7 @@ of copy picks, and the packaging script's invariants.
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -112,6 +113,7 @@ def _script() -> str:
     return SCRIPT.read_text(encoding="utf-8")
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows file systems have no exec bit")
 def test_script_is_executable():
     assert SCRIPT.stat().st_mode & 0o111
 
