@@ -77,8 +77,11 @@ Python is 3.10.
 
 **Windows**
 
-1. Download the latest `yt-dlp-studio-<version>-Windows.zip` from [Releases](https://github.com/NX1X/yt-dlp-studio/releases)
-2. Extract and run `yt-dlp-studio.exe` (FFmpeg and Deno are bundled)
+1. Download the latest `YT-DLP-Studio-Setup-<version>.exe` from [Releases](https://github.com/NX1X/yt-dlp-studio/releases).
+2. Run it. It needs no admin rights and adds a Start-menu shortcut. FFmpeg and Deno are bundled.
+3. Later updates install themselves from inside the app.
+
+Prefer no install? Download `yt-dlp-studio-<version>-Windows.zip`, extract it and run `yt-dlp-studio.exe`.
 
 **Linux** (works on any glibc 2.35+ distribution, not just Ubuntu)
 

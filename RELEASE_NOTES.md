@@ -50,7 +50,9 @@ See [CHANGELOG.md](CHANGELOG.md) for the full list, including the frozen-build `
 ## Installation
 
 ### Windows
-Download `yt-dlp-studio-<version>-Windows.zip` from the [Releases page](https://github.com/NX1X/yt-dlp-studio/releases), extract, and run `yt-dlp-studio.exe`. FFmpeg and Deno are bundled - no dependencies.
+Download `YT-DLP-Studio-Setup-<version>.exe` from the [Releases page](https://github.com/NX1X/yt-dlp-studio/releases) and run it. It needs no admin rights. FFmpeg and Deno are bundled, so there are no dependencies.
+
+For a portable copy, download `yt-dlp-studio-<version>-Windows.zip`, extract it and run `yt-dlp-studio.exe`.
 
 ### Linux (any glibc 2.35+ distro, not just Ubuntu)
 ```bash

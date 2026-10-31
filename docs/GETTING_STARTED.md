@@ -21,9 +21,11 @@ fail. If a site matters to you,
 
 ## Install & Launch
 
-**Standalone (no Python):** download the latest `YT-DLP-Studio-Windows.zip` from
-[Releases](https://github.com/NX1X/yt-dlp-studio/releases), extract it, and run
-`yt-dlp-studio.exe`.
+**Windows installer (no Python):** download the latest
+`YT-DLP-Studio-Setup-<version>.exe` from
+[Releases](https://github.com/NX1X/yt-dlp-studio/releases) and run it. It needs
+no admin rights. For a portable copy, download
+`yt-dlp-studio-<version>-Windows.zip`, extract it, and run `yt-dlp-studio.exe`.
 
 **From source:**
 
