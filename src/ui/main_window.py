@@ -7,8 +7,8 @@ The main application window with tabs for Download and Settings.
 from datetime import UTC
 
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QMainWindow, QMessageBox, QStatusBar, QTabWidget
+from PySide6.QtGui import QIcon, QKeySequence, QShortcut
+from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QStatusBar, QTabWidget
 
 from ..backend.config_manager import ConfigManager
 from ..backend.history_manager import HistoryManager
@@ -62,6 +62,12 @@ class MainWindow(QMainWindow):
 
         self.notification_manager = NotificationManager(self)
         self.notification_manager.set_enabled(self.config_manager.get_config().notifications_enabled)
+
+        # Hide-to-tray state. _quitting is set by an explicit Quit (tray
+        # menu or Ctrl+Q), so the close that follows really exits.
+        self._close_to_tray = self.config_manager.get_config().close_to_tray
+        self._quitting = False
+        self._tray_hint_shown = False
 
         # Create history manager (v2.0.0) first: the queue records finished
         # downloads in it.
@@ -175,6 +181,7 @@ class MainWindow(QMainWindow):
         # Connect settings to download tab (v1.9.0 smart folder logic)
         self.settings_tab.default_folder_changed.connect(self.download_tab.update_output_directory)
         self.settings_tab.notifications_enabled_changed.connect(self.notification_manager.set_enabled)
+        self.settings_tab.close_to_tray_changed.connect(self.set_close_to_tray)
 
         # Add tabs with translations (v2.0.0 - added History and About tabs)
         self.tabs.addTab(self.download_tab, tr("tab_download"))
@@ -190,8 +197,17 @@ class MainWindow(QMainWindow):
         # thread, and owned by the notification manager for the window's
         # lifetime. Without a tray, the manager falls back to notify-send.
         self.notification_manager.show_window_requested.connect(self._show_from_tray)
-        self.notification_manager.quit_requested.connect(self.close)
+        self.notification_manager.quit_requested.connect(self.quit_application)
         self.notification_manager.setup_system_tray(self.windowIcon())
+
+        # The tray tooltip shows queue progress. QueueManager emits its
+        # signals on the GUI thread, so the slot may touch the tray icon.
+        self.queue_manager.queue_updated.connect(self._update_tray_tooltip)
+        self._update_tray_tooltip()
+
+        # Ctrl+Q always quits, also when closing only hides to the tray.
+        self.quit_shortcut = QShortcut(QKeySequence("Ctrl+Q"), self)
+        self.quit_shortcut.activated.connect(self.quit_application)
 
         # Create status bar
         self.status_bar = QStatusBar()
@@ -209,6 +225,57 @@ class MainWindow(QMainWindow):
         self.raise_()
         self.activateWindow()
 
+    def set_close_to_tray(self, enabled: bool) -> None:
+        """
+        Turn hide-to-tray on close on or off.
+
+        Args:
+            enabled: True to hide the window on close instead of quitting
+        """
+        self._close_to_tray = enabled
+        logger.debug(f"Close to tray {'enabled' if enabled else 'disabled'}")
+
+    def _should_hide_to_tray(self) -> bool:
+        """Return True if a close should hide the window instead of quitting."""
+        return self._close_to_tray and not self._quitting and self.notification_manager.has_visible_tray_icon()
+
+    def quit_application(self) -> None:
+        """
+        Really quit, also in tray mode (tray menu Quit and Ctrl+Q).
+
+        Runs the normal close path in closeEvent. If the user cancels the
+        close (download in progress), the app keeps running.
+        """
+        self._quitting = True
+        if not self.close():
+            self._quitting = False
+
+    def _show_tray_hint_once(self) -> None:
+        """Tell the user once per session that the app still runs in the tray."""
+        if self._tray_hint_shown:
+            return
+        self._tray_hint_shown = True
+        self.notification_manager.show_tray_message(tr("tray_still_running"))
+
+    def tray_tooltip_text(self) -> str:
+        """
+        Build the tray tooltip from the queue counts.
+
+        Returns:
+            The app name when idle, else the app name with the number of
+            running and waiting downloads
+        """
+        stats = self.queue_manager.get_queue_statistics()
+        active = stats.get("active", 0)
+        pending = stats.get("pending", 0)
+        if active == 0 and pending == 0:
+            return APP_NAME
+        return tr("tray_tooltip_busy", app=APP_NAME, active=active, pending=pending)
+
+    def _update_tray_tooltip(self) -> None:
+        """Refresh the tray tooltip. Runs on the GUI thread (queue signals)."""
+        self.notification_manager.set_tray_tooltip(self.tray_tooltip_text())
+
     def _restore_window_state(self) -> None:
         """Restore window size from config."""
         self.showMaximized()
@@ -218,11 +285,20 @@ class MainWindow(QMainWindow):
         """
         Handle window close event.
 
-        Saves window size to config before closing.
+        In tray mode (setting on and a tray icon visible) the window is
+        only hidden, and downloads keep running. Otherwise, or after an
+        explicit Quit, saves window size to config and quits the app.
 
         Args:
             event: Close event
         """
+        if self._should_hide_to_tray():
+            event.ignore()
+            self.hide()
+            self._show_tray_hint_once()
+            logger.info("Window hidden to the system tray")
+            return
+
         # Save window size
         size = self.size()
         self.config_manager.update_config(window_width=size.width(), window_height=size.height())
@@ -244,6 +320,7 @@ class MainWindow(QMainWindow):
             )
 
             if reply == QMessageBox.No:
+                self._quitting = False
                 event.ignore()
                 return
             else:
@@ -258,6 +335,12 @@ class MainWindow(QMainWindow):
         # Remove the tray icon now, so no stale icon stays in the tray.
         self.notification_manager.hide_tray_icon()
         event.accept()
+
+        # src/app.py turns off quit-on-last-window-closed, so hiding to the
+        # tray, or closing a dialog while the window is hidden, does not end
+        # the app. Quit the event loop here instead. Outside exec() this
+        # call does nothing.
+        QApplication.quit()
 
     def _apply_theme(self) -> None:
         """Apply modern theme to application (v1.8.0)."""

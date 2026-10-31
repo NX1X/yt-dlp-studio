@@ -17,7 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no entries yet)_
+### Added
+
+- **Tray mode.** A new Settings option, "Keep running in the tray when I close the window", is off by default. When it is on and the desktop has a system tray, closing the window hides it and downloads keep running. The first close in a session shows one tray message. Use Show Window or a double-click on the tray icon to bring the window back. Quit in the tray menu and Ctrl+Q exit with the normal shutdown. Without a system tray (for example stock GNOME), the option is disabled and closing quits as before.
+- **Queue progress in the tray tooltip.** The tray icon tooltip shows the number of running and waiting downloads, for example "YT-DLP Studio - 2 downloading, 3 waiting". It shows only the app name when the queue is idle.
+- **Ctrl+Q quits the app.** The About tab listed this shortcut, but it was not connected before.
 
 ---
 

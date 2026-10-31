@@ -51,6 +51,13 @@ class App:
         self.qt_app.setApplicationName(APP_NAME)
         self.qt_app.setApplicationVersion(APP_VERSION)
 
+        # The app quits only through MainWindow.closeEvent, which calls
+        # QApplication.quit() after the clean shutdown. With the Qt default
+        # (quit when the last window closes), hiding the window to the tray
+        # and then closing any dialog would end the app without that
+        # shutdown.
+        self.qt_app.setQuitOnLastWindowClosed(False)
+
         # On Linux, tie the window to its .desktop entry so GNOME/Wayland shows
         # the installed icon in the dock and groups windows correctly. Must
         # match the installed file name (yt-dlp-studio.desktop) and the
