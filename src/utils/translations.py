@@ -218,6 +218,11 @@ TRANSLATIONS = {
         # System Tray
         "tray_show_window": "Show Window",
         "tray_quit": "Quit",
+        "checkbox_close_to_tray": "Keep running in the tray when I close the window",
+        "tooltip_close_to_tray": "Closing the window hides it to the system tray. Downloads keep running. Use Quit in the tray menu to exit.",
+        "tooltip_close_to_tray_unavailable": "Your desktop has no system tray, so this option is not available.",
+        "tray_still_running": "Still running in the tray. Downloads keep going. Use Quit in the tray menu to exit.",
+        "tray_tooltip_busy": "{app} - {active} downloading, {pending} waiting",
         # Status Messages
         "status_pending": "Pending",
         "status_downloading": "Downloading...",
@@ -622,6 +627,11 @@ TRANSLATIONS = {
         # System Tray
         "tray_show_window": "הצג חלון",
         "tray_quit": "יציאה",
+        "checkbox_close_to_tray": "המשך לפעול במגש המערכת כשאני סוגר את החלון",
+        "tooltip_close_to_tray": "סגירת החלון מסתירה אותו במגש המערכת. ההורדות ממשיכות. ליציאה, בחר יציאה בתפריט המגש.",
+        "tooltip_close_to_tray_unavailable": "בשולחן העבודה שלך אין מגש מערכת, לכן אפשרות זו אינה זמינה.",
+        "tray_still_running": "התוכנה ממשיכה לפעול במגש המערכת וההורדות ממשיכות. ליציאה, בחר יציאה בתפריט המגש.",
+        "tray_tooltip_busy": "{app} - {active} בהורדה, {pending} בהמתנה",
         # Status Messages
         "status_pending": "ממתין",
         "status_downloading": "מוריד...",

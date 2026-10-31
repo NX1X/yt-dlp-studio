@@ -425,6 +425,30 @@ class NotificationManager(QObject):
         ok, _ = self._send_via_tray(APP_NAME, message, QSystemTrayIcon.MessageIcon.Information, 2000)
         return ok
 
+    def has_visible_tray_icon(self) -> bool:
+        """
+        Check if a tray icon exists and is shown right now.
+
+        Returns:
+            True if the user can reach the app through the tray icon
+        """
+        return (
+            self.use_system_tray
+            and self.tray_icon is not None
+            and self.tray_icon.isVisible()
+            and QSystemTrayIcon.isSystemTrayAvailable()
+        )
+
+    def set_tray_tooltip(self, text: str) -> None:
+        """
+        Set the tooltip of the tray icon. Call on the GUI thread only.
+
+        Args:
+            text: Tooltip text
+        """
+        if self.tray_icon is not None:
+            self.tray_icon.setToolTip(text)
+
     def hide_tray_icon(self):
         """Hide the system tray icon."""
         if self.tray_icon:
