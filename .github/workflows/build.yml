@@ -15,6 +15,7 @@ jobs:
   lint:
     name: Lint & Format Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
     - name: Harden runner
       # StepSecurity harden-runner: enforces a per-job network egress allowlist
@@ -24,7 +25,7 @@ jobs:
       # dependency exfiltrating data or pulling from an unexpected origin.
       # SHA pinned (Renovate keeps the digest current; matches the repo
       # convention for every other third-party action).
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: true                 # no apt/sudo step in this job
@@ -64,6 +65,7 @@ jobs:
   test:
     name: Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -74,7 +76,7 @@ jobs:
       # via matrix; the same policy is applied to both. The Linux leg uses
       # apt (`sudo apt-get`), so disable-sudo MUST be false. Port-80 entries
       # are for the Ubuntu apt mirror (HTTP-only on the Azure-backed mirror).
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: false                # Linux leg runs `sudo apt-get`
@@ -155,6 +157,7 @@ jobs:
     name: Build Windows Executable
     needs: [lint, test]
     runs-on: windows-latest
+    timeout-minutes: 45
     # Run on direct pushes to main/dev AND on every pull request, so
     # PyInstaller-only regressions (missing hidden imports, broken bundle
     # paths, vendored-engine path math that only matters under _MEIPASS)
@@ -186,7 +189,7 @@ jobs:
       # redirect to objects.githubusercontent.com (the GitHub release CDN) -
       # both already in the baseline. Sigstore endpoints (incl. the often-
       # missed sigstore.github.com) are required by attest-build-provenance.
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: true                 # Windows; no sudo step
@@ -396,6 +399,7 @@ jobs:
     # Debian 12+, Fedora 36+, Mint 21+, and most 2022-and-later distros.
     # Keep this in lockstep with the build-linux job in release.yml.
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
     # Same rationale as build-windows: catch PyInstaller-only regressions
     # (missing hidden imports, broken bundle paths, vendored-engine path math
     # that only matters under _MEIPASS) on the Linux target in the PR, not
@@ -412,7 +416,7 @@ jobs:
       # See lint job for rationale. Linux runner uses apt (EGL/dbus libs for
       # the PySide6 offscreen import), so disable-sudo MUST be false. Mirrors
       # the test job's Linux allowlist plus PyInstaller wheel fetches.
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: false                # Linux leg runs `sudo apt-get`

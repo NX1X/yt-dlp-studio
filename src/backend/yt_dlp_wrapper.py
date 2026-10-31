@@ -61,6 +61,19 @@ except ImportError as e:
 # sleep_interval_requests and _make_subtitles_non_fatal below.
 
 
+# yt-dlp warnings that are expected in this app and harmless. They go to the
+# log at DEBUG instead of WARNING. Each entry is a stable substring of one
+# yt-dlp message, so other warnings are not affected.
+_QUIET_WARNING_MARKERS = (
+    # Some extractors ask for impersonation. It needs curl_cffi, which is not
+    # shipped (see the note above), so yt-dlp warns on every such download.
+    # Downloads still work without it. Full message: "The extractor specified
+    # to use impersonation for this download, but no impersonate target is
+    # available. ..."
+    "no impersonate target is available",
+)
+
+
 class _YtDlpLogBridge:
     """Route yt-dlp's own messages into the app log.
 
@@ -81,6 +94,9 @@ class _YtDlpLogBridge:
         logger.debug(msg)
 
     def warning(self, msg: str) -> None:
+        if any(marker in msg for marker in _QUIET_WARNING_MARKERS):
+            logger.debug(f"yt-dlp: {msg}")
+            return
         logger.warning(f"yt-dlp: {msg}")
 
     def error(self, msg: str) -> None:

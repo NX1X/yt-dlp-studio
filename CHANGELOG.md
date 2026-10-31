@@ -17,8 +17,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Tray mode.** A new Settings option, "Keep running in the tray when I close the window", is off by default. When it is on and the desktop has a system tray, closing the window hides it and downloads keep running. The first close in a session shows one tray message. Use Show Window or a double-click on the tray icon to bring the window back. Quit in the tray menu and Ctrl+Q exit with the normal shutdown. Without a system tray (for example stock GNOME), the option is disabled and closing quits as before.
+- **Queue progress in the tray tooltip.** The tray icon tooltip shows the number of running and waiting downloads, for example "YT-DLP Studio - 2 downloading, 3 waiting". It shows only the app name when the queue is idle.
+- **Ctrl+Q quits the app.** The About tab listed this shortcut, but it was not connected before.
+
+### Changed
+
+- **One Environment line in the startup log.** Right after "started successfully" the log shows the app, engine, FFmpeg and Deno versions, Python, Qt and the install kind. This helps with bug reports. A failed lookup shows "unknown" and never stops startup.
+- **The impersonation warning is quiet.** yt-dlp warns "no impersonate target is available" on some sites because curl_cffi is not shipped. Downloads still work, so this one message now goes to the log at DEBUG. Other warnings stay at WARNING.
+
 ### Fixed
 
+- **Desktop notifications in Hebrew.** The titles and texts for a finished download, a failed download, a finished batch and an available update now follow the UI language. Video titles stay exactly as they are. The update notification no longer says "Click to update", because a click does not start an update.
+- **A failed download no longer shows "Download failed" twice.** The notification now shows the yt-dlp reason when there is one. A cancelled download shows the translated "Cancelled".
+- **Queue and History status in Hebrew.** The Status column in the Queue tab and the History tab now shows translated text. The English UI shows "Pending" instead of "PENDING". The queue file and the history file still store the English values, so files stay compatible.
+- **The History "clear" confirmation shows a translated status.** It used to show the stored English value inside the Hebrew text.
+- **No console window flash at launch on Windows.** The About tab ran `ffmpeg -version` while the window was built, and Windows opened a console window for it. FFmpeg now starts without a window, only when the About tab is first shown or from a background thread at startup, and at most once per run.
+- **The About tab shows the FFmpeg the downloader uses.** It used to run whatever `ffmpeg` was first on PATH. It now asks the same FFmpeg that downloads use, which is the bundled copy in the Windows EXE.
 - **Auto-numbering of duplicate downloads now works.** Before, a second download of the same video at the same quality got the same file name, so yt-dlp overwrote the first file. Now the new file is saved as `name (1).ext`, then `name (2).ext`, and so on. The check uses the final extension (merged `.mp4`, converted `.mp3`) and the file name yt-dlp really writes. Different qualities keep their own names (`_720p`, `_1080p`) and are not numbered. Identical downloads that run at the same time in the queue get different numbers.
 
 ---

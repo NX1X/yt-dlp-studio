@@ -10,6 +10,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from .backend.config_manager import ConfigManager
+from .backend.environment import start_environment_log
 from .ui.main_window import MainWindow
 from .utils.constants import APP_NAME, APP_USER_MODEL_ID, APP_VERSION
 from .utils.deno_installer import ensure_deno_installed
@@ -51,6 +52,13 @@ class App:
         self.qt_app.setApplicationName(APP_NAME)
         self.qt_app.setApplicationVersion(APP_VERSION)
 
+        # The app quits only through MainWindow.closeEvent, which calls
+        # QApplication.quit() after the clean shutdown. With the Qt default
+        # (quit when the last window closes), hiding the window to the tray
+        # and then closing any dialog would end the app without that
+        # shutdown.
+        self.qt_app.setQuitOnLastWindowClosed(False)
+
         # On Linux, tie the window to its .desktop entry so GNOME/Wayland shows
         # the installed icon in the dock and groups windows correctly. Must
         # match the installed file name (yt-dlp-studio.desktop) and the
@@ -89,6 +97,10 @@ class App:
 
         # Log startup complete
         logger.info(f"{APP_NAME} started successfully")
+
+        # One line with the versions and install kind, for bug reports. It
+        # runs in a background thread because it starts FFmpeg once.
+        start_environment_log()
 
         # Start event loop
         return self.qt_app.exec()
