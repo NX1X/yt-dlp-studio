@@ -80,6 +80,14 @@ function Uninstall-App([string[]]$ExtraArgs = @()) {
     # unins000.exe hands off to a temporary copy and returns at once, so wait
     # for the uninstall to actually finish.
     for ($i = 0; $i -lt 60 -and (Test-Path $Exe); $i++) { Start-Sleep -Seconds 1 }
+    # The temporary copy (_iu*.tmp) keeps cleaning up after the EXE is gone and
+    # deletes unins000.exe last. Wait for it, so a following install does not
+    # race the end of this uninstall.
+    for ($i = 0; $i -lt 120; $i++) {
+        $busy = (Test-Path $uninstaller) -or (Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "_iu*" })
+        if (-not $busy) { break }
+        Start-Sleep -Seconds 1
+    }
 }
 
 # --- 1. user data that must survive an uninstall -------------------------
