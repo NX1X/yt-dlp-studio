@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The app starts again after an in-place update.** After the 0.3.0 to 0.3.1 update on Windows, the restarted app failed with "Failed to load Python DLL" from a deleted `_MEI...` temp folder. The update itself was installed. The old app passed its PyInstaller variables to the installer, which passed them to the new app. Now the app and the installer both set `PYINSTALLER_RESET_ENVIRONMENT=1`. Because the installer sets it too, updates started from 0.3.0 and 0.3.1 restart correctly once the next release is out. CI now runs a silent update with stale PyInstaller variables and checks that the app starts.
 - **Desktop notifications in Hebrew.** The titles and texts for a finished download, a failed download, a finished batch and an available update now follow the UI language. Video titles stay exactly as they are. The update notification no longer says "Click to update", because a click does not start an update.
 - **A failed download no longer shows "Download failed" twice.** The notification now shows the yt-dlp reason when there is one. A cancelled download shows the translated "Cancelled".
 - **Queue and History status in Hebrew.** The Status column in the Queue tab and the History tab now shows translated text. The English UI shows "Pending" instead of "PENDING". The queue file and the history file still store the English values, so files stay compatible.

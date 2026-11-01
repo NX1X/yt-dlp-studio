@@ -37,6 +37,21 @@ from ..utils.translations import tr
 logger = get_logger()
 
 
+def child_process_env() -> dict[str, str]:
+    """Return the environment for a process this app starts and then quits.
+
+    A PyInstaller one-file app passes ``_PYI_*`` variables to its child
+    processes. They point at the app's temporary folder (``_MEI...``), which
+    is deleted when the app quits. The installer inherits them and passes
+    them to the new app it starts, and that app then fails with "Failed to
+    load Python DLL" from the deleted folder. ``PYINSTALLER_RESET_ENVIRONMENT``
+    tells a PyInstaller app to ignore them.
+    """
+    env = {k: v for k, v in os.environ.items() if not k.startswith("_PYI_") and k != "_MEIPASS2"}
+    env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+    return env
+
+
 class UpdateCheckThread(QThread):
     """Runs the GitHub update check off the UI thread."""
 
@@ -456,7 +471,9 @@ class UpdateDialog(QDialog):
                 flags = getattr(subprocess, "DETACHED_PROCESS", 0x00000008) | getattr(
                     subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200
                 )
-            subprocess.Popen(argv, close_fds=True, creationflags=flags)  # noqa: S603 - verified file, list argv
+            subprocess.Popen(  # noqa: S603 - verified file, list argv
+                argv, close_fds=True, creationflags=flags, env=child_process_env()
+            )
             logger.info(f"Launched update: {argv[0]} (args: {' '.join(argv[1:]) or 'none'})")
 
             from PySide6.QtWidgets import QApplication
