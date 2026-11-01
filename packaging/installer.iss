@@ -106,6 +106,19 @@ Type: files; Name: "{app}\install.ini"
 Type: dirifempty; Name: "{app}"
 
 [Code]
+function SetEnvironmentVariable(lpName, lpValue: String): Boolean;
+  external 'SetEnvironmentVariableW@kernel32.dll stdcall';
+
+function InitializeSetup: Boolean;
+begin
+  // An update started from the app (0.3.0 and 0.3.1 included) inherits the
+  // app's PyInstaller variables, which point at its deleted temp folder. The
+  // app this installer starts would then fail with "Failed to load Python
+  // DLL". This variable makes it ignore them.
+  SetEnvironmentVariable('PYINSTALLER_RESET_ENVIRONMENT', '1');
+  Result := True;
+end;
+
 function LaunchAfterSilentUpdate: Boolean;
 begin
   Result := WizardSilent and (ExpandConstant('{param:LAUNCH|no}') = 'yes');

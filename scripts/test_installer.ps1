@@ -97,6 +97,32 @@ if (-not $started) {
 }
 Write-Host "ok: installed GUI started (log reached 'started successfully')"
 
+# --- 3b. update started from the app relaunches it ------------------------
+# The app starts the installer with /SILENT /LAUNCH=yes and quits. The
+# installer inherits the app's PyInstaller variables, which point at the
+# app's temp folder; that folder is gone once the app has quit. Before the
+# fix, the relaunched app failed with "Failed to load Python DLL" from it.
+$before = @(Select-String -Path $LogFile -Pattern "started successfully").Count
+$env:_PYI_APPLICATION_HOME_DIR = Join-Path $env:TEMP "_MEI_gone_$(Get-Random)"
+$env:_PYI_ARCHIVE_FILE = Join-Path $env:TEMP "gone-$(Get-Random).exe"
+$env:_PYI_PARENT_PROCESS_LEVEL = "1"
+$p = Start-Process -FilePath $Setup -ArgumentList "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/LAUNCH=yes", "/LOG=update.log" -Wait -PassThru
+Remove-Item Env:_PYI_APPLICATION_HOME_DIR, Env:_PYI_ARCHIVE_FILE, Env:_PYI_PARENT_PROCESS_LEVEL
+if ($p.ExitCode -ne 0) { Fail "update install exited with $($p.ExitCode)" }
+$started = $false
+for ($i = 0; $i -lt 120; $i++) {
+    Start-Sleep -Seconds 1
+    $now = @(Select-String -Path $LogFile -Pattern "started successfully").Count
+    if ($now -gt $before) { $started = $true; break }
+}
+Get-Process -Name "yt-dlp-studio" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 3
+if (-not $started) {
+    Get-Content $LogFile | Select-Object -Last 40
+    Fail "app relaunched by a silent update (with the old app's PyInstaller variables) did not start within 120 s"
+}
+Write-Host "ok: silent update relaunched the app despite stale PyInstaller variables"
+
 # --- 4. silent uninstall keeps user data ---------------------------------
 Uninstall-App
 Assert (-not (Test-Path $Exe)) "EXE removed"
