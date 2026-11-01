@@ -218,6 +218,7 @@ def test_frozen_linux_with_system_deno_does_not_download(monkeypatch, linux_froz
     assert YtDlpWrapper()._get_deno_location() == "/usr/bin/deno"
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Linux-only path; the wrapper looks for deno.exe on Windows")
 def test_frozen_linux_downloads_to_app_data_and_wrapper_finds_it(monkeypatch, linux_frozen, tmp_path):
     payload = _make_zip()
     _pin_linux_hash(monkeypatch, payload)
@@ -247,6 +248,7 @@ def test_downloaded_binary_is_executable(monkeypatch, linux_frozen):
     assert os.access(path, os.X_OK)
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Linux-only path; the wrapper looks for deno.exe on Windows")
 def test_second_start_reuses_downloaded_copy(monkeypatch, linux_frozen):
     payload = _make_zip()
     _pin_linux_hash(monkeypatch, payload)
