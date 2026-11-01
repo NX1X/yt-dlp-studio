@@ -1,6 +1,6 @@
-# YT-DLP Studio v0.3.1 - Release Notes
+# YT-DLP Studio v0.4.0 - Release Notes
 
-**Release Date:** 2026-10-31
+**Release Date:** 2026-11-01
 **Status:** Public Beta
 
 > This file describes the **current release**. For full per-version history, see [CHANGELOG.md](CHANGELOG.md). For planned future work, see [ROADMAP.md](ROADMAP.md).
@@ -17,7 +17,22 @@ This is a **public beta**. The core feature set is functional and the app is usa
 
 ---
 
-## What's new in v0.3.1
+## What's new in v0.4.0
+
+**Fixes you notice, and a tray mode.**
+
+- **Keep it running in the tray.** A new Settings option keeps the app in the system tray when you close the window. Downloads keep going, and the tray tooltip shows the progress. It is off by default. Ctrl+Q or Quit in the tray menu exits.
+- **Downloading twice keeps both files.** A second download of the same video at the same quality is saved as `name (1).mp4`, then `name (2).mp4`. Before, it reused the same name.
+- **No console window at launch.** On Windows, a console window no longer flashes for a moment when the app starts.
+- **The app restarts after an update.** After the 0.3.0 to 0.3.1 update, the restarted app could fail with "Failed to load Python DLL". The update itself was installed. Updates from 0.3.x to 0.4.0 restart correctly.
+- **YouTube on a clean Linux machine.** The Linux packages now download Deno on first start (or use one you already have). Deno is needed for YouTube's challenge checks.
+- **More Hebrew.** Notifications and the status in the Queue and History tabs are translated.
+
+Full detail is in [CHANGELOG.md](CHANGELOG.md).
+
+---
+
+## What was new in v0.3.1
 
 **Real Linux packages.**
 

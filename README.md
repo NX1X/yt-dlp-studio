@@ -27,7 +27,7 @@ YT-DLP Studio is part of [NXTools](https://nx1xlab.dev/nxtools), a collection of
 ## Project status
 
 YT-DLP Studio is in public beta. The current release is
-[0.3.1](https://github.com/NX1X/yt-dlp-studio/releases/tag/v0.3.1).
+[0.4.0](https://github.com/NX1X/yt-dlp-studio/releases/tag/v0.4.0).
 
 YouTube is the only site that is officially supported and tested (videos, playlists and channels). yt-dlp supports more than 1000 sites, and support for more sites is planned. Until a site is listed here, treat it as untested. To ask for a site, [open a feature request](https://github.com/NX1X/yt-dlp-studio/issues/new/choose).
 
@@ -51,7 +51,7 @@ The [Getting Started guide](docs/GETTING_STARTED.md) explains each feature.
 
 ## Download and install
 
-Download every file from the [Releases page](https://github.com/NX1X/yt-dlp-studio/releases/latest). The examples below use version 0.3.1.
+Download every file from the [Releases page](https://github.com/NX1X/yt-dlp-studio/releases/latest). The examples below use version 0.4.0.
 
 ### System requirements
 
@@ -65,9 +65,9 @@ The Linux builds need no Python. They also run on Ubuntu 22.04, whose system Pyt
 
 | File | Type | Notes |
 |------|------|-------|
-| `YT-DLP-Studio-Setup-0.3.1.exe` | Installer (recommended) | Installs per user. No admin rights. Updates itself in place. |
+| `YT-DLP-Studio-Setup-0.4.0.exe` | Installer (recommended) | Installs per user. No admin rights. Updates itself in place. |
 | `YT-DLP.Studio.exe` | Portable EXE | One file. No install. Run it from any folder. |
-| `yt-dlp-studio-v0.3.1-Windows.zip` | Portable ZIP | The same portable EXE in a ZIP file. |
+| `yt-dlp-studio-v0.4.0-Windows.zip` | Portable ZIP | The same portable EXE in a ZIP file. |
 
 All three Windows downloads include FFmpeg and Deno. You do not need to install anything else.
 
@@ -92,10 +92,10 @@ Linux packages are available for 0.3.1 and later.
 
 | Distribution | File | Install command |
 |--------------|------|-----------------|
-| Debian, Ubuntu, Mint | `yt-dlp-studio_0.3.1_amd64.deb` | `sudo apt install ./yt-dlp-studio_*_amd64.deb` |
-| Fedora, openSUSE | `yt-dlp-studio-0.3.1-1.x86_64.rpm` | `sudo dnf install ./yt-dlp-studio-*.rpm` (openSUSE: `sudo zypper install ./yt-dlp-studio-*.rpm`) |
-| Any distribution | `YT-DLP-Studio-0.3.1-x86_64.AppImage` | `chmod +x YT-DLP-Studio-*.AppImage`, then run the file |
-| Any distribution | `yt-dlp-studio-v0.3.1-Linux.tar.gz` | See [Linux archive](#linux-archive-targz) below |
+| Debian, Ubuntu, Mint | `yt-dlp-studio_0.4.0_amd64.deb` | `sudo apt install ./yt-dlp-studio_*_amd64.deb` |
+| Fedora, openSUSE | `yt-dlp-studio-0.4.0-1.x86_64.rpm` | `sudo dnf install ./yt-dlp-studio-*.rpm` (openSUSE: `sudo zypper install ./yt-dlp-studio-*.rpm`) |
+| Any distribution | `YT-DLP-Studio-0.4.0-x86_64.AppImage` | `chmod +x YT-DLP-Studio-*.AppImage`, then run the file |
+| Any distribution | `yt-dlp-studio-v0.4.0-Linux.tar.gz` | See [Linux archive](#linux-archive-targz) below |
 
 **.deb and .rpm packages:** the package manager installs FFmpeg as a dependency and adds YT-DLP Studio to your app menu. On Fedora, FFmpeg comes from `ffmpeg-free` or from RPM Fusion.
 
