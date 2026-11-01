@@ -1,346 +1,283 @@
-# Installation Guide for YT-DLP Studio
+# Installation Guide
 
-## Issue: Python 3.14 Compatibility
+This guide covers every way to install YT-DLP Studio: the Windows installer, the portable EXE, the Linux packages and a source install. It also explains how to uninstall.
 
-Your system has **Python 3.14.0**, but PySide6 (the GUI framework) currently only supports **Python 3.9 to 3.13**.
+Download all release files from the [Releases page](https://github.com/NX1X/yt-dlp-studio/releases/latest). The file names below use `<version>` for the version number, for example `0.3.1`.
 
----
+## System requirements
 
-## Solution Options
+| Item | Requirement |
+|------|-------------|
+| Windows | Windows 10 or 11, 64-bit |
+| Linux | 64-bit (x86_64), glibc 2.35 or later (Ubuntu 22.04+, Debian 12+, Fedora 36+, Linux Mint 21+, Arch and most distributions from 2022 and later) |
+| macOS | Not supported |
+| Python | Only for a source install: Python 3.11 or later. CI builds and tests on Python 3.14. |
+| Internet | Needed to download videos |
 
-### Option 1: Install Python 3.13 (Recommended)
+The Windows downloads are about 200 MB and the Linux downloads are about 75 MB (0.3.1).
 
-1. **Download Python 3.13:**
-   - Visit: https://www.python.org/downloads/
-   - Download Python 3.13.x (latest 3.13 version)
+## Windows
 
-2. **Install Python 3.13:**
-   - Run the installer
-   - ✅ **IMPORTANT:** Check "Add Python to PATH"
-   - Choose "Install Now"
+There are three Windows downloads. All three include FFmpeg and Deno.
 
-3. **Create Virtual Environment (Optional but Recommended):**
+| File | Type |
+|------|------|
+| `YT-DLP-Studio-Setup-<version>.exe` | Installer (recommended) |
+| `YT-DLP.Studio.exe` | Portable EXE |
+| `yt-dlp-studio-v<version>-Windows.zip` | Portable ZIP (the portable EXE in a ZIP file) |
+
+The installer and the portable EXE contain the same program.
+
+### Installer
+
+1. Download `YT-DLP-Studio-Setup-<version>.exe`.
+2. Run it. If SmartScreen shows a warning, see [SmartScreen warning](#smartscreen-warning).
+3. Select if you want a desktop shortcut. It is off by default.
+4. Finish the setup. You can start the app from the last page.
+
+The installer:
+
+- installs for the current user only, with no admin rights and no UAC prompt;
+- installs to `%LOCALAPPDATA%\Programs\YT-DLP Studio`;
+- adds a Start menu shortcut;
+- shows its pages in English or Hebrew.
+
+**Updates:** when a new release is out, the app can download the new installer. It checks the SHA-256 of the file, runs the installer silently, and starts again when the update is done.
+
+### Portable EXE or ZIP
+
+1. Download `YT-DLP.Studio.exe`, or download the ZIP file and extract it to any folder.
+2. Run the EXE.
+
+**Updates:** a portable copy does not update itself in place. The app downloads the new portable EXE as a separate file. The new file does not replace the copy you use now. You can delete the old copy afterwards.
+
+### SmartScreen warning
+
+The Windows EXE files are not code-signed. For this reason, SmartScreen may show an "Unknown publisher" warning the first time you run them.
+
+1. Optional: verify the portable EXE first (see [Verify a download](#verify-a-download)).
+2. Click **More info**.
+3. Click **Run anyway**.
+
+[CODE_SIGNING.md](CODE_SIGNING.md) explains the plan to sign future releases.
+
+## Linux
+
+The Linux packages are available for 0.3.1 and later. All Linux downloads contain the same program.
+
+| Distribution | File | Install command |
+|--------------|------|-----------------|
+| Debian, Ubuntu, Mint | `yt-dlp-studio_<version>_amd64.deb` | `sudo apt install ./yt-dlp-studio_*_amd64.deb` |
+| Fedora, openSUSE | `yt-dlp-studio-<version>-1.x86_64.rpm` | `sudo dnf install ./yt-dlp-studio-*.rpm` (openSUSE: `sudo zypper install ./yt-dlp-studio-*.rpm`) |
+| Any distribution | `YT-DLP-Studio-<version>-x86_64.AppImage` | `chmod +x YT-DLP-Studio-*.AppImage`, then run the file |
+| Any distribution | `yt-dlp-studio-v<version>-Linux.tar.gz` | See [Linux archive](#linux-archive-targz) |
+
+### .deb and .rpm packages
+
+The packages install the app to `/opt/yt-dlp-studio` and add the `yt-dlp-studio` command and an app menu entry. The package manager installs FFmpeg as a dependency. On Fedora, FFmpeg comes from `ffmpeg-free` or from RPM Fusion.
+
+**Updates:** the app can download the new .deb or .rpm file. Open it with your software installer to update. Your settings and history are kept.
+
+### AppImage
+
+The AppImage needs no install.
+
+1. Install FFmpeg (see [FFmpeg](#ffmpeg)).
+2. Make the AppImage executable: `chmod +x YT-DLP-Studio-*.AppImage`.
+3. Run the AppImage.
+
+Your desktop may offer to add the AppImage to the app menu.
+
+**Updates:** the app can download the new AppImage. Make the new file executable and start it. You can delete the old AppImage afterwards.
+
+### Linux archive (.tar.gz)
+
+1. Install FFmpeg (see [FFmpeg](#ffmpeg)).
+2. Download `yt-dlp-studio-v<version>-Linux.tar.gz`.
+3. Extract the archive:
+
    ```bash
-   # Navigate to project directory
-   cd yt-dlp-studio
-
-   # Create virtual environment with Python 3.13
-   py -3.13 -m venv venv
-
-   # Activate virtual environment
-   venv\Scripts\activate
-
-   # Install dependencies
-   pip install -r requirements.txt
-
-   # Run the app
-   python launcher.py
+   tar -xzf yt-dlp-studio-*-Linux.tar.gz
    ```
 
----
+4. Add the app to your app menu. The script installs to `~/.local` and needs no root:
 
-### Option 2: Use Python 3.12 or 3.11 (Also Compatible)
+   ```bash
+   ./install.sh
+   ```
 
-If you have Python 3.12 or 3.11 installed:
+5. Start YT-DLP Studio from your app menu, or run `yt-dlp-studio`.
 
-```bash
-# Check available Python versions
-py --list
+`install.sh` works on any desktop that follows the XDG specification (GNOME, KDE, XFCE, Cinnamon and others). If FFmpeg is missing, it prints the install command for your package manager. To run the binary without installing it, run `chmod +x yt-dlp-studio && ./yt-dlp-studio`.
 
-# Use specific version to create venv
-py -3.12 -m venv venv
+### FFmpeg
 
-# OR
-py -3.11 -m venv venv
+The AppImage and the Linux archive need FFmpeg from your distribution. The .deb and .rpm packages install it for you.
 
-# Activate and install
-venv\Scripts\activate
-pip install -r requirements.txt
-python launcher.py
-```
+| Distribution | Command |
+|--------------|---------|
+| Debian, Ubuntu, Mint | `sudo apt install ffmpeg` |
+| Fedora, RHEL | `sudo dnf install ffmpeg` (may need RPM Fusion) |
+| Arch, Manjaro | `sudo pacman -S ffmpeg` |
+| openSUSE | `sudo zypper install ffmpeg` |
+| Alpine | `sudo apk add ffmpeg` |
 
----
+### Deno
 
-### Option 3: Wait for PySide6 Update
+yt-dlp uses Deno to solve YouTube's JavaScript challenges. The Linux builds do not include Deno. Without Deno, the app still works, but YouTube may offer fewer formats. To use Deno, install it from [deno.land](https://deno.land/) and make sure `deno` is on your `PATH`.
 
-PySide6 will eventually support Python 3.14, but this could take weeks or months.
+### Desktop libraries
 
-**Not recommended** - better to use Python 3.13 now.
+The Linux builds include Qt. They also need some system libraries, for example libGL, libEGL, libxkbcommon, libdbus, libxcb-cursor, fontconfig and GLib. A desktop environment usually has them. On a minimal or server install, you may need to install them with your package manager. The .deb package lists them as dependencies.
 
----
+## Run from source
 
-## Step-by-Step Installation (Recommended Path)
+Use a source install if you want to change the code, or if no build fits your system.
 
-### 1. Install Python 3.13
+### 1. Install the prerequisites
 
-Download from: https://www.python.org/downloads/release/python-3130/
+1. Install Python 3.11 or later from [python.org](https://www.python.org/downloads/).
+2. On Windows, select **Add python.exe to PATH** in the Python installer.
+3. Install Git.
+4. On Linux, install FFmpeg (see [FFmpeg](#ffmpeg)).
 
-**Windows Installer:**
-- Select "Windows installer (64-bit)"
-- Run the `.exe` file
-- ✅ Check "Add python.exe to PATH"
-- Click "Install Now"
-
-### 2. Verify Installation
+### 2. Get the code
 
 ```bash
-# Check Python 3.13 is installed
-py -3.13 --version
-
-# Should output: Python 3.13.x
-```
-
-### 3. Create Virtual Environment
-
-```bash
-# Navigate to project
+git clone https://github.com/NX1X/yt-dlp-studio.git
 cd yt-dlp-studio
-
-# Create venv with Python 3.13
-py -3.13 -m venv venv
-
-# You should see a new "venv" folder created
 ```
 
-### 4. Activate Virtual Environment
+### 3. Create and activate a virtual environment
 
-**Windows Command Prompt:**
-```bash
-venv\Scripts\activate.bat
-```
-
-**Windows PowerShell:**
-```bash
-venv\Scripts\Activate.ps1
-```
-
-**Git Bash:**
-```bash
-source venv/Scripts/activate
-```
-
-**After activation, your prompt should show:** `(venv)`
-
-### 5. Install Dependencies
+A virtual environment is optional, but recommended. It keeps the app's dependencies apart from other Python projects.
 
 ```bash
-# With venv activated
-pip install -r requirements.txt
+python -m venv .venv
 ```
 
-This will install:
-- PySide6 (Qt6 GUI framework)
-- requests (for update checker)
-- packaging (for version comparison)
+Activate it:
 
-### 6. Run the Application
+| Shell | Command |
+|-------|---------|
+| Windows Command Prompt | `.venv\Scripts\activate.bat` |
+| Windows PowerShell | `.venv\Scripts\Activate.ps1` |
+| Git Bash on Windows | `source .venv/Scripts/activate` |
+| Linux | `source .venv/bin/activate` |
+
+When the environment is active, your prompt shows `(.venv)`. To leave it, run `deactivate`.
+
+### 4. Install the dependencies
+
+```bash
+pip install -e .
+```
+
+This installs the runtime dependencies from `pyproject.toml`:
+
+- PySide6 (the Qt 6 GUI framework). It is the largest dependency, about 650 MB on disk (measured on Linux with Python 3.13).
+- requests (used by the update checker).
+- packaging (used to compare version numbers).
+- yt-dlp-ejs (the JavaScript challenge solver scripts for the bundled yt-dlp).
+
+To install the exact, hash-pinned versions that CI uses, run this instead:
+
+```bash
+pip install --require-hashes -r requirements/lock.txt
+```
+
+### 5. Start the app
 
 ```bash
 python launcher.py
 ```
 
-**The app should now start!**
+If the app cannot find Deno on the first start, it downloads Deno 2.9.8 into the `deno` folder of the project. The download is about 30 MB and happens once. If the download fails, the app still works, with fewer YouTube formats.
 
-### 7. Switch to Hebrew
-
-1. Click **"Settings"** tab
-2. Find **"Language"** dropdown
-3. Select **"עברית (Hebrew)"**
-4. Click **"Save Settings"**
-5. **Restart the app**
-
----
-
-## Troubleshooting
-
-### Error: "py: command not found"
-
-**Solution:** Use `python` instead of `py`:
+### Alternative: Conda
 
 ```bash
-python -m venv venv
+conda create -n ytdlp python=3.11
+conda activate ytdlp
+cd yt-dlp-studio
+pip install -e .
+python launcher.py
 ```
 
-### Error: "cannot be loaded because running scripts is disabled"
+## Change the language
 
-**Solution (PowerShell):** Allow script execution:
+1. Open the **Settings** tab.
+2. Select a language in **Language** (English or עברית, Hebrew).
+3. Click **Save Settings**.
+4. Restart the app.
 
-```bash
+## Uninstall
+
+Uninstalling never deletes your downloaded videos. It keeps the app data folder unless you ask to delete it.
+
+| Install type | How to uninstall |
+|--------------|------------------|
+| Installer | Uninstall from Windows Settings, in the list of installed apps. |
+| Portable EXE or ZIP | Delete the EXE file. |
+| .deb package | `sudo apt remove yt-dlp-studio` |
+| .rpm package | `sudo dnf remove yt-dlp-studio` |
+| AppImage | Delete the AppImage file. |
+| Linux archive | Run `./uninstall.sh` from the extracted archive. |
+| Source install | Delete the project folder. |
+
+The Windows uninstaller asks if it should also delete your settings, history and logs. The default answer is No. For an unattended uninstall, the data is kept unless you pass `/PURGEDATA=yes`. Removing or purging the .deb or .rpm package keeps the app data folder.
+
+### App data folder
+
+The app data folder holds your settings, log file, download history, saved queue and crash reports.
+
+| System | App data folder |
+|--------|-----------------|
+| Windows | `%APPDATA%\YT-DLP Studio` |
+| Linux | `~/.config/YT-DLP Studio` |
+
+The language choice is stored in a different folder: `.yt-dlp-studio` in your home folder. No uninstaller removes it.
+
+To remove all your data, delete both folders by hand.
+
+## Verify a download
+
+Each release publishes a signed build provenance attestation. It covers the portable EXE, the Linux binary, the AppImage, the .deb and the .rpm. It does not cover the Windows installer.
+
+1. Install the [GitHub CLI](https://cli.github.com/).
+2. Run `gh attestation verify <file> --repo NX1X/yt-dlp-studio`.
+
+If the command fails, do not run the file. [SECURITY.md](../SECURITY.md#verifying-a-downloaded-release) has the details.
+
+## Troubleshooting a source install
+
+### "py: command not found"
+
+Use `python` instead of `py`, for example `python -m venv .venv`.
+
+### "cannot be loaded because running scripts is disabled"
+
+PowerShell blocks the activation script. Allow local scripts for your user, then activate the environment again:
+
+```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
-Then retry activating the venv.
+### "No module named 'PySide6'"
 
-### Error: "No module named 'PySide6'" after installation
+The virtual environment is not active. Activate it again (see step 3). Your prompt must show `(.venv)`.
 
-**Solution:** Make sure venv is activated:
+### PySide6 does not install
 
-```bash
-# You should see (venv) in your prompt
-# If not, activate it again:
-venv\Scripts\activate
-```
+Possible causes:
 
-### Error: PySide6 installation fails
+1. Your Python version is older than 3.11. Run `python --version` to check.
+2. There is a problem with your internet connection.
+3. There is not enough disk space.
 
-**Possible issues:**
-1. Python version incompatible (need 3.9-3.13)
-2. Internet connection issue
-3. Insufficient disk space
+### Other checks
 
-**Solution:** Check Python version:
-```bash
-python --version
-```
+1. Run `pip list` to see the installed packages.
+2. Reinstall the dependencies with `pip install --force-reinstall -e .`.
 
-Should be 3.9.x through 3.13.x (NOT 3.14)
-
----
-
-## Alternative: Use Conda/Miniconda
-
-If you use Conda:
-
-```bash
-# Create conda environment with Python 3.13
-conda create -n ytdlp python=3.13
-
-# Activate environment
-conda activate ytdlp
-
-# Navigate to project
-cd yt-dlp-studio
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run app
-python launcher.py
-```
-
----
-
-## Quick Reference Commands
-
-### Create & Activate Virtual Environment
-```bash
-# Create
-py -3.13 -m venv venv
-
-# Activate (Windows CMD)
-venv\Scripts\activate.bat
-
-# Activate (PowerShell)
-venv\Scripts\Activate.ps1
-
-# Activate (Git Bash)
-source venv/Scripts/activate
-```
-
-### Install & Run
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run application
-python launcher.py
-```
-
-### Deactivate Virtual Environment
-```bash
-deactivate
-```
-
----
-
-## What Gets Installed
-
-### PySide6 (GUI Framework)
-- Qt6 bindings for Python
-- Size: ~200MB
-- Provides: Windows, buttons, layouts, etc.
-
-### requests (HTTP Library)
-- Used for checking app updates
-- Size: ~100KB
-- Provides: HTTP requests functionality
-
-### packaging (Version Comparison)
-- Used for comparing version numbers
-- Size: ~50KB
-- Provides: Version parsing utilities
-
-**Total Size:** ~200MB
-
----
-
-## After Installation
-
-Once installed, you can:
-
-1. **Run the app in English:**
-   ```bash
-   python launcher.py
-   ```
-
-2. **Test Hebrew translation:**
-   - Open Settings tab
-   - Select Hebrew (עברית)
-   - Save and restart
-
-3. **Test all features:**
-   - Download a video
-   - Use the queue system
-   - Check history
-   - View video info
-   - Try playlists
-
----
-
-## System Requirements
-
-- **OS:** Windows 10/11, Linux, or macOS
-- **Python:** 3.11 or newer (CI builds and tests on 3.14)
-- **RAM:** 512MB minimum (2GB recommended)
-- **Disk Space:** 500MB (for dependencies + videos)
-- **Internet:** Required for downloading videos
-
----
-
-## Next Steps
-
-After installation:
-
-1. ✅ **Install Python 3.13**
-2. ✅ **Create virtual environment**
-3. ✅ **Install dependencies**
-4. ✅ **Run the app**
-5. ✅ **Test Hebrew translation**
-
-Then review:
-- `QUICK_START_HEBREW.md` - Quick start guide
-- `docs/HEBREW_TRANSLATION.md` - Full translation documentation
-- `docs/HEBREW_TESTING_GUIDE.md` - Testing procedures
-
----
-
-## Support
-
-If you encounter issues:
-
-1. Check Python version: `python --version` (should be 3.9-3.13)
-2. Verify venv is activated: you should see `(venv)` in prompt
-3. Check dependencies installed: `pip list`
-4. Try reinstalling: `pip install -r requirements.txt --force-reinstall`
-
----
-
-## Summary
-
-**Current Issue:** Python 3.14 is too new for PySide6
-
-**Solution:** Install Python 3.13 and create virtual environment
-
-**Time to Setup:** 5-10 minutes
-
-**Result:** Fully functional YT-DLP Studio with Hebrew support! 🇮🇱
+If you still have a problem, [open an issue](https://github.com/NX1X/yt-dlp-studio/issues/new/choose).
