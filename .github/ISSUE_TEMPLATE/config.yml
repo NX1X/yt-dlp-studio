@@ -9,9 +9,6 @@ contact_links:
   - name: yt-dlp Bugs (extractors / site support)
     url: https://github.com/yt-dlp/yt-dlp/issues
     about: Report a bug in yt-dlp itself (site extractor issues, format bugs, etc.)
-  - name: Buy Me a Coffee
-    url: https://buymeacoffee.com/nx1x
-    about: Support development if you find YT-DLP Studio useful
   - name: NXTools
     url: https://nx1xlab.dev/nxtools
     about: Other tools by NX1X
