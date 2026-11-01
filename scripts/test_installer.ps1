@@ -106,7 +106,10 @@ $before = @(Select-String -Path $LogFile -Pattern "started successfully").Count
 $env:_PYI_APPLICATION_HOME_DIR = Join-Path $env:TEMP "_MEI_gone_$(Get-Random)"
 $env:_PYI_ARCHIVE_FILE = Join-Path $env:TEMP "gone-$(Get-Random).exe"
 $env:_PYI_PARENT_PROCESS_LEVEL = "1"
-$p = Start-Process -FilePath $Setup -ArgumentList "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/LAUNCH=yes", "/LOG=update.log" -Wait -PassThru
+# Wait for the installer process only: Start-Process -Wait also waits for
+# the app the installer starts, which keeps running, so it would never return.
+$p = Start-Process -FilePath $Setup -ArgumentList "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/LAUNCH=yes", "/LOG=update.log" -PassThru
+if (-not $p.WaitForExit(300000)) { Fail "update installer did not finish within 5 minutes" }
 Remove-Item Env:_PYI_APPLICATION_HOME_DIR, Env:_PYI_ARCHIVE_FILE, Env:_PYI_PARENT_PROCESS_LEVEL
 if ($p.ExitCode -ne 0) { Fail "update install exited with $($p.ExitCode)" }
 $started = $false
