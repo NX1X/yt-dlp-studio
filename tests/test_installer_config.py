@@ -66,3 +66,19 @@ def test_app_data_dir_matches_installer():
 
     assert '#define AppName "' + APP_NAME + '"' in _iss_text()
     assert "ExpandConstant('{userappdata}\\{#AppName}')" in _iss_text()
+
+
+def test_installer_resets_pyinstaller_env_for_the_app_it_starts():
+    # An update started from 0.3.0 or 0.3.1 passes the old app's PyInstaller
+    # variables to the installer; the installer must neutralize them before it
+    # relaunches the app.
+    text = _iss_text()
+    assert "SetEnvironmentVariableW@kernel32.dll stdcall" in text
+    assert "SetEnvironmentVariable('PYINSTALLER_RESET_ENVIRONMENT', '1');" in text
+    assert "function InitializeSetup: Boolean;" in text
+
+
+def test_ci_reproduces_the_stale_env_update():
+    ps1 = (ROOT / "scripts" / "test_installer.ps1").read_text(encoding="utf-8")
+    assert "_PYI_APPLICATION_HOME_DIR" in ps1
+    assert '"/LAUNCH=yes"' in ps1
