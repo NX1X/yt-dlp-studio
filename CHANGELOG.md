@@ -17,7 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no entries yet)_
+### Removed
+
+- **Funding links.** The Buy Me a Coffee link is gone from the About tab, the README, the release notes and the release archives, and the repository no longer shows a Sponsor button.
 
 ---
 

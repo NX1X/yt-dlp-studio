@@ -36,7 +36,6 @@ Release notes and changelog for YT-DLP Studio.
 - **Part of NXtools collection**
   - Added NXtools branding in About dialog
   - Links to https://nx1xlab.dev/nxtools
-  - Buy Me a Coffee support link
   - Added to README with badge
 
 ### UI Improvements

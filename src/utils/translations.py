@@ -97,8 +97,6 @@ TRANSLATIONS = {
         "label_pyside_version": "PySide6 (Qt):",
         "text_about_developer_intro": "This tool is part of <b>NXtools</b> - a collection of productivity tools.",
         "label_website": "Website:",
-        "label_support_development": "Support development:",
-        "text_buy_me_a_coffee_blurb": "If you find this tool useful, consider buying me a coffee!",
         # button_view_on_github lives lower in this dict; do not redeclare here.
         "tooltip_view_on_github": "Open the project repository in your browser",
         "header_credits_core_deps": "Core dependencies",
@@ -506,8 +504,6 @@ TRANSLATIONS = {
         "label_pyside_version": "PySide6 (Qt):",
         "text_about_developer_intro": "כלי זה הוא חלק מ-<b>NXtools</b> - אוסף של כלי פרודקטיביות.",
         "label_website": "אתר:",
-        "label_support_development": "תמיכה בפיתוח:",
-        "text_buy_me_a_coffee_blurb": "אם מצאת את הכלי מועיל, שקול לקנות לי קפה!",
         # button_view_on_github lives lower in this dict; do not redeclare here.
         "tooltip_view_on_github": "פתח את מאגר הפרויקט בדפדפן",
         "header_credits_core_deps": "תלויות מרכזיות",
