@@ -274,3 +274,34 @@ def test_oversized_download_is_aborted(tmp_path):
     out = tmp_path / "a.exe"
     assert c.download_update(GH, str(out), expected_digest=PAYLOAD_DIGEST).success is False
     assert not out.exists() and not (tmp_path / "a.exe.part").exists()
+
+
+# ---------- the started process does not inherit stale PyInstaller state ----------
+
+
+def test_child_env_drops_pyinstaller_vars_and_sets_reset(monkeypatch):
+    from src.ui.update_dialog import child_process_env
+
+    monkeypatch.setenv("_PYI_APPLICATION_HOME_DIR", r"C:\Temp\_MEI12345")
+    monkeypatch.setenv("_PYI_ARCHIVE_FILE", r"C:\old\yt-dlp-studio.exe")
+    monkeypatch.setenv("_PYI_PARENT_PROCESS_LEVEL", "1")
+    monkeypatch.setenv("_MEIPASS2", r"C:\Temp\_MEI12345")
+    monkeypatch.setenv("KEEP_ME", "yes")
+    env = child_process_env()
+    assert not [k for k in env if k.startswith("_PYI_") or k == "_MEIPASS2"]
+    assert env["PYINSTALLER_RESET_ENVIRONMENT"] == "1"
+    assert env["KEEP_ME"] == "yes"
+
+
+@pytest.mark.parametrize("silent", [True, False])
+def test_launch_passes_clean_env(dialog, setup_file, launched, monkeypatch, silent):
+    # Without this the relaunched app failed with "Failed to load Python DLL"
+    # from the old app's deleted _MEI folder (0.3.0 -> 0.3.1 update).
+    monkeypatch.setenv("_PYI_APPLICATION_HOME_DIR", r"C:\Temp\_MEI12345")
+    if silent:
+        dialog._run_installer_silent(setup_file)
+    else:
+        dialog._launch_and_quit([setup_file])
+    _, kwargs = launched["popen"][0]
+    assert "_PYI_APPLICATION_HOME_DIR" not in kwargs["env"]
+    assert kwargs["env"]["PYINSTALLER_RESET_ENVIRONMENT"] == "1"

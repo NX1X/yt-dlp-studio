@@ -1,147 +1,159 @@
 # Contributing to YT-DLP Studio
 
-Thanks for your interest in contributing! This document covers how to set up a
-development environment, the code standards we follow, and the workflow for
-submitting changes.
+Thank you for your interest in YT-DLP Studio. This guide explains how to set up a development environment, which code standards apply, and how to submit a change.
+
+For more detail on the code, see the [Development Guide](docs/DEVELOPMENT.md) and the [Architecture](docs/ARCHITECTURE.md) document.
 
 ## Code of Conduct
 
-This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
-By participating, you are expected to uphold it.
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By taking part, you agree to follow it.
 
-## Development Setup
+## Development setup
 
 ### Prerequisites
 
-- **Python 3.11+**
-- **Git**
-- **FFmpeg** (for full functionality - bundled with the Windows release; install
-  separately on Linux/macOS)
-- A working **Qt** stack (handled automatically by PySide6 wheels on supported
-  platforms)
+- Python 3.11 or later.
+- Git.
+- FFmpeg, for full functionality. The Windows release includes it. On Linux and macOS, install it separately.
+- A working Qt stack. The PySide6 wheels provide it on supported platforms.
 
 ### Clone and install
 
-```bash
-git clone https://github.com/NX1X/yt-dlp-studio.git
-cd yt-dlp-studio
+1. Clone the repository:
 
-# Create a virtual environment
-python -m venv .venv
+   ```bash
+   git clone https://github.com/NX1X/yt-dlp-studio.git
+   cd yt-dlp-studio
+   ```
 
-# Activate it
-# Windows (PowerShell):
-.\.venv\Scripts\Activate.ps1
-# macOS / Linux:
-source .venv/bin/activate
+2. Create a virtual environment:
 
-# Install runtime + dev dependencies (hash-pinned, the same set CI uses)
-pip install --require-hashes -r requirements/dev.txt
+   ```bash
+   python -m venv .venv
+   ```
 
-# After changing dependencies in pyproject.toml, regenerate the locks
-# (needs uv; applies the 14-day cooldown and resolves for every platform):
-# scripts/relock.sh
+3. Activate it:
 
-# Install pre-commit hooks (recommended)
-pre-commit install
-```
+   ```bash
+   # Windows (PowerShell):
+   .\.venv\Scripts\Activate.ps1
+   # macOS / Linux:
+   source .venv/bin/activate
+   ```
 
-### Run the app
+4. Install the runtime and development dependencies. These are hash-pinned, the same set that CI uses:
+
+   ```bash
+   pip install --require-hashes -r requirements/dev.txt
+   ```
+
+5. Install the pre-commit hooks (recommended):
+
+   ```bash
+   pre-commit install
+   ```
+
+If you change dependencies in `pyproject.toml`, regenerate the lock files with `scripts/relock.sh`. The script needs uv. It applies the 14-day cooldown and resolves for every platform.
+
+### Start the app
 
 ```bash
 python launcher.py
 ```
 
-## Development Workflow
+## Workflow
 
-1. **Create a branch** from `main` (or `dev`):
+1. Create a branch from `main`:
+
    ```bash
    git checkout -b feat/short-description
    ```
-2. Make your changes. Keep PRs focused - one feature or fix per PR.
-3. **Run quality checks** locally:
+
+2. Make your change. Keep each pull request focused on one feature or one fix.
+3. Run the quality checks:
+
    ```bash
    ruff check src/ tests/ launcher.py
    ruff format --check src/ tests/ launcher.py
    black --check src/ tests/ launcher.py
    pytest tests/ -v
    ```
-4. **Update `CHANGELOG.md`** under the next version header (e.g. `## [0.9.3]`).
-5. **Commit** using [Conventional Commits](https://www.conventionalcommits.org/):
+
+4. Add an entry to `CHANGELOG.md` under `## [Unreleased]`.
+5. Commit with a [Conventional Commits](https://www.conventionalcommits.org/) message. Examples:
+
    ```
    feat: add subtitle language picker
    fix: handle 4K-only formats without audio merge
    docs: clarify FFmpeg installation on Linux
-   ci:   bump actions/checkout to v6
+   ci: bump actions/checkout to v6
    chore: regenerate translations
    ```
-6. **Push** and open a pull request against `main` (or `dev` for in-flight work).
-7. Fill out the PR template completely. CI must pass before merge.
 
-## Code Standards
+6. Push the branch and open a pull request against `main`.
+7. Fill in the pull request template. CI must pass before the merge.
 
-| Topic            | Rule                                                     |
-|------------------|----------------------------------------------------------|
-| Python version   | 3.11+                                                    |
-| Line length      | 120 characters                                           |
-| Linter           | `ruff check`                                             |
-| Formatter        | `black` (and `ruff format` for orchestration)            |
-| Type hints       | Required on all new public functions                     |
-| Tests            | Required for new features and bug fixes                  |
-| GUI framework    | PySide6 (Qt for Python)                                  |
-| String quotes    | Whatever `black` decides - don't fight the formatter     |
+## Code standards
 
-The `vendor/yt_dlp_engine/` directory is a vendored copy of yt-dlp and is
-**excluded from linting/formatting**. Don't reformat it; if you need to patch
-upstream behaviour, add a comment explaining why and keep the diff minimal.
+| Topic | Rule |
+|-------|------|
+| Python version | 3.11 or later |
+| Line length | 120 characters |
+| Linter | `ruff check` |
+| Formatter | `black` (and `ruff format`) |
+| Type hints | Required on all new public functions |
+| Tests | Required for new features and bug fixes |
+| GUI framework | PySide6 (Qt for Python) |
+| String quotes | Use what `black` produces. Do not fight the formatter. |
+
+`vendor/yt_dlp_engine/` is a vendored copy of yt-dlp. Linting and formatting exclude it. Do not reformat it. If you must patch upstream behavior, add a comment that explains why, and keep the diff small.
 
 ## Tests
 
-- Tests live in `tests/` and are run with `pytest`.
-- GUI tests use `pytest-qt`. Set `QT_QPA_PLATFORM=offscreen` for headless runs.
-- On Linux, GUI tests need `xvfb-run`:
+- Tests are in `tests/`. Run them with `pytest`.
+- GUI tests use `pytest-qt`. For headless runs, set `QT_QPA_PLATFORM=offscreen`.
+- On a Linux machine without a display, run the GUI tests with `xvfb-run`:
+
   ```bash
   xvfb-run --auto-servernum pytest tests/ -v
   ```
-- Coverage report:
+
+- To get a coverage report, run:
+
   ```bash
   pytest tests/ -v --cov=src --cov-report=term-missing
   ```
 
 ## Changelog
 
-- Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
-- Categories: **Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**, **Security**
-- Use versioned headers directly (no `[Unreleased]` section).
-- The release workflow auto-tags from the top `## [X.Y.Z]` header in `CHANGELOG.md`.
+- Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+- Categories: **Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**, **Security**.
+- Add new entries under `## [Unreleased]`. At release time, `python scripts/sync_version.py` renames that section to `## [<version>] - <date>`.
 
 ## Versioning
 
-- [Semantic Versioning](https://semver.org/) - `MAJOR.MINOR.PATCH`.
-- Versions < 1.0.0 are pre-stable.
-- Keep the version in sync across:
-  - `CHANGELOG.md` (top header)
-  - `packaging/version_info.txt` (Windows EXE metadata - regenerated by `python scripts/sync_version.py`)
-  - `pyproject.toml` (`[project] version`, once populated)
+- The project uses [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
+- Versions below 1.0.0 are pre-stable.
+- `__version__` in `src/__init__.py` is the single source of truth. `pyproject.toml` reads it dynamically.
+- After a version bump, run `python scripts/sync_version.py`. It updates `packaging/version_info.txt` (the Windows EXE metadata) and the `CHANGELOG.md` header.
+- The release workflow publishes a release when `__version__` has no tag yet. `CHANGELOG.md` must have a matching `## [<version>]` entry. Do not push version tags by hand.
 
-## Pull Request Checklist
+## Pull request checklist
 
-- [ ] Branch is up-to-date with `main`
-- [ ] PR description explains *what* and *why*, links related issues
-- [ ] CHANGELOG.md updated under the next version header
-- [ ] Tests added or updated
-- [ ] `ruff check` + `ruff format --check` pass
-- [ ] `pytest tests/ -v` passes locally
-- [ ] No secrets, API keys, or large binaries committed
+- [ ] The branch is up to date with `main`.
+- [ ] The description explains what changed and why, and links related issues.
+- [ ] `CHANGELOG.md` has an entry under `## [Unreleased]`.
+- [ ] Tests are added or updated.
+- [ ] `ruff check` and `ruff format --check` pass.
+- [ ] `pytest tests/ -v` passes locally.
+- [ ] No secrets, API keys or large binaries are committed.
 
-## Reporting Bugs / Requesting Features
+## Report bugs and request features
 
-- **Bugs**: open an issue using the **Bug Report** template
-- **Features**: open an issue using the **Feature Request** template
-- **Security vulnerabilities**: do **not** use public issues - see [SECURITY.md](SECURITY.md)
-- **Questions / discussion**: use [GitHub Discussions](https://github.com/NX1X/yt-dlp-studio/discussions)
+- **Bugs:** open an issue with the **Bug Report** template.
+- **Features:** open an issue with the **Feature Request** template.
+- **Security vulnerabilities:** do not use public issues. See [SECURITY.md](SECURITY.md).
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the
-project's [Apache License 2.0](LICENSE).
+By contributing, you agree that your contributions are licensed under the project's [Apache License 2.0](LICENSE).
