@@ -733,7 +733,6 @@ Things we WON'T implement:
 
 ### Future Options (if needed)
 
-- Donations (Ko-fi, Patreon)
 - Pro version with extra features
 - Commercial licensing
 - Support contracts

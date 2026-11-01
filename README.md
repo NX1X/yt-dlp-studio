@@ -287,7 +287,6 @@ Thanks to all contributors and users.
 
 - Issues: [github.com/NX1X/yt-dlp-studio/issues](https://github.com/NX1X/yt-dlp-studio/issues)
 - Maintainer: [nx1xlab.dev](https://nx1xlab.dev) ([contact](https://nx1xlab.dev/contact), [LinkedIn](https://linkedin.com/in/edenporat))
-- Support development: [Buy Me a Coffee](https://buymeacoffee.com/nx1x)
 
 ---
 

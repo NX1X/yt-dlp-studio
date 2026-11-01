@@ -40,7 +40,6 @@ logger = get_logger()
 
 GITHUB_URL = "https://github.com/NX1X/yt-dlp-studio"
 NXTOOLS_URL = "https://nx1xlab.dev/nxtools"
-BUYMEACOFFEE_URL = "https://buymeacoffee.com/nx1x"
 
 # Single accent colour that is visible on both the dark and light themes
 # (Qt's mini-CSS in QTextBrowser does NOT support palette() so we cannot
@@ -227,15 +226,12 @@ class AboutTab(QWidget):
         layout = QVBoxLayout(group)
 
         intro = tr("text_about_developer_intro")
-        coffee_line = tr("text_buy_me_a_coffee_blurb")
         body = (
             f"<p>{intro}</p>"
             f"<p><b>{tr('label_website')}</b> "
             f'<a href="{NXTOOLS_URL}" style="color: {_LINK_COLOR};">{NXTOOLS_URL}</a></p>'
-            f"<p><b>{tr('label_support_development')}</b><br>{coffee_line}<br>"
-            f'<a href="{BUYMEACOFFEE_URL}" style="color: {_LINK_COLOR};">{BUYMEACOFFEE_URL}</a></p>'
         )
-        text = self._make_rich_label(body, max_height=160)
+        text = self._make_rich_label(body, max_height=110)
         layout.addWidget(text)
 
         # GitHub button (live, no longer commented out).

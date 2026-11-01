@@ -413,8 +413,7 @@ jobs:
             "- No additional software needed (FFmpeg included)",
             "",
             "SUPPORT",
-            "- Website: https://nx1xlab.dev/nxtools",
-            "- Support development: https://buymeacoffee.com/nx1x"
+            "- Website: https://nx1xlab.dev/nxtools"
         ) -join "`r`n"
         $readme | Out-File -FilePath "release/README.txt" -Encoding UTF8
         Compress-Archive -Path "release/*" -DestinationPath $archiveName
@@ -650,7 +649,6 @@ jobs:
 
         SUPPORT
         - Website: https://nx1xlab.dev/nxtools
-        - Support development: https://buymeacoffee.com/nx1x
         EOF
         tar -czf "yt-dlp-studio-${VERSION}-Linux.tar.gz" -C release .
         echo "Archive created: yt-dlp-studio-${VERSION}-Linux.tar.gz"
@@ -817,7 +815,7 @@ jobs:
           echo
           echo "### Credits"
           echo
-          echo "Part of **NXTools** by **NX1X** - https://nx1xlab.dev/nxtools · Support development: https://buymeacoffee.com/nx1x"
+          echo "Part of **NXTools** by **NX1X** - https://nx1xlab.dev/nxtools"
           echo
           echo "Full history: [CHANGELOG.md](https://github.com/NX1X/yt-dlp-studio/blob/main/CHANGELOG.md)"
         } > RELEASE_BODY.md
