@@ -489,8 +489,9 @@ jobs:
       # Runtime-test the frozen binary, not just that it built: launch it under
       # the offscreen Qt platform, wait for it to reach the "started
       # successfully" milestone (logged after the main window is shown), then
-      # stop it. The frozen app skips the Deno download (sys.frozen), so this
-      # needs no network. Catches missing hidden imports / broken bundle paths
+      # stop it. The Linux app starts a Deno download on a background thread;
+      # startup does not wait for it, so this needs no network to pass.
+      # Catches missing hidden imports / broken bundle paths
       # / Qt plugin gaps that only surface at run time.
       env:
         QT_QPA_PLATFORM: offscreen

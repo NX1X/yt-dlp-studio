@@ -7,7 +7,9 @@
 #
 # Note: Linux build does NOT bundle FFmpeg or Deno.
 # Users must install FFmpeg via their package manager (apt/dnf/pacman/zypper/...).
-# Deno is optional (for YouTube JS challenges) and auto-downloads on first run.
+# Deno is optional (for YouTube JS challenges). The app uses a system deno on
+# PATH if present. Otherwise it downloads the pinned Deno (SHA-256 checked) on
+# first run to ~/.config/YT-DLP Studio/deno/<version>/, never to the app folder.
 #
 # Portability: the shipped binary's glibc floor is the build host's glibc, so
 # CI builds this on ubuntu-22.04 (glibc 2.35), not ubuntu-latest. It also relies
@@ -28,8 +30,8 @@ block_cipher = None
 a = Analysis(
     [str(project_root / 'launcher.py')],
     pathex=[str(project_root)],
-    # FFmpeg/Deno are NOT bundled on Linux - the app uses system FFmpeg and
-    # auto-installs Deno.
+    # FFmpeg/Deno are NOT bundled on Linux - the app uses system FFmpeg and a
+    # system deno, or downloads Deno to the app data folder on first run.
     binaries=[],
     datas=[
         # Include yt_dlp engine (vendored)

@@ -25,7 +25,7 @@ import sys
 import threading
 
 from ..utils.constants import APP_VERSION, YTDLP_VERSION
-from ..utils.deno_installer import DENO_VERSION
+from ..utils.deno_installer import DENO_VERSION, get_app_data_deno_dir
 from ..utils.logger import get_logger
 from ..utils.process import hidden_window_kwargs
 from ..utils.translations import tr
@@ -232,6 +232,9 @@ def _deno_part() -> str:
         # Placed by the auto-installer. It may be from an older release, so
         # the version is not stated.
         return "Deno (local)"
+    if _same_dir(folder, str(get_app_data_deno_dir())):
+        # Downloaded to the versioned app data folder, so the version is known.
+        return f"Deno {DENO_VERSION} (downloaded)"
     return "Deno (system)"
 
 

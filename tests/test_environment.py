@@ -228,6 +228,12 @@ def test_deno_part_is_never_started(monkeypatch):
     assert env._deno_part() == "Deno (local)"
 
 
+def test_deno_part_downloaded_to_app_data(monkeypatch, tmp_path):
+    monkeypatch.setattr(env, "get_app_data_deno_dir", lambda: tmp_path)
+    monkeypatch.setattr(YtDlpWrapper, "_get_deno_location", lambda self: str(tmp_path / "deno"))
+    assert env._deno_part() == f"Deno {env.DENO_VERSION} (downloaded)"
+
+
 @pytest.mark.parametrize(
     ("os_name", "platform", "windows_installed", "linux_kind", "expected"),
     [

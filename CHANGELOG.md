@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **The app starts again after an in-place update.** After the 0.3.0 to 0.3.1 update on Windows, the restarted app failed with "Failed to load Python DLL" from a deleted `_MEI...` temp folder. The update itself was installed. The old app passed its PyInstaller variables to the installer, which passed them to the new app. Now the app and the installer both set `PYINSTALLER_RESET_ENVIRONMENT=1`. Because the installer sets it too, updates started from 0.3.0 and 0.3.1 restart correctly once the next release is out. CI now runs a silent update with stale PyInstaller variables and checks that the app starts.
+- **Deno on Linux.** The Linux builds (.deb, .rpm, AppImage, .tar.gz) do not include Deno, but the app never downloaded it, so YouTube downloads could fail or lose formats. The app now uses a system `deno` on PATH if there is one. Otherwise it downloads the pinned Deno once, in the background, to `~/.config/YT-DLP Studio/deno/<version>/`. The download is checked against a pinned SHA-256 and is not kept if the check fails. Without Deno the app still starts and logs a warning.
 - **Desktop notifications in Hebrew.** The titles and texts for a finished download, a failed download, a finished batch and an available update now follow the UI language. Video titles stay exactly as they are. The update notification no longer says "Click to update", because a click does not start an update.
 - **A failed download no longer shows "Download failed" twice.** The notification now shows the yt-dlp reason when there is one. A cancelled download shows the translated "Cancelled".
 - **Queue and History status in Hebrew.** The Status column in the Queue tab and the History tab now shows translated text. The English UI shows "Pending" instead of "PENDING". The queue file and the history file still store the English values, so files stay compatible.
@@ -53,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Deno on Linux.** The Linux builds (.deb, .rpm, AppImage, .tar.gz) do not include Deno, but the app never downloaded it, so YouTube downloads could fail or lose formats. The app now uses a system `deno` on PATH if there is one. Otherwise it downloads the pinned Deno once, in the background, to `~/.config/YT-DLP Studio/deno/<version>/`. The download is checked against a pinned SHA-256 and is not kept if the check fails. Without Deno the app still starts and logs a warning.
 - **"Enable Desktop Notifications" now works.** The Settings checkbox did nothing. It is now saved in the config (`notifications_enabled`, default on) and applied when you save, when you reset to defaults, and at startup.
 - **The tray menu is translated.** "Show Window" and "Quit" now come from the translation tables, in English and Hebrew.
 - **`docs/ROADMAP.md` is no longer stale.** It no longer says the removed bandwidth, video player and filter modules exist. It marks notifications and in-place updates as shipped and points to `ROADMAP.md` for the current plan.
@@ -94,6 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Deno on Linux.** The Linux builds (.deb, .rpm, AppImage, .tar.gz) do not include Deno, but the app never downloaded it, so YouTube downloads could fail or lose formats. The app now uses a system `deno` on PATH if there is one. Otherwise it downloads the pinned Deno once, in the background, to `~/.config/YT-DLP Studio/deno/<version>/`. The download is checked against a pinned SHA-256 and is not kept if the check fails. Without Deno the app still starts and logs a warning.
 - **Desktop notifications never appeared** (#62). The app never created its tray icon, so every notification fell through to a library the EXE cannot use. Notifications now go through the tray icon, then `notify-send` on Linux. "Notification sent" is logged only when a notification really went out.
 - **The real file name is shown and opened** (#65). Nothing recorded the downloaded file, so the Queue tab, notifications and the "Download complete" box said "video file", and "Open file" could not find the file. They now use the real name and title from yt-dlp.
 - **The History tab never got new entries** (#66). Finished downloads are now recorded: completions, final failures with the real reason, and cancels. A failure that is about to be retried waits for its final result. The tab refreshes on its own.
@@ -126,6 +129,7 @@ These need a real Windows desktop, not a CI runner: the interactive installer wi
 
 ### Fixed
 
+- **Deno on Linux.** The Linux builds (.deb, .rpm, AppImage, .tar.gz) do not include Deno, but the app never downloaded it, so YouTube downloads could fail or lose formats. The app now uses a system `deno` on PATH if there is one. Otherwise it downloads the pinned Deno once, in the background, to `~/.config/YT-DLP Studio/deno/<version>/`. The download is checked against a pinned SHA-256 and is not kept if the check fails. Without Deno the app still starts and logs a warning.
 - **The lock file had drifted from `pyproject.toml`.** Renovate raises version bounds but does not regenerate the locks. `requirements/lock.txt` pinned PySide6 6.11.0 while `pyproject.toml` required `>=6.11.2`. CI hid it, because the unhashed `pip install -e .[dev]` that followed upgraded past the lock. The locks are regenerated and now match, and the new consistency test catches this from now on.
 - **`requirements/lock.txt` could not be installed on Python 3.10**, the `requires-python` floor. It was compiled on Python 3.14, which drops `tomli` (PySide6 needs it below 3.11), so `pip install --require-hashes` failed. All three lock files are now compiled with `uv pip compile --universal --python-version 3.10`, which keeps platform and Python-version markers. That also keeps Windows-only packages such as `colorama` in `dev.txt`. Verified: all three files install with zero errors on Python 3.14 and 3.10, and the full test suite passes on both.
 - **The 14-day supply-chain cooldown now covers transitive dependencies too.** pip-compile picks the newest version that fits a bound, and Renovate's `minimumReleaseAge` covers only the direct dependencies it bumps. The first regeneration would have pulled 15 packages younger than 14 days, including PySide6 6.12.0 and its new `pyside6-webengine` dependency. Locks are now built with `--exclude-newer` set 14 days back (2026-10-16 for this release). Verified on 2026-10-30: 75 of the 79 unique pins are at least 14 days old. The other 4 are the security fixes listed under Security, which skip the cooldown on purpose.
@@ -221,6 +225,7 @@ Deno on first run.
 
 ### Fixed
 
+- **Deno on Linux.** The Linux builds (.deb, .rpm, AppImage, .tar.gz) do not include Deno, but the app never downloaded it, so YouTube downloads could fail or lose formats. The app now uses a system `deno` on PATH if there is one. Otherwise it downloads the pinned Deno once, in the background, to `~/.config/YT-DLP Studio/deno/<version>/`. The download is checked against a pinned SHA-256 and is not kept if the check fails. Without Deno the app still starts and logs a warning.
 - **Linux PyInstaller spec was missing runtime dependencies.**
   `build_linux.spec` did not bundle `curl_cffi`'s native impersonation library
   (downloads failed at `YoutubeDL` init with "Impersonate target 'chrome' is not
@@ -259,6 +264,7 @@ Deno on first run.
 
 ### Fixed
 
+- **Deno on Linux.** The Linux builds (.deb, .rpm, AppImage, .tar.gz) do not include Deno, but the app never downloaded it, so YouTube downloads could fail or lose formats. The app now uses a system `deno` on PATH if there is one. Otherwise it downloads the pinned Deno once, in the background, to `~/.config/YT-DLP Studio/deno/<version>/`. The download is checked against a pinned SHA-256 and is not kept if the check fails. Without Deno the app still starts and logs a warning.
 - **YouTube downloads failing in the Windows EXE.** `packaging/build.spec` listed `yt_dlp_ejs` under `hiddenimports`, which bundles the package's Python modules but not its data files. The JS challenge solver scripts (`yt_dlp_ejs/yt/solver/core.min.js` and `lib.min.js`) were therefore missing from the frozen build, so YouTube's JS challenges could not be solved and downloads failed or lost formats. Running from source was unaffected because the scripts exist on disk in the venv. The spec now adds `collect_data_files('yt_dlp_ejs')` to `datas`. Verified with the new engine: yt-dlp logs `Using challenge solver lib/core script v0.8.0 (source: python package, variant: minified)` with no hash-mismatch warning.
 - **Failed downloads were reported as successful.** With `ignoreerrors='only_download'`, a failed download does not raise: `extract_info` returns `None`, and the wrapper logged `DOWNLOAD COMPLETED SUCCESSFULLY` with nothing on disk. This is exactly what v0.1.3 users saw, completing in about two seconds with no file. The wrapper now counts a download as successful only when the files yt-dlp reports in `requested_downloads` exist, and otherwise fails with yt-dlp's own error, which the UI displays. yt-dlp's warnings and errors are also routed into the app log through a `logger` bridge; previously they went to stdout/stderr, which the windowed EXE discards.
 - **Playlist dialog crash on float durations.** yt-dlp reports `duration` as a float (e.g. `245.0`), and the `:02d` format in `PlaylistVideoInfo` raised `ValueError`, closing the dialog. The duration is now normalised to `int` first. Covered by new tests in `tests/test_playlist_fetcher.py`.
@@ -296,6 +302,7 @@ Deno on first run.
 
 ### Fixed
 
+- **Deno on Linux.** The Linux builds (.deb, .rpm, AppImage, .tar.gz) do not include Deno, but the app never downloaded it, so YouTube downloads could fail or lose formats. The app now uses a system `deno` on PATH if there is one. Otherwise it downloads the pinned Deno once, in the background, to `~/.config/YT-DLP Studio/deno/<version>/`. The download is checked against a pinned SHA-256 and is not kept if the check fails. Without Deno the app still starts and logs a warning.
 - **`.github/renovate.json5` schema-validation warning cleared.** The `vulnerabilityAlerts` block used to include `"prPriority": 10`, which Renovate's schema only permits inside `packageRules`. The property was silently ignored at runtime, but every scheduled Renovate run reported "Repository Problems / Found renovate config warnings" on the Dependency Dashboard. Removed. `npx --package=renovate -- renovate-config-validator .github/renovate.json5` now reports `Config validated successfully`.
 
 ### Added
@@ -339,6 +346,7 @@ Deno on first run.
 
 ### Fixed
 
+- **Deno on Linux.** The Linux builds (.deb, .rpm, AppImage, .tar.gz) do not include Deno, but the app never downloaded it, so YouTube downloads could fail or lose formats. The app now uses a system `deno` on PATH if there is one. Otherwise it downloads the pinned Deno once, in the background, to `~/.config/YT-DLP Studio/deno/<version>/`. The download is checked against a pinned SHA-256 and is not kept if the check fails. Without Deno the app still starts and logs a warning.
 - **Subtitles now actually download when combined with comments/metadata.** Browser impersonation alone was not enough: YouTube's per-IP rate limiter fills up during the ~60+ comment API requests, so by the time the subtitle download fires it gets HTTP 429 even with a Chrome JA3 fingerprint. The wrapper now sets `sleep_interval_requests=1` when `download_subtitles` is on AND (`download_comments` OR `download_metadata`) is on, which spaces every API request by 1s. Cost: ~10-30 s extra per video during the comment phase. Benefit: the `.srt` file actually lands.
 - **Subtitle 429 errors no longer abort the video download.** YouTube aggressively rate-limits subtitle requests on clients that do not impersonate a real browser. yt-dlp's `_write_subtitles` raises `DownloadError` on subtitle failure unless `ignoreerrors` is literally `True`, and our default of `"only_download"` does NOT count. Two fixes:
   1. **Add `sleep_interval_subtitles=2`** when subtitle download is enabled, which spaces requests apart and prevents most 429s in the first place.

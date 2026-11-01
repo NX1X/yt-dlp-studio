@@ -545,8 +545,9 @@ jobs:
       # Runtime-test the frozen binary before attesting/publishing it: launch it
       # under the offscreen Qt platform, wait for the "started successfully"
       # milestone (logged after the main window is shown), then stop it. The
-      # frozen app skips the Deno download (sys.frozen), so this needs no
-      # network. A broken bundle that still produces a file fails here instead
+      # Linux app starts a Deno download on a background thread; startup does
+      # not wait for it, so this needs no network to pass. A broken bundle
+      # that still produces a file fails here instead
       # of shipping to users.
       env:
         QT_QPA_PLATFORM: offscreen
@@ -641,8 +642,10 @@ jobs:
         - FFmpeg must be installed. install.sh prints the right command for
           your package manager; e.g. Debian/Ubuntu: sudo apt install ffmpeg,
           Fedora: sudo dnf install ffmpeg, Arch: sudo pacman -S ffmpeg.
-        - Deno (optional): auto-downloaded on first run, or install from
-          https://deno.land
+        - Deno (optional, for YouTube): a system deno on PATH is used if
+          present. Otherwise the app downloads Deno on first run to
+          ~/.config/YT-DLP Studio/deno/ (about 40 MB). You can also install
+          it from https://deno.land
 
         SUPPORT
         - Website: https://nx1xlab.dev/nxtools
