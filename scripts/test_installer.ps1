@@ -34,7 +34,33 @@ $Marker = Join-Path $DataDir "ci-user-data-marker.txt"
 $Shortcut = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\YT-DLP Studio.lnk"
 $UninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\${AppId}_is1"
 
+# Watchdog: if the whole test runs longer than this, a background job writes
+# the busiest processes to a file and force-stops installer, uninstaller and
+# app processes, so any blocked wait returns and the job ends with a log.
+$WatchdogSeconds = 600
+$WatchdogFile = Join-Path $env:TEMP "installer-test-watchdog.txt"
+Remove-Item $WatchdogFile -ErrorAction SilentlyContinue
+$Watchdog = Start-Job -ArgumentList $WatchdogSeconds, $WatchdogFile -ScriptBlock {
+    param($Limit, $OutFile)
+    Start-Sleep -Seconds $Limit
+    $lines = @("WATCHDOG $(Get-Date -Format HH:mm:ss): installer test still running after $Limit s")
+    $lines += (Get-Process | Sort-Object CPU -Descending | Select-Object -First 30 Name, Id, CPU, StartTime | Format-Table | Out-String)
+    $lines | Out-File -FilePath $OutFile -Encoding UTF8
+    Get-Process -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like "YT-DLP-Studio-Setup*" -or $_.Name -like "unins*" -or $_.Name -like "_iu*" -or $_.Name -like "is-*" -or $_.Name -eq "yt-dlp-studio" } |
+        Stop-Process -Force -ErrorAction SilentlyContinue
+}
+
+function Step([string]$Name) {
+    Write-Host "[$(Get-Date -Format HH:mm:ss)] STEP $Name"
+}
+
+function Show-Watchdog {
+    if (Test-Path $WatchdogFile) { Write-Host "----- watchdog report"; Get-Content $WatchdogFile }
+}
+
 function Fail([string]$Message) {
+    Show-Watchdog
     Write-Host "FAIL: $Message"
     exit 1
 }
@@ -91,10 +117,12 @@ function Uninstall-App([string[]]$ExtraArgs = @()) {
 }
 
 # --- 1. user data that must survive an uninstall -------------------------
+Step "1 seed user data"
 New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
 Set-Content -Path $Marker -Value "user data that an uninstall must keep"
 
 # --- 2. silent per-user install ------------------------------------------
+Step "2 silent install"
 Install-App
 Assert (Test-Path $Exe) "EXE installed at $Exe"
 Assert (Test-Path (Join-Path $InstallDir "install.ini")) "install marker written"
@@ -102,6 +130,7 @@ Assert (Test-Path $Shortcut) "Start-menu shortcut created"
 Assert (Test-Path $UninstallKey) "per-user uninstall entry registered (HKCU)"
 
 # --- 3. the installed GUI starts -----------------------------------------
+Step "3 installed GUI starts"
 $before = 0
 if (Test-Path $LogFile) { $before = @(Select-String -Path $LogFile -Pattern "started successfully").Count }
 $env:QT_QPA_PLATFORM = "offscreen"
@@ -126,6 +155,7 @@ if (-not $started) {
 Write-Host "ok: installed GUI started (log reached 'started successfully')"
 
 # --- 3b. update started from the app relaunches it ------------------------
+Step "3b update relaunch"
 # The app starts the installer with /SILENT /LAUNCH=yes and quits. The
 # installer inherits the app's PyInstaller variables, which point at the
 # app's temp folder; that folder is gone once the app has quit. Before the
@@ -153,6 +183,7 @@ if (-not $started) {
 Write-Host "ok: silent update relaunched the app despite stale PyInstaller variables"
 
 # --- 4. silent uninstall keeps user data ---------------------------------
+Step "4 uninstall keeps data"
 Uninstall-App
 Assert (-not (Test-Path $Exe)) "EXE removed"
 Assert (-not (Test-Path $Shortcut)) "Start-menu shortcut removed"
@@ -160,10 +191,13 @@ Assert (-not (Test-Path $UninstallKey)) "uninstall entry removed"
 Assert (Test-Path $Marker) "user data KEPT after a normal uninstall"
 
 # --- 5. explicit purge removes user data ---------------------------------
+Step "5 purge removes data"
 Install-App
 Uninstall-App @("/PURGEDATA=yes")
 Assert (-not (Test-Path $Exe)) "EXE removed (purge run)"
 Assert (-not (Test-Path $DataDir)) "user data removed with /PURGEDATA=yes"
 
+Stop-Job $Watchdog -ErrorAction SilentlyContinue
+Show-Watchdog
 Write-Host "Installer test passed."
 exit 0
