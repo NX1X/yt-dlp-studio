@@ -1,107 +1,99 @@
 # Security Policy
 
-## Supported Versions
+## Supported versions
 
-YT-DLP Studio follows a rolling-release model. Only the latest published
-release receives security patches.
+YT-DLP Studio uses a rolling release model. Only the latest published release receives security fixes.
 
-| Version       | Supported          |
-|---------------|--------------------|
-| latest        | :white_check_mark: |
-| < latest      | :x:                |
+| Version | Supported |
+|---------|-----------|
+| Latest release | Yes |
+| Older releases | No |
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
-**Please do not open a public GitHub issue for security vulnerabilities.**
+**Do not open a public GitHub issue for a security vulnerability.**
 
-Instead, report them privately via one of:
+Report it privately through one of these channels:
 
-1. **GitHub Security Advisories** (preferred):
-   - Go to [Security > Advisories](https://github.com/NX1X/yt-dlp-studio/security/advisories)
-   - Click **"Report a vulnerability"**
-   - Fill out the form with a clear description and reproduction steps
-
-2. **Email**: contact the maintainer through [nx1xlab.dev](https://nx1xlab.dev)
+1. **GitHub Security Advisories (preferred):**
+   1. Go to [Security > Advisories](https://github.com/NX1X/yt-dlp-studio/security/advisories).
+   2. Click **Report a vulnerability**.
+   3. Fill in the form with a clear description and the steps to reproduce.
+2. **Email:** contact the maintainer through [nx1xlab.dev](https://nx1xlab.dev).
 
 ### What to include
 
-- A description of the vulnerability and its impact
-- Steps to reproduce (a minimal proof-of-concept is ideal)
-- Affected version(s) of YT-DLP Studio
-- Your environment (OS, Python version, etc.)
-- Whether the issue has been disclosed publicly anywhere
+- A description of the vulnerability and its impact.
+- Steps to reproduce. A minimal proof of concept is ideal.
+- The affected version or versions of YT-DLP Studio.
+- Your environment (operating system, Python version and so on).
+- Whether the issue is already public anywhere.
 
 ### What to expect
 
-- **Acknowledgement** within 72 hours
-- **Initial assessment** within 7 days
-- **Fix and coordinated disclosure** as soon as practical, depending on severity
-- You will be credited in the changelog and the published advisory unless you
-  prefer to remain anonymous
+- **Acknowledgement** within 72 hours.
+- **Initial assessment** within 7 days.
+- **Fix and coordinated disclosure** as soon as practical, depending on severity.
+- **Credit** in the changelog and in the published advisory, unless you prefer to stay anonymous.
 
-## Security Practices
+## Security practices
 
-- **Dependency monitoring**: Dependabot watches GitHub Actions and Python
-  dependencies (pip + pyproject.toml). See [.github/dependabot.yml](.github/dependabot.yml).
-- **Daily security channel**: A dedicated daily Dependabot entry opens
-  security-only PRs in addition to the weekly version channel.
-- **Static analysis**: CI runs `ruff` (with `flake8-bandit` security rules
-  available) on every push and PR.
-- **Secret hygiene**: No credentials, tokens, or private keys are committed.
-  GitHub push protection should be enabled on the public repo.
-- **Release integrity**: Release artifacts are built in GitHub Actions from a
-  pinned source revision. Each release executable is published with a
-  Sigstore-signed [SLSA build provenance attestation][slsa] cryptographically
-  binding the binary's SHA-256 to the exact workflow run, commit, and runner
-  that produced it.
+- **Dependency updates:** Renovate opens dependency update pull requests, with a cooldown for regular updates: 14 days for most dependencies, 7 days for the yt-dlp engine. Security fixes skip the cooldown. See [.github/renovate.json5](.github/renovate.json5).
+- **Security alerts:** GitHub Dependabot security updates are on in the repository settings. Dependabot version updates are off, because Renovate owns them. See [.github/dependabot.yml](.github/dependabot.yml).
+- **Static analysis:** CI runs `ruff` on every push and pull request, with the flake8-bandit (`S`) security rules enabled. CodeQL also runs on pushes, pull requests and every week.
+- **Vulnerability scans:** a weekly workflow audits the hash-pinned lock files with `pip-audit` and checks the workflows with `zizmor`. It also runs OpenSSF Scorecard.
+- **Secret hygiene:** no credentials, tokens or private keys are committed. GitHub push protection should be enabled on the public repository.
+- **Release integrity:** GitHub Actions builds the release files from a pinned source revision. Each release publishes a Sigstore-signed [SLSA build provenance attestation][slsa]. The attestation binds the SHA-256 of each file to the workflow run, the commit and the runner that produced it.
 
   [slsa]: https://slsa.dev/spec/v1.0/provenance
 
 ### Verifying a downloaded release
 
-Install the [GitHub CLI](https://cli.github.com/) (`gh`), then:
+The attestation covers these release files:
+
+- the portable EXE (`YT-DLP.Studio.exe` on the release page, and `yt-dlp-studio.exe` in the portable ZIP);
+- the Linux binary in the `.tar.gz` archive;
+- the AppImage, the `.deb` package and the `.rpm` package.
+
+The Windows installer (`YT-DLP-Studio-Setup-<version>.exe`) has no attestation.
+
+1. Install the [GitHub CLI](https://cli.github.com/) (`gh`).
+2. Run the command below. Use the name of the file you downloaded.
 
 ```bash
 gh attestation verify yt-dlp-studio.exe --repo NX1X/yt-dlp-studio
 ```
 
-A successful verification confirms:
+A successful verification confirms that:
 
-1. The exe was built by `.github/workflows/build.yml` in this repository.
-2. The build ran on a GitHub-hosted runner from a specific commit.
-3. The binary has not been modified since it was produced.
+1. A GitHub Actions workflow in this repository built the file.
+2. The build ran on a GitHub-hosted runner, from a specific commit.
+3. Nobody changed the file after the build.
 
-If the command fails, **do not run the executable** - it has been tampered
-with, repackaged, or downloaded from an unofficial source.
+If the command fails, **do not run the file**. Someone may have changed or repackaged it, or you downloaded it from an unofficial source.
 
 ### Build-time supply-chain hardening
 
-The build workflow itself is hardened to make tampering during the build
-detectable:
+The build workflows are hardened, so that tampering during the build is detectable:
 
-- All `actions/*` references are pinned to immutable commit SHAs (not tags).
-- Bundled third-party binaries (Deno, FFmpeg) are pinned by version **and**
-  SHA-256, verified before unpacking. Deno is additionally cross-checked
-  against the publisher's official `.sha256sum` sidecar.
-- Python dependencies are installed via `pip --require-hashes` against a
-  hash-locked manifest (`requirements.lock`).
+- All GitHub Actions references are pinned to immutable commit SHAs, not tags.
+- Bundled third-party binaries (Deno, FFmpeg) are pinned by version **and** by SHA-256. The build verifies them before it unpacks them. The build also cross-checks Deno against the publisher's official `.sha256sum` file.
+- Python dependencies are installed with `pip --require-hashes` from hash-locked files (`requirements/lock.txt` and the other files in `requirements/`).
 - Workflow jobs run with a least-privilege `permissions:` token.
 
-## Third-Party Components
+## Third-party components
 
 YT-DLP Studio bundles or depends on:
 
-- [PySide6](https://www.qt.io/qt-for-python) - LGPL v3
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) - The Unlicense (Public Domain)
-- [FFmpeg](https://ffmpeg.org/) - LGPL/GPL depending on build
+- [PySide6](https://www.qt.io/qt-for-python): LGPL v3.
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp): The Unlicense (public domain).
+- [FFmpeg](https://ffmpeg.org/): LGPL or GPL, depending on the build.
+- [Deno](https://deno.land/): MIT.
 
-Vulnerabilities in those upstream projects should be reported to their
-respective maintainers. We track upstream advisories that affect YT-DLP
-Studio and ship updates accordingly.
+Report vulnerabilities in these projects to their maintainers. We track upstream advisories that affect YT-DLP Studio and ship updates for them.
 
-## Out of Scope
+## Out of scope
 
-- Vulnerabilities in user-supplied URLs or downloaded media
-- Issues that require privileged local access already sufficient to compromise
-  the host independently
-- Behaviour of remote sites yt-dlp downloads from (those are upstream concerns)
+- Vulnerabilities in user-supplied URLs or in downloaded media.
+- Issues that need privileged local access that is already enough to compromise the host on its own.
+- The behavior of the remote sites that yt-dlp downloads from. These are upstream concerns.

@@ -1,268 +1,259 @@
-# YT-DLP Studio Architecture
+# Architecture
 
-This document explains the architecture and structure of YT-DLP Studio to help you (or AI assistants like Claude) understand and modify the codebase.
+This document explains the structure of the YT-DLP Studio code. It helps contributors find the right place for a change.
 
-## Table of Contents
+## Contents
+
 - [Overview](#overview)
-- [Project Structure](#project-structure)
-- [Key Components](#key-components)
-- [Data Flow](#data-flow)
-- [How to Add Features](#how-to-add-features)
-- [Debugging Guide](#debugging-guide)
-
----
+- [Project structure](#project-structure)
+- [Key components](#key-components)
+- [Download flow](#download-flow)
+- [Runtime files](#runtime-files)
+- [Packaging](#packaging)
+- [How to add features](#how-to-add-features)
+- [Debugging guide](#debugging-guide)
+- [Common change points](#common-change-points)
 
 ## Overview
 
-YT-DLP Studio is a GUI application that wraps yt-dlp to provide a user-friendly interface for downloading videos.
+YT-DLP Studio is a PySide6 GUI application. It wraps a vendored copy of yt-dlp.
 
-**Architecture Pattern:** Layered Architecture
-- **UI Layer:** PySide6 widgets (in `src/ui/`)
-- **Business Logic:** Backend operations (in `src/backend/`)
-- **Data Models:** Data structures (in `src/models/`)
-- **Utilities:** Helper functions (in `src/utils/`)
+**Layers:**
 
-**Threading Model:**
-- Main thread: GUI rendering and user interaction
-- Worker threads: Download operations (using `QThread`)
+| Layer | Folder | Contents |
+|-------|--------|----------|
+| UI | `src/ui/` | PySide6 tabs, dialogs, widgets and the theme |
+| Backend | `src/backend/` | Downloads, queue, history, config, update checks |
+| Data models | `src/models/` | Data classes for config, tasks, queue, history, video info |
+| Utilities | `src/utils/` | Constants, logging, translations, validation, helpers |
 
----
+**Threading model:**
 
-## Project Structure
+- The main thread renders the GUI and handles user input.
+- Worker threads (`QThread`) run downloads and other network work: video info, playlist info, subtitle lists and update checks.
+- Workers talk to the GUI only through Qt signals.
 
-```
-yt-dlp-for-users/
-├── launcher.py                 # Entry point - START HERE
-├── src/                        # Main application source
-│   ├── app.py                  # Application initialization
-│   ├── ui/                     # User interface components
-│   │   ├── main_window.py      # Main window with tabs
-│   │   ├── download_tab.py     # Download interface
-│   │   ├── settings_tab.py     # Settings interface
-│   │   ├── progress_bar.py     # Progress display widget
-│   │   └── log_widget.py       # Log display widget
-│   ├── backend/                # Business logic
-│   │   ├── config_manager.py   # Settings persistence
-│   │   ├── yt_dlp_wrapper.py   # yt-dlp API interface
-│   │   ├── download_worker.py  # Threading for downloads
-│   │   ├── progress_handler.py # Progress data processing
-│   │   └── format_handler.py   # Quality/format selection
-│   ├── models/                 # Data structures
-│   │   ├── app_config.py       # Configuration model
-│   │   ├── download_task.py    # Download task model
-│   │   └── video_info.py       # Video metadata model
-│   ├── utils/                  # Utilities
-│   │   ├── constants.py        # App constants
-│   │   ├── logger.py           # Logging setup
-│   │   ├── validators.py       # Input validation
-│   │   └── file_helper.py      # File operations
-│   └── resources/              # Assets
-│       ├── icons/              # Icons (placeholders for now)
-│       ├── styles/             # Qt stylesheets
-│       └── config/             # Default config
-├── yt_dlp_engine/              # Bundled yt-dlp
-│   └── yt_dlp/                 # Actual yt-dlp module
-├── docs/                       # Documentation
-├── tests/                      # Test files
-└── build/                      # Build artifacts
+## Project structure
 
 ```
+yt-dlp-studio/
+├── launcher.py                  # Entry point - start here
+├── src/
+│   ├── app.py                   # Application setup
+│   ├── ui/
+│   │   ├── main_window.py       # Main window with five tabs
+│   │   ├── download_tab.py      # Download tab
+│   │   ├── queue_tab.py         # Queue tab
+│   │   ├── history_tab.py       # History tab
+│   │   ├── settings_tab.py      # Settings tab
+│   │   ├── about_tab.py         # About tab (versions, credits, shortcuts)
+│   │   ├── playlist_dialog.py   # Select videos from a playlist or channel
+│   │   ├── batch_input_dialog.py         # Add many URLs at once
+│   │   ├── subtitle_selection_dialog.py  # Select subtitle languages
+│   │   ├── video_info_dialog.py # Video info preview
+│   │   ├── update_dialog.py     # Update download and install
+│   │   ├── progress_bar.py      # Progress widget
+│   │   ├── log_widget.py        # Log widget
+│   │   └── theme.py             # Dark and light themes
+│   ├── backend/
+│   │   ├── yt_dlp_wrapper.py    # Interface to yt-dlp
+│   │   ├── download_worker.py   # QThread for one download
+│   │   ├── queue_manager.py     # Queue, concurrency, retries, queue file
+│   │   ├── history_manager.py   # Download history file
+│   │   ├── config_manager.py    # Settings file
+│   │   ├── format_handler.py    # Quality names to yt-dlp format strings
+│   │   ├── progress_handler.py  # Raw yt-dlp progress to UI data
+│   │   ├── playlist_fetcher.py  # Playlist information
+│   │   ├── playlist_worker.py, video_info_worker.py, subtitle_list_worker.py
+│   │   ├── update_checker.py    # GitHub release checks and verified downloads
+│   │   └── environment.py       # Runtime details (FFmpeg version, startup log line)
+│   ├── models/
+│   │   ├── app_config.py        # Settings model
+│   │   ├── download_task.py     # One download task
+│   │   ├── download_queue.py    # Queue model
+│   │   ├── download_history.py  # History model
+│   │   └── video_info.py        # Video metadata
+│   ├── utils/
+│   │   ├── constants.py         # App constants, quality options, paths
+│   │   ├── logger.py            # Logging setup
+│   │   ├── translations.py      # English and Hebrew strings, RTL
+│   │   ├── validators.py        # URL and folder validation
+│   │   ├── notification_manager.py  # Desktop notifications, tray icon
+│   │   ├── crash_handler.py     # Crash reports
+│   │   ├── deno_installer.py    # Downloads Deno when running from source
+│   │   └── ...                  # Other helpers
+│   └── resources/               # Icons, stylesheet, default config
+├── vendor/yt_dlp_engine/yt_dlp/ # Vendored yt-dlp
+├── packaging/                   # PyInstaller specs, Inno Setup, Linux packaging
+├── requirements/                # Hash-pinned lock files
+├── scripts/                     # Build checks, version sync, relock
+├── tests/                       # pytest suite
+└── docs/                        # Documentation
+```
 
----
+## Key components
 
-## Key Components
+### Entry point: `launcher.py`
 
-### 1. Application Entry Point
+The app starts here. `launcher.py`:
 
-**File:** `launcher.py` (30 lines)
+1. adds `src/` to the Python path;
+2. installs the global crash handler;
+3. creates the `App` instance;
+4. runs the app and exits with its exit code.
 
-This is where the application starts. It:
-1. Adds `src/` to Python path
-2. Creates `App` instance
-3. Runs the app
+To debug startup problems, check the log file first.
 
-**To debug startup issues:** Add print statements or check logs here.
+### Application: `src/app.py`
 
----
+The `App` class:
 
-### 2. Application Class
+- calls `ensure_deno_installed()` (this downloads Deno only when the app runs from source and cannot find it);
+- on Windows, sets the AppUserModelID for the taskbar;
+- creates the `QApplication`;
+- loads the configuration through `ConfigManager`;
+- creates the main window.
 
-**File:** `src/app.py` (~70 lines)
+`App.run()` starts the Qt event loop.
 
-Creates and configures the Qt application:
-- Initializes `QApplication`
-- Loads configuration
-- Creates main window
-- Starts event loop
+### Main window: `src/ui/main_window.py`
 
-**Key methods:**
-- `__init__()`: Setup
-- `run()`: Start the app
+The main window holds five tabs: Download, Queue, History, Settings and About. It creates the shared `QueueManager` (up to 3 concurrent downloads), `HistoryManager` and `NotificationManager`. It also restores the saved queue and the window state.
 
----
+To add a tab:
 
-### 3. Main Window
+1. Create a tab class in `src/ui/`.
+2. Import it in `main_window.py`.
+3. Add it with `self.tabs.addTab(NewTab(), tr("tab_new"))`, and add the translation key.
 
-**File:** `src/ui/main_window.py` (~150 lines)
+### Download tab: `src/ui/download_tab.py`
 
-The main application window with:
-- Tab widget (Download, Settings)
-- Menu bar (File, Help)
-- Status bar
-- Window state management
+The main download interface: URL input, quality, format, options, output folder, the download buttons, progress and the log.
 
-**To add a new tab:**
-1. Create new tab class in `src/ui/`
-2. Import it in `main_window.py`
-3. Add with `self.tabs.addTab(NewTab(), "Tab Name")`
+Key methods:
 
----
+- `_setup_ui()`: builds the layout. Edit it to change the UI.
+- `_on_download_clicked()`: validates the input, adds the task to the queue, and the queue starts it at once.
+- `_on_progress_updated(data)`: updates the progress display.
 
-### 4. Download Tab
+### Queue manager: `src/backend/queue_manager.py`
 
-**File:** `src/ui/download_tab.py` (~250 lines)
+Coordinates all downloads, including **Download Now**. It:
 
-Main download interface:
-- URL input
-- Quality selector
-- Directory chooser
-- Download button
-- Progress display
-- Log output
+- starts a `DownloadWorker` for each task, with at most `max_concurrent` running at the same time;
+- handles pause, resume, cancel, reorder and retry, including automatic retries for some errors;
+- records finished downloads in the history;
+- saves the queue to a file and restores it on the next start.
 
-**Key methods:**
-- `_on_download_clicked()`: Start download
-- `_start_download(task)`: Create worker thread
-- `_on_progress_updated(data)`: Update progress bar
+Signals: `queue_updated`, `task_started`, `task_completed`, `task_failed`, `task_progress`, `all_completed`, `history_recorded`.
 
-**To modify UI:** Edit `_setup_ui()` method
+### Download worker: `src/backend/download_worker.py`
 
----
+**Critical component.** A `QThread` subclass that runs one download without blocking the GUI.
 
-### 5. Download Worker
+Signals:
 
-**File:** `src/backend/download_worker.py` (~180 lines)
+- `progress_updated`: progress data
+- `download_started`: video title
+- `download_completed`: file name
+- `download_failed`: error message
+- `log_message`: log messages
 
-**CRITICAL COMPONENT** - Handles threaded downloads
+Key methods:
 
-Extends `QThread` to run downloads without blocking GUI.
+- `run()`: runs in the background thread (Qt calls it).
+- `_on_progress()`: receives the yt-dlp progress.
 
-**Signals (for GUI communication):**
-- `progress_updated` → Update progress bar
-- `download_started` → Show video title
-- `download_completed` → Show success
-- `download_failed` → Show error
+**Thread safety:** all GUI updates must go through signals. Direct GUI changes from a worker thread can crash the app.
 
-**Key methods:**
-- `run()`: Executes in background thread (AUTO-CALLED)
-- `_on_progress()`: Receives yt-dlp progress
+### yt-dlp wrapper: `src/backend/yt_dlp_wrapper.py`
 
-**Threading Safety:**
-- All GUI updates MUST use signals
-- Direct GUI manipulation will crash
+**Critical component.** The interface to yt-dlp. It:
 
----
+- imports the vendored yt-dlp;
+- extracts video information;
+- downloads videos;
+- passes progress through callbacks;
+- finds FFmpeg and Deno.
 
-### 6. yt-dlp Wrapper
+Key methods:
 
-**File:** `src/backend/yt_dlp_wrapper.py` (~160 lines)
+- `get_video_info(url)`: extracts metadata.
+- `download(...)`: downloads a video.
+- `get_available_subtitles(url)`: lists subtitle languages.
+- `_progress_hook(data)`: receives the yt-dlp progress.
 
-**CRITICAL COMPONENT** - Interfaces with yt-dlp
+**Path setup:** the top of the file adds `vendor/yt_dlp_engine/` to `sys.path` (in a frozen build, the bundled `yt_dlp_engine` folder), then imports `yt_dlp`.
 
-Handles:
-- Importing bundled yt-dlp
-- Extracting video info
-- Downloading videos
-- Progress callbacks
+### Configuration manager: `src/backend/config_manager.py`
 
-**Key methods:**
-- `get_video_info(url)`: Extract metadata
-- `download(url, output_dir, format_string)`: Download video
-- `_progress_hook(data)`: Receive yt-dlp progress
+Loads and saves the settings as JSON, validates them and supplies default values. The file is `yt-dlp-studio_config.json` in the app data folder (see [Runtime files](#runtime-files)).
 
-**Path handling:**
-- Adds `yt_dlp_engine/` to `sys.path`
-- Imports `yt_dlp` module
-- See lines 14-30 for path setup
-
----
-
-### 7. Configuration Manager
-
-**File:** `src/backend/config_manager.py` (~150 lines)
-
-Manages settings persistence:
-- Load from JSON
-- Save to JSON
-- Validate settings
-- Default values
-
-**Config location:** `~/.config/YT-DLP Studio/yt-dlp-studio_config.json` (Linux) or `%APPDATA%/YT-DLP Studio/...` (Windows)
-
-**To add new setting:**
-1. Add field to `AppConfig` in `src/models/app_config.py`
-2. Update default in `_create_default_config()`
-3. Use in UI: `config.new_field`
-
----
-
-## Data Flow
-
-### Download Operation Flow
+## Download flow
 
 ```
-User clicks Download
+User clicks Download Now (or Add to Queue, then Start Queue)
     ↓
-DownloadTab._on_download_clicked()
+DownloadTab validates the URL and the folder
     ↓
-Validate URL and directory
+DownloadTab creates a DownloadTask and calls QueueManager.add_task()
     ↓
-Create DownloadTask model
+QueueManager starts a DownloadWorker when a slot is free (max 3)
     ↓
-Create DownloadWorker thread
-    ↓
-Connect signals to UI callbacks
-    ↓
-Worker.start() → runs in background
-    ↓
-Worker.run() executes:
-    ↓
+DownloadWorker.run() in the background thread:
     ├─→ YtDlpWrapper.get_video_info()
     ├─→ YtDlpWrapper.download()
-    └─→ Progress updates via signals
+    └─→ progress updates through signals
         ↓
-        UI receives signals and updates:
-        ├─→ Progress bar
-        ├─→ Speed/ETA labels
-        └─→ Log messages
+        QueueManager forwards them; the UI updates:
+        ├─→ progress bar
+        ├─→ speed and ETA
+        └─→ log messages
     ↓
-Download completes/fails
+The download completes or fails
     ↓
-Worker emits final signal
-    ↓
-UI shows result dialog
+QueueManager records the result in the history,
+sends a notification and starts the next task
 ```
 
----
+## Runtime files
 
-## How to Add Features
+All files below are in the app data folder: `%APPDATA%\YT-DLP Studio` on Windows, `~/.config/YT-DLP Studio` on Linux (`get_app_data_dir()` in `src/utils/constants.py`).
 
-### Adding a New Quality Option
+| File | Contents |
+|------|----------|
+| `yt-dlp-studio_config.json` | Settings |
+| `yt-dlp-studio.log` | Log file (rotates at 5 MB, 3 backups) |
+| `download_history.json` | Download history |
+| `download_queue.json` | Saved queue |
+| `crashes/crash-*.json` | Crash reports |
 
-1. **Edit:** `src/utils/constants.py`
-   - Add to `QUALITY_OPTIONS` dict
+The language choice is an exception. `src/ui/settings_tab.py` saves it to `~/.yt-dlp-studio/language.json`.
+
+## Packaging
+
+- `packaging/build.spec`: the Windows one-file EXE. It bundles FFmpeg, Deno, the vendored yt-dlp and `src/resources`.
+- `packaging/build_linux.spec`: the Linux binary. It does not bundle FFmpeg or Deno.
+- `packaging/installer.iss`: the Inno Setup installer around the Windows EXE.
+- `packaging/linux/build_packages.sh`: builds the AppImage, .deb and .rpm from the Linux binary.
+- `scripts/check_bundle.py`: checks the contents of a built executable.
+
+## How to add features
+
+### Add a quality option
+
+1. Add it to `QUALITY_OPTIONS` in `src/utils/constants.py`:
+
    ```python
-   "4K": "bestvideo[height<=2160]+bestaudio/best[height<=2160]",
+   "4K (2160p)": "bestvideo[height<=2160]+bestaudio/best[height<=2160]",
    ```
 
-2. **No other changes needed!**
-   - FormatHandler automatically reads from QUALITY_OPTIONS
+2. `FormatHandler` reads `QUALITY_OPTIONS` automatically. For an audio option, also add the bitrate to `AUDIO_QUALITY_MAP`. To translate the name, add it to `quality_map` in `FormatHandler.get_available_qualities()`.
 
----
+### Add a setting
 
-### Adding a New Setting
+1. Add the field to `AppConfig` in `src/models/app_config.py`:
 
-1. **Edit:** `src/models/app_config.py`
    ```python
    @dataclass
    class AppConfig:
@@ -270,161 +261,91 @@ UI shows result dialog
        new_setting: str = "default_value"
    ```
 
-2. **Edit:** `src/backend/config_manager.py`
-   - Update `_create_default_config()`
+2. Update `_create_default_config()` in `src/backend/config_manager.py`.
+3. In `src/ui/settings_tab.py`, add a widget and update `_load_settings()` and `_save_settings()`.
 
-3. **Edit:** `src/ui/settings_tab.py`
-   - Add UI widget for new setting
-   - Update `_load_settings()` and `_save_settings()`
+## Debugging guide
 
----
+### The app does not start
 
-### Adding Download Queue Support (Future)
+1. Check the Python version. The app needs Python 3.11 or later:
 
-1. **Create:** `src/backend/download_queue.py`
-   - Manage list of DownloadTask objects
-   - Handle concurrent downloads limit
-
-2. **Modify:** `src/ui/download_tab.py`
-   - Add queue table widget
-   - Multiple tasks instead of single
-
-3. **Modify:** `src/backend/download_worker.py`
-   - Support cancellation better
-
----
-
-## Debugging Guide
-
-### Application Won't Start
-
-**Check:**
-1. Python version: Requires Python 3.11+
    ```bash
    python --version
    ```
 
-2. Dependencies installed:
+2. Check that the dependencies are installed:
+
    ```bash
-   pip install -r requirements.txt
+   pip install --require-hashes -r requirements/lock.txt
    ```
 
-3. Log file location:
-   - Windows: `%APPDATA%/YT-DLP Studio/yt-dlp-studio.log`
+3. Read the log file:
+   - Windows: `%APPDATA%\YT-DLP Studio\yt-dlp-studio.log`
    - Linux: `~/.config/YT-DLP Studio/yt-dlp-studio.log`
 
----
+### A download fails
 
-### Download Fails
+Check the log first. Common causes:
 
-**Check logs first!**
+1. **The yt-dlp import fails:** check that `vendor/yt_dlp_engine/yt_dlp/` exists. See the path setup at the top of `src/backend/yt_dlp_wrapper.py`.
+2. **The URL is not supported:** check the yt-dlp version (`YTDLP_VERSION` in `src/utils/constants.py`). Try the URL with yt-dlp on the command line.
+3. **Permission denied:** check that the output folder is writable. See `Validators.is_valid_directory()` in `src/utils/validators.py`.
 
-Common issues:
-1. **yt-dlp import fails:**
-   - Check `yt_dlp_engine/yt_dlp/` exists
-   - See: `src/backend/yt_dlp_wrapper.py:14-30`
+### The GUI freezes during a download
 
-2. **URL not supported:**
-   - Check yt-dlp version
-   - Try URL in command line: `python -m yt_dlp URL`
+This must never happen. If it does:
 
-3. **Permission denied:**
-   - Check output directory is writable
-   - See: `src/utils/validators.py:is_valid_directory()`
+- a download or network call runs on the main thread instead of a worker;
+- check that the code uses `DownloadWorker` (or another worker);
+- check that the signals are connected.
 
----
-
-### GUI Freezes During Download
-
-**This should NEVER happen!**
-
-If it does:
-- Downloads are NOT running in background thread
-- Check: `src/backend/download_worker.py` is being used
-- Check: Signals are connected properly
-
----
-
-### Adding Debug Logging
+### Add debug logging
 
 ```python
 from src.utils.logger import get_logger
 
 logger = get_logger()
 
-logger.debug("Debug message")  # Only in log file
-logger.info("Info message")    # Console + file
-logger.error("Error message")  # Console + file
+logger.debug("Debug message")
+logger.info("Info message")
+logger.error("Error message")
 ```
 
----
+`DEBUG` messages appear only if `LOG_LEVEL` in `src/utils/constants.py` is `"DEBUG"`. The default is `"INFO"`.
 
-## For AI Assistants (Like Claude)
+## Working on the code
 
-### When Helping with Bugs
+### Fixing bugs
 
-1. **Ask for log file first:**
-   - `%APPDATA%/YT-DLP Studio/yt-dlp-studio.log` (Windows)
-   - `~/.config/YT-DLP Studio/yt-dlp-studio.log` (Linux)
+1. Ask for the log file first.
+2. Read the relevant files. Most files have one purpose.
+3. Check the imports. Circular imports cause problems.
 
-2. **Read relevant files:**
-   - Each file is ~50-250 lines (AI-friendly)
-   - Files are single-purpose
+### Adding features
 
-3. **Check imports:**
-   - Circular imports will cause issues
-   - Check file header imports
+1. Follow the existing patterns: look at similar features, use the same naming, add logging.
+2. Update this document and, for planned features, `ROADMAP.md`.
+3. Change a little at a time and test each change. Do not change many files at once.
 
-### When Adding Features
+Keep new files small and focused. Some existing files are large (for example `download_tab.py`, `queue_manager.py` and `yt_dlp_wrapper.py` have more than 1000 lines each).
 
-1. **Follow existing patterns:**
-   - Look at similar existing features
-   - Use same naming conventions
-   - Add logging
+## Common change points
 
-2. **Update documentation:**
-   - Update this file
-   - Update ROADMAP.md if future feature
+| Task | Files |
+|------|-------|
+| Add a quality option | `src/utils/constants.py` |
+| Add a setting | `src/models/app_config.py`, `src/backend/config_manager.py`, `src/ui/settings_tab.py` |
+| Change a tab layout | `src/ui/<name>_tab.py` |
+| Change download logic | `src/backend/yt_dlp_wrapper.py` |
+| Change queue behavior | `src/backend/queue_manager.py` |
+| Change the progress display | `src/ui/progress_bar.py` |
+| Add or change a UI string | `src/utils/translations.py` (`en` and `he`) |
+| Add logging | Any file: import `get_logger()` |
+| Change the styling | `src/ui/theme.py` |
 
-3. **Test incrementally:**
-   - Add small changes
-   - Test each change
-   - Don't modify 10 files at once
+## Questions
 
-### File Size Reference
-
-Each file is intentionally kept small:
-- Utils: ~50-100 lines
-- Models: ~50-100 lines
-- Backend: ~100-200 lines
-- UI: ~100-250 lines
-
-**Why?** Easier for AI to read and understand entire files.
-
----
-
-## Common Modification Points
-
-| Task | Files to Edit |
-|------|---------------|
-| Add quality option | `src/utils/constants.py` |
-| Add setting | `src/models/app_config.py`, `src/ui/settings_tab.py` |
-| Change UI layout | `src/ui/download_tab.py` or `settings_tab.py` |
-| Modify download logic | `src/backend/yt_dlp_wrapper.py` |
-| Change progress display | `src/ui/progress_bar.py` |
-| Add logging | Any file - import `get_logger()` |
-| Change styling | `src/resources/styles/stylesheet.qss` |
-
----
-
-## Questions?
-
-- Check other docs in `docs/`
-- Read code comments
-- Check log files
-- Each file has docstrings explaining purpose
-
----
-
-**Last Updated:** 2024-10-26
-**For:** YT-DLP Studio v1.0.0
+- Read the other docs in `docs/`.
+- Read the code comments. Each file has a docstring that explains its purpose.
+- Check the log files.
