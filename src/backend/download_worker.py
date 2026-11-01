@@ -5,6 +5,7 @@ This module provides a threaded worker for non-blocking downloads.
 Uses Qt's QThread for safe GUI updates via signals.
 """
 
+import os
 import time
 from typing import Any
 
@@ -91,6 +92,10 @@ class DownloadWorker(QThread):
             try:
                 video_info = self.wrapper.get_video_info(self.task.url)
                 if video_info:
+                    # Plain attribute: the Queue tab shows it while the file
+                    # name is not known yet.
+                    if video_info.title:
+                        self.task.title = video_info.title
                     self.download_started.emit(video_info.title)
                     self.log_message.emit(f"Downloading: {video_info.title}")
                 else:
@@ -206,7 +211,16 @@ class DownloadWorker(QThread):
     def _handle_success(self) -> None:
         """Handle successful download completion (v3.0.0 - added success alert)."""
         logger.info("Download completed successfully")
-        filename = self.task.filename or "video file"
+        output_files = self.wrapper.last_output_files if self.wrapper else []
+        title = self.wrapper.last_title if self.wrapper else None
+        if title:
+            self.task.title = title
+        if output_files:
+            # Store the name only: the file is in task.output_directory, and
+            # the Queue tab, the history and the notification show this text.
+            filename = os.path.basename(output_files[0])
+        else:
+            filename = self.task.filename or ("audio file" if self.task.audio_only else "video file")
         self.task.complete(filename)
         self.log_message.emit(f"Download completed: {filename}")
 

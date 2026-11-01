@@ -79,4 +79,4 @@ consequences for any action they deem in violation of this Code of Conduct:
 This Code of Conduct is adapted from the
 [Contributor Covenant](https://www.contributor-covenant.org/), version 2.1,
 available at
-[contributor-covenant.org/version/2/1/code_of_conduct.html](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).
+[contributor-covenant.org/version/2/1/code_of_conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).

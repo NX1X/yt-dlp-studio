@@ -115,7 +115,12 @@ if command -v ffmpeg >/dev/null 2>&1; then
 else
     echo "  - FFmpeg (required, not found):   $(ffmpeg_install_hint)"
 fi
-echo "  - Deno (optional):     auto-downloaded on first run, or install from https://deno.land"
+if command -v deno >/dev/null 2>&1; then
+    echo "  - Deno (optional):     found ($(command -v deno)), used as is"
+else
+    echo "  - Deno (optional):     downloads on first run to ~/.config/YT-DLP Studio/deno/,"
+    echo "                         or install it from https://deno.land"
+fi
 echo ""
 if ! printf '%s' ":${PATH}:" | grep -q ":${BIN_DIR}:"; then
     echo "Note: ${BIN_DIR} is not on your PATH. The menu launcher still works;"

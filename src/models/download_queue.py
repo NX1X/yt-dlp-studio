@@ -87,6 +87,24 @@ class DownloadQueue:
             return self._tasks[index]
         return None
 
+    def index_of(self, task: DownloadTask) -> int | None:
+        """
+        Find the index of this exact task object.
+
+        Uses identity, not equality: two tasks with the same settings are
+        equal as dataclasses but are different queue entries.
+
+        Args:
+            task: Task object to find
+
+        Returns:
+            Index, or None if the task is not in the queue
+        """
+        for index, queued in enumerate(self._tasks):
+            if queued is task:
+                return index
+        return None
+
     def get_all_tasks(self) -> list[DownloadTask]:
         """
         Get all tasks in queue.
