@@ -6,12 +6,13 @@
   // Threat model: GUI-only desktop app, no public-facing service.
   //   - Highest concern: malicious upstream release ("supply chain") shipped
   //     to end-user machines as part of the PyInstaller EXE.
-  //   - Lower concern: speed of CVE patching (no live service to exploit).
+  //   - Also a concern: known vulnerabilities shipped in the EXE (for
+  //     example certifi with compromised CA keys, 2026-10).
   //
-  // Therefore: symmetric 14-day cooldown on ALL updates, including CVE
-  // "fixes" — a malicious release disguised as a security patch is exactly
-  // the attack vector we're defending against. Real active exploits can be
-  // manually expedited from the Dependency Dashboard issue if needed.
+  // Therefore: a 14-day cooldown on all regular updates. Security PRs skip
+  // it (decided 2026-10-30, see "Security alerts" below); a malicious
+  // release disguised as a security patch is then caught by review and CI,
+  // not by age.
   //
   // The window was bumped from 7 to 14 days in 0.1.3 after the msgpack
   // near-miss and the Shai-Hulud-adjacent posture reviews. A two-week
@@ -52,26 +53,21 @@
   "rebaseWhen": "behind-base-branch",
 
   // ----- Security alerts -----------------------------------------------------
-  // We deliberately do NOT let CVE PRs bypass the cooldown. See threat model
-  // comment at top. If exploitation is active, expedite manually via the
-  // dashboard checkbox.
+  // Security PRs skip the cooldown (decided 2026-10-30): known
+  // vulnerabilities rank above the 14-day wait. Trade-off accepted: a
+  // malicious release posing as a patch is not held back by age, so every
+  // security PR still needs review, CI (hash-pinned installs, pip-audit) and
+  // the bundle check before merge. scripts/relock.sh applies the same rule
+  // to the lock files, pinning only the exact patched version.
   "vulnerabilityAlerts": {
     "enabled": true,
     "labels": ["security", "dependencies"],
     "assignees": ["NX1X"],
     "reviewers": ["NX1X"],
-    // Deliberately matches the base 14-day cooldown, not shorter.
-    // Rationale: this project's threat model prioritizes supply-chain
-    // integrity over CVE-patch latency because there is no live service
-    // being actively exploited. A shorter security window here would
-    // widen the window in which a malicious release masquerading as a
-    // patch could slip in and be published inside the signed EXE.
-    "minimumReleaseAge": "14 days",
+    "minimumReleaseAge": "0 days",
     // NOTE: `prPriority` used to live here but Renovate's schema only
     // allows it inside `packageRules`. It was removed in 0.1.3 (Renovate
-    // was emitting a WARN config warning on every run). Security PRs no
-    // longer need explicit prioritization now that the cooldown matches
-    // the base - they aren't racing anything else through the queue.
+    // was emitting a WARN config warning on every run).
   },
   // Pull CVE data from OSV.dev (broader than GitHub Advisory DB alone).
   "osvVulnerabilityAlerts": true,
@@ -219,22 +215,6 @@
       "depNameTemplate": "GyanD/codexffmpeg",
       "datasourceTemplate": "github-releases",
       "versioningTemplate": "loose",
-    },
-    {
-      // Every `python -m pip install --upgrade pip==X.Y.Z` in every
-      // workflow file. Pinned in 0.1.3 to close Scorecard's
-      // PinnedDependenciesID recurrence; Renovate now bumps the pin
-      // under the standard 14-day cooldown so we do not have to
-      // hand-edit the workflows every few weeks.
-      "customType": "regex",
-      "description": "pip version pinned in workflow `pip install --upgrade pip==X` lines",
-      "managerFilePatterns": ["\\.github/workflows/.*\\.ya?ml$"],
-      "matchStrings": [
-        "pip install --upgrade pip==(?<currentValue>[^\\s\"]+)",
-      ],
-      "depNameTemplate": "pip",
-      "datasourceTemplate": "pypi",
-      "versioningTemplate": "pep440",
     },
   ],
 }

@@ -100,7 +100,7 @@ class TestQueueManagerRemoval:
 
         # Mark as active and add mock worker
         sample_task.status = TaskStatus.DOWNLOADING
-        queue_manager.workers[index] = Mock()
+        queue_manager.workers[id(sample_task)] = Mock(task=sample_task)
 
         result = queue_manager.remove_task(index)
         assert result is False
@@ -259,7 +259,8 @@ class TestQueueManagerWorkerManagement:
         queue_manager._start_task(0, sample_task)
 
         mock_worker_class.assert_called_once_with(sample_task)
-        assert 0 in queue_manager.workers
+        # Workers are keyed by task identity, not by queue index
+        assert queue_manager.workers[id(sample_task)] is mock_worker
         mock_worker.start.assert_called_once()
 
     @patch("src.backend.queue_manager.DownloadWorker")
@@ -281,6 +282,7 @@ class TestQueueManagerWorkerManagement:
         mock_worker.download_completed.connect.assert_called_once()
         mock_worker.download_failed.connect.assert_called_once()
         mock_worker.progress_updated.connect.assert_called_once()
+        mock_worker.finished.connect.assert_called_once()
 
     def test_try_start_next_at_capacity(self, queue_manager, multiple_tasks):
         """Test that try_start_next respects capacity limit."""
@@ -318,7 +320,7 @@ class TestQueueManagerWorkerManagement:
 class TestQueueManagerSignals:
     """Test signal emissions."""
 
-    def test_on_task_started_emits_signal(self, queue_manager):
+    def test_on_task_started_emits_signal(self, queue_manager, sample_task):
         """Test that task started handler emits signal."""
         signal_received = False
         received_index = None
@@ -331,13 +333,15 @@ class TestQueueManagerSignals:
             received_title = title
 
         queue_manager.task_started.connect(on_task_started)
-        queue_manager._on_task_started(0, "Test Video")
+        with patch.object(queue_manager, "_try_start_next"):
+            queue_manager.add_task(sample_task)
+        queue_manager._on_worker_started(Mock(task=sample_task), "Test Video")
 
         assert signal_received is True
         assert received_index == 0
         assert received_title == "Test Video"
 
-    def test_on_task_completed_emits_signal(self, queue_manager):
+    def test_on_task_completed_emits_signal(self, queue_manager, sample_task):
         """Test that task completed handler emits signal."""
         signal_received = False
         received_index = None
@@ -351,19 +355,23 @@ class TestQueueManagerSignals:
 
         queue_manager.task_completed.connect(on_task_completed)
 
-        # Add mock worker
-        queue_manager.workers[0] = Mock()
+        # Add task and mock worker (keyed by task identity)
+        with patch.object(queue_manager, "_try_start_next"):
+            queue_manager.add_task(sample_task)
+        worker = Mock(task=sample_task)
+        queue_manager.workers[id(sample_task)] = worker
 
         with patch.object(queue_manager, "_try_start_next"):
-            queue_manager._on_task_completed(0, "video.mp4")
+            queue_manager._on_worker_completed(worker, "video.mp4")
 
         assert signal_received is True
         assert received_index == 0
         assert received_filename == "video.mp4"
-        # Worker should be removed
-        assert 0 not in queue_manager.workers
+        # Worker no longer uses a slot, but stays referenced until finished
+        assert id(sample_task) not in queue_manager.workers
+        assert worker in queue_manager._finishing.values()
 
-    def test_on_task_failed_emits_signal(self, queue_manager):
+    def test_on_task_failed_emits_signal(self, queue_manager, sample_task):
         """Test that task failed handler emits signal."""
         signal_received = False
         received_index = None
@@ -377,19 +385,24 @@ class TestQueueManagerSignals:
 
         queue_manager.task_failed.connect(on_task_failed)
 
-        # Add mock worker
-        queue_manager.workers[0] = Mock()
+        # Add task and mock worker (keyed by task identity)
+        with patch.object(queue_manager, "_try_start_next"):
+            queue_manager.add_task(sample_task)
+        sample_task.fail("Download error")
+        worker = Mock(task=sample_task)
+        queue_manager.workers[id(sample_task)] = worker
 
         with patch.object(queue_manager, "_try_start_next"):
-            queue_manager._on_task_failed(0, "Download error")
+            queue_manager._on_worker_failed(worker, "Download error")
 
         assert signal_received is True
         assert received_index == 0
         assert received_error == "Download error"
-        # Worker should be removed
-        assert 0 not in queue_manager.workers
+        # Worker no longer uses a slot, but stays referenced until finished
+        assert id(sample_task) not in queue_manager.workers
+        assert worker in queue_manager._finishing.values()
 
-    def test_on_task_progress_emits_signal(self, queue_manager):
+    def test_on_task_progress_emits_signal(self, queue_manager, sample_task):
         """Test that task progress handler emits signal."""
         signal_received = False
         received_index = None
@@ -403,8 +416,10 @@ class TestQueueManagerSignals:
 
         queue_manager.task_progress.connect(on_task_progress)
 
+        with patch.object(queue_manager, "_try_start_next"):
+            queue_manager.add_task(sample_task)
         progress_data = {"percent": 50, "speed": 1024000}
-        queue_manager._on_task_progress(0, progress_data)
+        queue_manager._on_worker_progress(Mock(task=sample_task), progress_data)
 
         assert signal_received is True
         assert received_index == 0
@@ -478,10 +493,11 @@ class TestQueueManagerAutoStart:
                 queue_manager.add_task(task)
 
         # Add mock worker
-        queue_manager.workers[0] = Mock()
+        worker = Mock(task=multiple_tasks[0])
+        queue_manager.workers[id(multiple_tasks[0])] = worker
 
         with patch.object(queue_manager, "_try_start_next") as mock_start:
-            queue_manager._on_task_completed(0, "video.mp4")
+            queue_manager._on_worker_completed(worker, "video.mp4")
             mock_start.assert_called_once()
 
     def test_auto_start_after_failure(self, queue_manager, multiple_tasks):
@@ -491,8 +507,9 @@ class TestQueueManagerAutoStart:
                 queue_manager.add_task(task)
 
         # Add mock worker
-        queue_manager.workers[0] = Mock()
+        worker = Mock(task=multiple_tasks[0])
+        queue_manager.workers[id(multiple_tasks[0])] = worker
 
         with patch.object(queue_manager, "_try_start_next") as mock_start:
-            queue_manager._on_task_failed(0, "Error")
+            queue_manager._on_worker_failed(worker, "Error")
             mock_start.assert_called_once()

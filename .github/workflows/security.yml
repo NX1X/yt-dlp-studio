@@ -53,12 +53,13 @@ jobs:
   pip-audit:
     name: pip-audit (lockfile CVEs)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
     - name: Harden runner
       # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
       # pip-audit queries two CVE backends — PyPI JSON for package metadata
       # and api.osv.dev for advisory data. No `deps.dev` (that's Scorecard).
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: true
@@ -105,6 +106,7 @@ jobs:
   zizmor:
     name: zizmor (workflow security)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       security-events: write   # upload SARIF to code scanning
@@ -114,7 +116,7 @@ jobs:
       # zizmor's online audits hit api.github.com only (to resolve action
       # SHAs / permissions). SARIF upload via codeql-action/upload-sarif
       # also goes through api.github.com.
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: true
@@ -169,6 +171,7 @@ jobs:
   scorecard:
     name: OpenSSF Scorecard
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # No value on PRs (fork tokens cannot publish results). Run on the default
     # branch, the weekly schedule, and manual dispatch only.
     if: >-
@@ -191,7 +194,7 @@ jobs:
       # of a `block`-mode false positive; if a check fails on an unlisted
       # endpoint, the harden-runner network log in the run summary will name
       # it — add it here and rerun (do NOT flip the policy back to audit).
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: true

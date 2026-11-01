@@ -4,6 +4,7 @@ These tests mock yt-dlp to verify the signal flow and state transitions
 without performing real downloads.
 """
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -34,6 +35,8 @@ class TestDownloadWorkerSuccess:
         mock_instance = MockWrapper.return_value
         mock_instance.get_video_info.return_value = MagicMock(title="Test Video")
         mock_instance.download.return_value = True
+        mock_instance.last_output_files = [os.path.join("/tmp", "Test Video_1080p.mp4")]
+        mock_instance.last_title = "Test Video"
 
         task = DownloadTask(url="https://example.com/video", output_directory="/tmp", quality="Best Quality")
         worker = DownloadWorker(task)
@@ -45,6 +48,54 @@ class TestDownloadWorkerSuccess:
 
         assert task.status == TaskStatus.COMPLETED
         assert len(completed_signals) == 1
+        # The real file name from yt-dlp, not the "video file" fallback
+        assert completed_signals == ["Test Video_1080p.mp4"]
+        assert task.filename == "Test Video_1080p.mp4"
+        assert task.title == "Test Video"
+
+
+class TestDownloadWorkerCompletionLabel:
+    """The completion label falls back to the real output type when no filename is known."""
+
+    @pytest.mark.parametrize(
+        ("audio_only", "preset_filename", "expected"),
+        [
+            (True, "", "audio file"),
+            (False, "", "video file"),
+            (True, "song.mp3", "song.mp3"),
+        ],
+    )
+    @patch("src.backend.download_worker.YtDlpWrapper")
+    def test_completion_label(self, MockWrapper, qapp, qtbot, audio_only, preset_filename, expected):
+        from src.backend.download_worker import DownloadWorker
+
+        mock_instance = MockWrapper.return_value
+        mock_instance.get_video_info.return_value = MagicMock(title="Test Media")
+        mock_instance.download.return_value = True
+        # yt-dlp reported no output path, so the worker uses its fallback.
+        mock_instance.last_output_files = []
+        mock_instance.last_title = None
+
+        task = DownloadTask(
+            url="https://example.com/media",
+            output_directory="/tmp",
+            quality="Best Quality",
+            audio_only=audio_only,
+            filename=preset_filename,
+        )
+        worker = DownloadWorker(task)
+
+        completed_signals = []
+        log_messages = []
+        worker.download_completed.connect(completed_signals.append)
+        worker.log_message.connect(log_messages.append)
+
+        worker.run()
+
+        assert task.status == TaskStatus.COMPLETED
+        assert completed_signals == [expected]
+        assert task.filename == expected
+        assert f"Download completed: {expected}" in log_messages
 
 
 class TestDownloadWorkerFailure:

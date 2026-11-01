@@ -48,62 +48,45 @@ def test_engine_imports_at_pinned_version():
     assert wrapper.ytdlp_version.__version__ == YTDLP_VERSION
 
 
-def test_curl_cffi_is_available():
-    """curl_cffi must be installed and detected by yt-dlp.
+# ---------- curl_cffi stays out (software-origin policy) ----------
 
-    Without it, yt-dlp's networking layer can't impersonate a real browser's
-    TLS/JA3 fingerprint, and YouTube replies with HTTP 429 on subtitle and
-    comment endpoints. That used to silently abort entire video downloads.
+_PROJECT_ROOT = __import__("pathlib").Path(__file__).resolve().parent.parent
 
-    If this test fails, check pyproject.toml [project.dependencies] and the
-    PyInstaller spec's collect_all('curl_cffi') wiring.
+
+def test_curl_cffi_is_not_a_runtime_dependency():
+    """curl_cffi is banned by the project's software-origin policy.
+
+    It must not come back as a runtime dependency through a well-meaning
+    Renovate bump or a copy from an older branch.
     """
-    from yt_dlp.dependencies import curl_cffi as curl_cffi_flag
-
-    _ASSERT_MSG = "curl_cffi is not importable. Re-add 'curl_cffi>=0.15.0' to pyproject.toml dependencies."
-    assert curl_cffi_flag is not None, _ASSERT_MSG
-
-    # The impersonation request handler must enumerate Chrome targets.
-    from yt_dlp.networking._curlcffi import CurlCFFIRH
-
-    target_names = {str(t) for t in CurlCFFIRH._SUPPORTED_IMPERSONATE_TARGET_MAP.keys()}
-    chrome_targets = [t for t in target_names if t.startswith("chrome")]
-    assert chrome_targets, "curl_cffi advertises no Chrome impersonation targets"
+    # Plain text parsing, not tomllib: tomllib is 3.11+ and the project
+    # supported Python 3.10 when this was written; harmless on 3.11+.
+    text = (_PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    block = text[text.index("\ndependencies = [") + 1 :]  # +1 skips the leading newline
+    block = block[: block.index("\n]")]
+    entries = [ln.strip() for ln in block.splitlines()[1:] if ln.strip() and not ln.strip().startswith("#")]
+    assert entries, "could not find any runtime dependencies in pyproject.toml"
+    assert not [e for e in entries if e.strip('",').lower().replace("-", "_").startswith("curl_cffi")]
 
 
-def test_default_impersonate_target_is_chrome():
-    """The wrapper module must resolve a Chrome impersonation target at import time."""
-    from src.backend.yt_dlp_wrapper import _DEFAULT_IMPERSONATE_TARGET
+@pytest.mark.parametrize("spec", ["build.spec", "build_linux.spec"])
+def test_curl_cffi_is_excluded_from_bundles(spec):
+    """Both PyInstaller specs must exclude curl_cffi and never collect it.
 
-    assert _DEFAULT_IMPERSONATE_TARGET is not None, (
-        "_DEFAULT_IMPERSONATE_TARGET is None - curl_cffi may be missing or "
-        "ImpersonateTarget.from_str('chrome') failed at import time."
-    )
-    assert "chrome" in str(_DEFAULT_IMPERSONATE_TARGET).lower()
-
-    # The constructed target must round-trip through yt-dlp's validator.
-    from yt_dlp.networking.impersonate import ImpersonateTarget
-
-    assert isinstance(_DEFAULT_IMPERSONATE_TARGET, ImpersonateTarget)
+    The vendored yt-dlp auto-detects curl_cffi, so excluding it in the spec is
+    what guarantees it stays out of the EXE even if a build machine has it.
+    """
+    text = (_PROJECT_ROOT / "packaging" / spec).read_text(encoding="utf-8")
+    assert "collect_all('curl_cffi')" not in text
+    excludes = text[text.index("excludes=[") :]
+    excludes = excludes[: excludes.index("]")]
+    assert "'curl_cffi'" in excludes
 
 
-def test_youtubedl_accepts_default_impersonate_target():
-    """A YoutubeDL instance must accept our impersonate target without raising."""
-    from yt_dlp import YoutubeDL
-
-    from src.backend.yt_dlp_wrapper import _DEFAULT_IMPERSONATE_TARGET
-
-    if _DEFAULT_IMPERSONATE_TARGET is None:
-        pytest.skip("impersonation unavailable in this environment")
-
-    ydl = YoutubeDL(
-        {
-            "quiet": True,
-            "simulate": True,
-            "impersonate": _DEFAULT_IMPERSONATE_TARGET,
-        }
-    )
-    assert ydl is not None
+def test_download_never_requests_impersonation(monkeypatch):
+    """The wrapper must not ask yt-dlp for browser impersonation (needs curl_cffi)."""
+    opts = _run_download_with_capture(monkeypatch)
+    assert "impersonate" not in opts
 
 
 def test_yt_dlp_ejs_is_available():
@@ -181,8 +164,9 @@ def test_deno_lookup_is_cached():
     assert mock_which.call_count <= 1
 
 
-def test_deno_lookup_returns_none_when_missing(monkeypatch):
+def test_deno_lookup_returns_none_when_missing(monkeypatch, tmp_path):
     monkeypatch.setattr("sys.frozen", False, raising=False)
+    monkeypatch.setattr("src.utils.deno_installer.get_app_data_deno_dir", lambda: tmp_path / "none")
     with patch("shutil.which", return_value=None):
         with patch("pathlib.Path.exists", return_value=False):
             result = YtDlpWrapper()._get_deno_location()
@@ -295,6 +279,10 @@ class _CapturingYDL:
         # Return a minimal info_dict so the wrapper's post-processing
         # block exits cleanly (no metadata search, no merge).
         return {"id": "test"}
+
+    def add_post_processor(self, pp, when="post_process"):
+        # The duplicate-numbering hook; this fake never runs it.
+        pass
 
     @property
     def _write_subtitles(self):
@@ -462,3 +450,82 @@ def test_existing_output_files_filters_missing(tmp_path):
     assert _existing_output_files(info) == [str(real)]
     assert _existing_output_files(None) == []
     assert _existing_output_files({"id": "x"}) == []
+
+
+# ---------- download result: output paths and title ----------
+
+
+def test_download_exposes_output_files_and_title(monkeypatch, tmp_path):
+    out = tmp_path / "Me at the zoo_240p.mp4"
+    out.write_bytes(b"x")
+    info = {"title": "Me at the zoo", "requested_downloads": [{"filepath": str(out)}]}
+    ok, wrapper = _run_download_returning(monkeypatch, tmp_path, info)
+    assert ok is True
+    assert wrapper.last_output_files == [str(out)]
+    assert wrapper.last_title == "Me at the zoo"
+    assert wrapper.last_error is None
+
+
+def test_output_files_are_a_copy(monkeypatch, tmp_path):
+    out = tmp_path / "video.mp4"
+    out.write_bytes(b"x")
+    info = {"requested_downloads": [{"filepath": str(out)}]}
+    _, wrapper = _run_download_returning(monkeypatch, tmp_path, info)
+    wrapper.last_output_files.clear()
+    assert wrapper.last_output_files == [str(out)]
+
+
+def test_empty_title_gives_none(monkeypatch, tmp_path):
+    out = tmp_path / "video.mp4"
+    out.write_bytes(b"x")
+    info = {"title": "", "requested_downloads": [{"filepath": str(out)}]}
+    _, wrapper = _run_download_returning(monkeypatch, tmp_path, info)
+    assert wrapper.last_title is None
+
+
+def test_failed_download_has_no_output_files(monkeypatch, tmp_path):
+    info = {"title": "Gone", "requested_downloads": [{"filepath": str(tmp_path / "gone.mp4")}]}
+    ok, wrapper = _run_download_returning(monkeypatch, tmp_path, info)
+    assert ok is False
+    assert wrapper.last_output_files == []
+    assert wrapper.last_title is None
+    assert wrapper.last_error == wrapper._last_error
+    assert "without writing a file" in wrapper.last_error
+
+
+def test_result_is_reset_on_each_download(monkeypatch, tmp_path):
+    """A failed second download must not keep the first download's result."""
+    from src.backend import yt_dlp_wrapper as mod
+
+    out = tmp_path / "first.mp4"
+    out.write_bytes(b"x")
+    results = [
+        {"title": "First", "requested_downloads": [{"filepath": str(out)}]},
+        None,
+    ]
+
+    class _SequenceYDL(_CapturingYDL):
+        def extract_info(self, url, download=True):
+            return results.pop(0)
+
+    monkeypatch.setattr(mod, "YoutubeDL", _SequenceYDL)
+    wrapper = mod.YtDlpWrapper()
+    kwargs = {"url": "https://example.com/v", "output_dir": str(tmp_path), "format_string": "best"}
+
+    assert wrapper.download(**kwargs) is True
+    assert wrapper.last_title == "First"
+    assert wrapper.last_error is None
+
+    assert wrapper.download(**kwargs) is False
+    assert wrapper.last_output_files == []
+    assert wrapper.last_title is None
+    assert wrapper.last_error
+
+
+def test_new_wrapper_has_empty_result():
+    from src.backend.yt_dlp_wrapper import YtDlpWrapper
+
+    w = YtDlpWrapper()
+    assert w.last_output_files == []
+    assert w.last_title is None
+    assert w.last_error is None

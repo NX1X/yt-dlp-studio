@@ -21,6 +21,162 @@ _(no entries yet)_
 
 ---
 
+## [0.4.0] - 2026-11-01
+
+### Reliable: tray mode, duplicate downloads that keep both files, no console flash on Windows, Hebrew notifications, a working restart after updates, and Deno on Linux.
+
+### Added
+
+- **Tray mode.** A new Settings option, "Keep running in the tray when I close the window", is off by default. When it is on and the desktop has a system tray, closing the window hides it and downloads keep running. The first close in a session shows one tray message. Use Show Window or a double-click on the tray icon to bring the window back. Quit in the tray menu and Ctrl+Q exit with the normal shutdown. Without a system tray (for example stock GNOME), the option is disabled and closing quits as before.
+- **Queue progress in the tray tooltip.** The tray icon tooltip shows the number of running and waiting downloads, for example "YT-DLP Studio - 2 downloading, 3 waiting". It shows only the app name when the queue is idle.
+- **Ctrl+Q quits the app.** The About tab listed this shortcut, but it was not connected before.
+
+### Changed
+
+- **One Environment line in the startup log.** Right after "started successfully" the log shows the app, engine, FFmpeg and Deno versions, Python, Qt and the install kind. This helps with bug reports. A failed lookup shows "unknown" and never stops startup.
+- **The impersonation warning is quiet.** yt-dlp warns "no impersonate target is available" on some sites because curl_cffi is not shipped. Downloads still work, so this one message now goes to the log at DEBUG. Other warnings stay at WARNING.
+
+### Fixed
+
+- **The app starts again after an in-place update.** After the 0.3.0 to 0.3.1 update on Windows, the restarted app failed with "Failed to load Python DLL" from a deleted `_MEI...` temp folder. The update itself was installed. The old app passed its PyInstaller variables to the installer, which passed them to the new app. Now the app and the installer both set `PYINSTALLER_RESET_ENVIRONMENT=1`. Because the installer sets it too, updates started from 0.3.0 and 0.3.1 restart correctly once the next release is out. CI now runs a silent update with stale PyInstaller variables and checks that the app starts.
+- **Deno on Linux.** The Linux builds (.deb, .rpm, AppImage, .tar.gz) do not include Deno, but the app never downloaded it, so YouTube downloads could fail or lose formats. The app now uses a system `deno` on PATH if there is one. Otherwise it downloads the pinned Deno once, in the background, to `~/.config/YT-DLP Studio/deno/<version>/`. The download is checked against a pinned SHA-256 and is not kept if the check fails. Without Deno the app still starts and logs a warning.
+- **Desktop notifications in Hebrew.** The titles and texts for a finished download, a failed download, a finished batch and an available update now follow the UI language. Video titles stay exactly as they are. The update notification no longer says "Click to update", because a click does not start an update.
+- **A failed download no longer shows "Download failed" twice.** The notification now shows the yt-dlp reason when there is one. A cancelled download shows the translated "Cancelled".
+- **Queue and History status in Hebrew.** The Status column in the Queue tab and the History tab now shows translated text. The English UI shows "Pending" instead of "PENDING". The queue file and the history file still store the English values, so files stay compatible.
+- **The History "clear" confirmation shows a translated status.** It used to show the stored English value inside the Hebrew text.
+- **No console window flash at launch on Windows.** The About tab ran `ffmpeg -version` while the window was built, and Windows opened a console window for it. FFmpeg now starts without a window, only when the About tab is first shown or from a background thread at startup, and at most once per run.
+- **The About tab shows the FFmpeg the downloader uses.** It used to run whatever `ffmpeg` was first on PATH. It now asks the same FFmpeg that downloads use, which is the bundled copy in the Windows EXE.
+- **Auto-numbering of duplicate downloads now works.** Before, a second download of the same video at the same quality got the same file name, so yt-dlp overwrote the first file. Now the new file is saved as `name (1).ext`, then `name (2).ext`, and so on. The check uses the final extension (merged `.mp4`, converted `.mp3`) and the file name yt-dlp really writes. Different qualities keep their own names (`_720p`, `_1080p`) and are not numbered. Identical downloads that run at the same time in the queue get different numbers.
+
+---
+
+## [0.3.1] - 2026-10-31
+
+### Linux packages: an AppImage, a `.deb` and an `.rpm` beside the `.tar.gz`, updates that match how you installed, and a working notifications setting.
+
+### Added
+
+- **Linux packages.** Each release now ships an AppImage, a `.deb` and an `.rpm` beside the `.tar.gz`. All four wrap the same PyInstaller binary. The `.deb` and `.rpm` install into `/opt/yt-dlp-studio`, pull in FFmpeg and add a menu entry. Removing or purging them keeps settings and history in `~/.config/YT-DLP Studio`.
+- **Updates match the install.** The updater offers an AppImage copy the new AppImage, a `.deb` install the new `.deb` and an `.rpm` install the new `.rpm`. The `.tar.gz` copy still gets the archive. Each kind shows its own next step.
+- **CI tests every Linux package.** CI launches the AppImage headless. It installs the `.deb` with apt, launches it and purges it, then checks that user data survives. It extracts the `.rpm` and launches its payload. Every payload must match the built binary byte for byte.
+
+### Fixed
+
+- **Deno on Linux.** The Linux builds (.deb, .rpm, AppImage, .tar.gz) do not include Deno, but the app never downloaded it, so YouTube downloads could fail or lose formats. The app now uses a system `deno` on PATH if there is one. Otherwise it downloads the pinned Deno once, in the background, to `~/.config/YT-DLP Studio/deno/<version>/`. The download is checked against a pinned SHA-256 and is not kept if the check fails. Without Deno the app still starts and logs a warning.
+- **"Enable Desktop Notifications" now works.** The Settings checkbox did nothing. It is now saved in the config (`notifications_enabled`, default on) and applied when you save, when you reset to defaults, and at startup.
+- **The tray menu is translated.** "Show Window" and "Quit" now come from the translation tables, in English and Hebrew.
+- **`docs/ROADMAP.md` is no longer stale.** It no longer says the removed bandwidth, video player and filter modules exist. It marks notifications and in-place updates as shipped and points to `ROADMAP.md` for the current plan.
+
+### Removed
+
+- **`plyer` dependency.** The frozen build could not use it. Notifications use the tray icon, then `notify-send` on Linux. The lock files lost only the `plyer==2.1.0` entries.
+- **122 unused translation keys**, in both English and Hebrew. Nothing in `src/` or `tests/` used them. Most belonged to removed or replaced UI: the bandwidth, filter and video player modules (#60), an old batch dialog, an old subtitle picker, and an old menu bar.
+
+### Not verified
+
+- The `.rpm` is built and checked on Ubuntu, but no CI job installs it on Fedora or openSUSE. A real `dnf install` is still to be tested.
+- The AppImage runs on the Ubuntu 22.04 runner without FUSE (extract-and-run). A double-click launch on a desktop with FUSE is still to be tested.
+
+---
+
+## [0.3.0] - 2026-10-31
+
+### Installable: a real Windows installer that updates itself in place, a download queue that survives a restart, and working notifications and history.
+
+### Added
+
+- **Windows installer** (#61). `YT-DLP-Studio-Setup-<version>.exe` installs per user, with no admin rights, into `%LOCALAPPDATA%\Programs\YT-DLP Studio`. It adds a Start-menu shortcut and an optional desktop shortcut, in English or Hebrew. It installs the same one-file EXE as the portable download, so the two cannot drift. The portable EXE and ZIP stay available.
+  - **Uninstall keeps your data.** Settings, download history and logs in `%APPDATA%\YT-DLP Studio` stay. Deleting them needs a Yes in a box that defaults to No, or `/PURGEDATA=yes` for unattended use.
+  - **Tested on a real Windows runner in CI**, on every PR and release: silent install, launch of the installed app until it logs "started successfully", silent uninstall with user data kept, then reinstall and uninstall with `/PURGEDATA=yes`.
+  - The app now sets the same taskbar identity (AppUserModelID) as its shortcuts, so its window groups with the pinned icon.
+- **In-place updates** (#64). An installed copy downloads the new installer, checks its SHA-256 against the published digest, runs it silently and starts again. A portable copy downloads the new portable EXE and says plainly that it is a separate copy that does not replace the running one.
+  - Security hardening from a review of this feature: the file is checked again right before it runs; downloads are written to `<name>.part` until verified; only https downloads from GitHub release hosts are accepted, also after redirects; downloads larger than the published size are stopped; the file name from the GitHub API must be a plain name inside the Downloads folder. A ZIP or an unknown file is shown in Explorer, never run.
+- **The download queue survives a restart** (#63). Pending, running and failed tasks are saved to `download_queue.json` (with a format version) next to the history file, and restored on the next start. A paused queue stays paused. A damaged file never stops the app from starting; it is kept as `download_queue.json.bad`.
+- **Retry failed downloads** (#63): a Retry button per task, a "Retry All Failed" button, and one automatic retry for network errors only (never for private, geo-blocked, removed or copyrighted videos).
+
+### Changed
+
+- **Bundled yt-dlp engine 2026.08.19 -> 2026.10.26.** Tarball SHA-256 `21f942d258d25cc4e60b4982a25c423460f0bebb835f38e6dfd1fcb140087f95`, matching the `SHA2-256SUMS` file signed by the pinned yt-dlp release key (`AC0CBBE6848D6A873464AF4E57CF65933B5A7581`, GPG "Good signature"). Includes the 2026.10.21 YouTube fixes (a new default `tv_samsung` client, a fix for initial data extraction, clearer error messages). Still uses `yt-dlp-ejs==0.8.0`, unchanged.
+- **Deno 2.9.6 -> 2.9.8** in `deno_installer.py`, `build.yml` and `release.yml`. SHA-256 `cba84b26e0df5ae7f74fc66b86a95b866872a86292ebd84fa1e959927edd93bf`, the same in the publisher's sidecar file, the downloaded asset and the GitHub release digest.
+- **FFmpeg 8.1.2 -> 9.0.2** in `build.yml` and `release.yml` (SHA-256 `4d2060a8b34a940aa47d785142055bb92a63053781e55f2ace4546edd519a8f5`, the same in the download and the GitHub digest). This is a major version: every library file name changed (`avcodec-63`, `avdevice-63`, `avfilter-12`, `avformat-63`, `avutil-61`, `swresample-7`, `swscale-10`, read from the real 9.0.2 archive). `packaging/build.spec` and the CI bundle check were updated to match.
+- **Cooldown override, by decision.** yt-dlp 2026.10.26 (4 days old) and Deno 2.9.8 (9 days old) were taken inside the project's cooldown window (7 and 14 days) because the maintainer asked for the latest versions. yt-dlp's GPG signature check against the pinned key still guards against a hijacked release.
+- **Running from source now needs Python 3.11 or newer** (was 3.10). yt-dlp 2026.10.26 dropped Python 3.10. `requires-python`, the lint targets and the lock files moved to 3.11; the relock only removed packages that 3.10 alone needed. The Windows EXE and the Linux binary bundle their own Python, so they are not affected, and the Linux binary still runs on Ubuntu 22.04.
+
+### Fixed
+
+- **Deno on Linux.** The Linux builds (.deb, .rpm, AppImage, .tar.gz) do not include Deno, but the app never downloaded it, so YouTube downloads could fail or lose formats. The app now uses a system `deno` on PATH if there is one. Otherwise it downloads the pinned Deno once, in the background, to `~/.config/YT-DLP Studio/deno/<version>/`. The download is checked against a pinned SHA-256 and is not kept if the check fails. Without Deno the app still starts and logs a warning.
+- **Desktop notifications never appeared** (#62). The app never created its tray icon, so every notification fell through to a library the EXE cannot use. Notifications now go through the tray icon, then `notify-send` on Linux. "Notification sent" is logged only when a notification really went out.
+- **The real file name is shown and opened** (#65). Nothing recorded the downloaded file, so the Queue tab, notifications and the "Download complete" box said "video file", and "Open file" could not find the file. They now use the real name and title from yt-dlp.
+- **The History tab never got new entries** (#66). Finished downloads are now recorded: completions, final failures with the real reason, and cancels. A failure that is about to be retried waits for its final result. The tab refreshes on its own.
+- **The queue could run more than 3 downloads at once** (#63). After a restore or "Retry All", a running download could be lost track of when tasks were removed or reordered. Downloads are now tracked by task, threads are kept until they finish, and closing the app cancels running downloads and waits up to 4 seconds for them.
+- **Release pipeline race** (#61). A release could fail to create its tag while its own test jobs were still running, which is what happened to the first v0.2.1 run. Release runs now queue, and the tag waits for the required checks.
+
+### Not verified before release
+
+These need a real Windows desktop, not a CI runner: the interactive installer wizard, the Yes/No box on uninstall, the desktop shortcut, and Windows toast notifications. The first real in-place update happens when 0.3.0 updates to a later release.
+
+---
+
+## [0.2.1] - 2026-10-30
+
+### Maintenance release: removes curl_cffi, hash-pins every CI install, and makes CI check the contents of each built executable.
+
+### Removed
+
+- **`curl_cffi` (browser impersonation) is no longer a dependency or bundled.** It is banned by the project's software-origin policy. It was optional here: yt-dlp works without it. It is removed from `pyproject.toml`, from both PyInstaller specs, and from every lock file. It is also added to `excludes` in `packaging/build.spec` and `packaging/build_linux.spec`. The vendored yt-dlp loads `curl_cffi` automatically when it is installed, so the exclude keeps it out of the executable even if a build machine has it. Verified: a build made in a venv with `curl_cffi` 0.15.0 installed contains none of it.
+  - **Effect on downloads, measured on 2026-10-14:** video, audio and English subtitle downloads work without it. yt-dlp now logs one warning: "the extractor specified to use impersonation ... no impersonate target is available". Auto-translated subtitles in other languages (`de`, `fr`, `es`) hit HTTP 429 on the same video **both with and without** Chrome impersonation, so removing it causes no measurable regression there. The existing subtitle sleep and the non-fatal subtitle handling still apply.
+  - Guard tests fail if `curl_cffi` returns to `pyproject.toml`, to a lock file, or to a spec, or if the wrapper requests impersonation.
+- **`sonar-project.properties` is removed.** The project uses SonarCloud Automatic Analysis, so the analysis scope and exclusions are set in the SonarCloud UI instead.
+
+### Added
+
+- **CI checks the contents of every built executable** (`scripts/check_bundle.py`). It runs right after PyInstaller in the Windows and Linux jobs of `build.yml` and `release.yml`, and fails the build when something critical is missing: the `yt_dlp_ejs` solver scripts, the vendored engine, the Qt extensions, and on Windows `ffmpeg.exe`, `ffprobe.exe`, `deno.exe` and the 7 FFmpeg DLLs. It also fails on any `curl_cffi` content, and when the bundled yt-dlp version differs from `YTDLP_VERSION`. v0.1.3 shipped without the solver scripts and every YouTube download failed; this check catches that. Proven both ways: it passes on a real Linux build, and it fails with exit code 1 on a build made without the solver scripts.
+- **`requirements/dev.txt`**: a hash-pinned lock of runtime plus dev tools, constrained by `requirements/lock.txt`.
+- **`scripts/relock.sh`** regenerates all three lock files the correct way (see Fixed).
+- **`tests/test_lock_consistency.py`** fails when a lock pin no longer satisfies its bound in `pyproject.toml`, when `dev.txt` or `build-tools.txt` disagrees with `lock.txt`, or when `curl_cffi` appears in any lock.
+
+### Fixed
+
+- **Deno on Linux.** The Linux builds (.deb, .rpm, AppImage, .tar.gz) do not include Deno, but the app never downloaded it, so YouTube downloads could fail or lose formats. The app now uses a system `deno` on PATH if there is one. Otherwise it downloads the pinned Deno once, in the background, to `~/.config/YT-DLP Studio/deno/<version>/`. The download is checked against a pinned SHA-256 and is not kept if the check fails. Without Deno the app still starts and logs a warning.
+- **The lock file had drifted from `pyproject.toml`.** Renovate raises version bounds but does not regenerate the locks. `requirements/lock.txt` pinned PySide6 6.11.0 while `pyproject.toml` required `>=6.11.2`. CI hid it, because the unhashed `pip install -e .[dev]` that followed upgraded past the lock. The locks are regenerated and now match, and the new consistency test catches this from now on.
+- **`requirements/lock.txt` could not be installed on Python 3.10**, the `requires-python` floor. It was compiled on Python 3.14, which drops `tomli` (PySide6 needs it below 3.11), so `pip install --require-hashes` failed. All three lock files are now compiled with `uv pip compile --universal --python-version 3.10`, which keeps platform and Python-version markers. That also keeps Windows-only packages such as `colorama` in `dev.txt`. Verified: all three files install with zero errors on Python 3.14 and 3.10, and the full test suite passes on both.
+- **The 14-day supply-chain cooldown now covers transitive dependencies too.** pip-compile picks the newest version that fits a bound, and Renovate's `minimumReleaseAge` covers only the direct dependencies it bumps. The first regeneration would have pulled 15 packages younger than 14 days, including PySide6 6.12.0 and its new `pyside6-webengine` dependency. Locks are now built with `--exclude-newer` set 14 days back (2026-10-16 for this release). Verified on 2026-10-30: 75 of the 79 unique pins are at least 14 days old. The other 4 are the security fixes listed under Security, which skip the cooldown on purpose.
+
+### Security
+
+- **Fixes for 20 Dependabot alerts, plus 11 `virtualenv` CVEs that only `pip-audit` reported.** The alerts close when this release merges to `main`. The locks pinned vulnerable versions of seven packages. All four lock files now pin the patched versions, and `pip-audit` finds no known vulnerabilities in any of them (checked 2026-10-30).
+
+  | Package | Was | Now | Worst alert | Where |
+  | :- | :- | :- | :- | :- |
+  | `certifi` | 2026.4.22 | 2026.10.18 | critical, GHSA-6q48-6c7w-9gw2 (emSign root CAs) | app (`lock.txt`) and CI |
+  | `urllib3` | 2.7.0 | 2.8.0 | high, GHSA-vxq7-64xx-v4gw, GHSA-8988-9cw3-xx77 | app (`lock.txt`) and CI |
+  | `msgpack` | 1.2.1 | 1.2.3 | high, GHSA-j586-36cw-2gc2 | CI tools |
+  | `black` | 26.3.1 | 26.10.1 | high, GHSA-cg8m-r9f2-5wm2 | CI tools |
+  | `filelock` | 3.29.0 | 4.2.1 | high, GHSA-v4x8-3wr5-3wq8 (and 9 more) | CI and dev tools |
+  | `setuptools` | 84.0.0 | 84.1.0 | low, GHSA-xmj3-9gf7-h52w | build tools |
+  | `virtualenv` | 21.14.1 | 21.14.10 | 11 CVEs | dev tools |
+
+  - **Security fixes no longer wait for the 14-day cooldown.** `certifi`, `filelock`, `setuptools` and `virtualenv` fixes were 10 to 13 days old. `scripts/relock.sh` now lets each one through up to a cutoff just after its patched release and no further, so newer releases of the same package still wait. Every other package keeps the 14-day cutoff (2026-10-16 for this release). Renovate follows the same rule: its security PRs now wait 0 days instead of 14 (`.github/renovate.json5`), and regular updates still wait 14 days.
+  - **Known gap:** `dev.txt` keeps `filelock` 4.1.0 for the Python 3.10 CI test job, because `filelock` 4.2.1 needs Python 3.11 or later and no patched release supports 3.10. It is a dev tool only (`virtualenv` pulls it in) and never reaches the app.
+  - **`requirements/ci-tools.txt` is now built by `scripts/relock.sh`** with the same cooldown, `--universal` and Python 3.11. Before, it was compiled by hand with `pip-compile` on Python 3.14 and had no cooldown. It now also pins `pip` itself, which `--require-hashes` needs.
+  - Verified: each lock installs with `--require-hashes` on its target Python (`lock.txt` on 3.10 and 3.14, `dev.txt` and `build-tools.txt` on 3.10, `ci-tools.txt` on 3.11), and the full test suite passes (485 tests).
+- **Every CI `pip install` is now hash-pinned.** The three `pip install -e .[dev]` steps (in `build.yml`, `release.yml` and `bump-yt-dlp-engine.yml`) become `pip install --require-hashes -r requirements/dev.txt --only-binary :all:`. The editable install is gone entirely: `conftest.py` already puts the repo on `sys.path`, and nothing reads the installed package metadata. This clears the 6 open OpenSSF Scorecard `PinnedDependenciesID` alerts and SonarCloud `githubactions:S8541` / `S8544`.
+- **`update_checker.py` mounts its retry adapter for HTTPS only.** It no longer mounts one for `http://`, which nothing used (SonarCloud hotspot `python:S5332`).
+
+### Also shipped in this release
+
+Two changes merged a few seconds after #58 and were built into the published 0.2.1 (its tag points at `28dcfdf`):
+
+- **LICENSE restored to the verbatim Apache-2.0 text, and a NOTICE file added** (#57). The committed license had drifted from the canonical text in two places. Third-party attribution moved to `NOTICE`.
+- **Three unused UI modules removed** (#60): `video_player_widget.py`, `filter_dialog.py` and `bandwidth_widget.py`, 431 statements that nothing imported. Audio-only downloads are no longer labelled "video file" in the completion fallback.
+
+### Dependencies
+
+- `packaging>=26.3` (#52), `pre-commit>=4.6.2` (#39, #53), `pytest-qt>=4.5.0` (#43), `pyinstaller>=6.22.3` (#56). All four support Python 3.10 and were older than 14 days.
+- Locked versions (selection): PySide6 6.11.2, requests 2.34.2, packaging 26.3, yt-dlp-ejs 0.8.0, PyInstaller 6.22.3, pytest 9.1.1.
+
+---
+
 ## [0.2.0] - 2026-09-20
 
 ### Linux (Ubuntu) desktop support
@@ -77,6 +233,7 @@ Deno on first run.
 
 ### Fixed
 
+- **Deno on Linux.** The Linux builds (.deb, .rpm, AppImage, .tar.gz) do not include Deno, but the app never downloaded it, so YouTube downloads could fail or lose formats. The app now uses a system `deno` on PATH if there is one. Otherwise it downloads the pinned Deno once, in the background, to `~/.config/YT-DLP Studio/deno/<version>/`. The download is checked against a pinned SHA-256 and is not kept if the check fails. Without Deno the app still starts and logs a warning.
 - **Linux PyInstaller spec was missing runtime dependencies.**
   `build_linux.spec` did not bundle `curl_cffi`'s native impersonation library
   (downloads failed at `YoutubeDL` init with "Impersonate target 'chrome' is not
@@ -115,6 +272,7 @@ Deno on first run.
 
 ### Fixed
 
+- **Deno on Linux.** The Linux builds (.deb, .rpm, AppImage, .tar.gz) do not include Deno, but the app never downloaded it, so YouTube downloads could fail or lose formats. The app now uses a system `deno` on PATH if there is one. Otherwise it downloads the pinned Deno once, in the background, to `~/.config/YT-DLP Studio/deno/<version>/`. The download is checked against a pinned SHA-256 and is not kept if the check fails. Without Deno the app still starts and logs a warning.
 - **YouTube downloads failing in the Windows EXE.** `packaging/build.spec` listed `yt_dlp_ejs` under `hiddenimports`, which bundles the package's Python modules but not its data files. The JS challenge solver scripts (`yt_dlp_ejs/yt/solver/core.min.js` and `lib.min.js`) were therefore missing from the frozen build, so YouTube's JS challenges could not be solved and downloads failed or lost formats. Running from source was unaffected because the scripts exist on disk in the venv. The spec now adds `collect_data_files('yt_dlp_ejs')` to `datas`. Verified with the new engine: yt-dlp logs `Using challenge solver lib/core script v0.8.0 (source: python package, variant: minified)` with no hash-mismatch warning.
 - **Failed downloads were reported as successful.** With `ignoreerrors='only_download'`, a failed download does not raise: `extract_info` returns `None`, and the wrapper logged `DOWNLOAD COMPLETED SUCCESSFULLY` with nothing on disk. This is exactly what v0.1.3 users saw, completing in about two seconds with no file. The wrapper now counts a download as successful only when the files yt-dlp reports in `requested_downloads` exist, and otherwise fails with yt-dlp's own error, which the UI displays. yt-dlp's warnings and errors are also routed into the app log through a `logger` bridge; previously they went to stdout/stderr, which the windowed EXE discards.
 - **Playlist dialog crash on float durations.** yt-dlp reports `duration` as a float (e.g. `245.0`), and the `:02d` format in `PlaylistVideoInfo` raised `ValueError`, closing the dialog. The duration is now normalised to `int` first. Covered by new tests in `tests/test_playlist_fetcher.py`.
@@ -152,6 +310,7 @@ Deno on first run.
 
 ### Fixed
 
+- **Deno on Linux.** The Linux builds (.deb, .rpm, AppImage, .tar.gz) do not include Deno, but the app never downloaded it, so YouTube downloads could fail or lose formats. The app now uses a system `deno` on PATH if there is one. Otherwise it downloads the pinned Deno once, in the background, to `~/.config/YT-DLP Studio/deno/<version>/`. The download is checked against a pinned SHA-256 and is not kept if the check fails. Without Deno the app still starts and logs a warning.
 - **`.github/renovate.json5` schema-validation warning cleared.** The `vulnerabilityAlerts` block used to include `"prPriority": 10`, which Renovate's schema only permits inside `packageRules`. The property was silently ignored at runtime, but every scheduled Renovate run reported "Repository Problems / Found renovate config warnings" on the Dependency Dashboard. Removed. `npx --package=renovate -- renovate-config-validator .github/renovate.json5` now reports `Config validated successfully`.
 
 ### Added
@@ -195,6 +354,7 @@ Deno on first run.
 
 ### Fixed
 
+- **Deno on Linux.** The Linux builds (.deb, .rpm, AppImage, .tar.gz) do not include Deno, but the app never downloaded it, so YouTube downloads could fail or lose formats. The app now uses a system `deno` on PATH if there is one. Otherwise it downloads the pinned Deno once, in the background, to `~/.config/YT-DLP Studio/deno/<version>/`. The download is checked against a pinned SHA-256 and is not kept if the check fails. Without Deno the app still starts and logs a warning.
 - **Subtitles now actually download when combined with comments/metadata.** Browser impersonation alone was not enough: YouTube's per-IP rate limiter fills up during the ~60+ comment API requests, so by the time the subtitle download fires it gets HTTP 429 even with a Chrome JA3 fingerprint. The wrapper now sets `sleep_interval_requests=1` when `download_subtitles` is on AND (`download_comments` OR `download_metadata`) is on, which spaces every API request by 1s. Cost: ~10-30 s extra per video during the comment phase. Benefit: the `.srt` file actually lands.
 - **Subtitle 429 errors no longer abort the video download.** YouTube aggressively rate-limits subtitle requests on clients that do not impersonate a real browser. yt-dlp's `_write_subtitles` raises `DownloadError` on subtitle failure unless `ignoreerrors` is literally `True`, and our default of `"only_download"` does NOT count. Two fixes:
   1. **Add `sleep_interval_subtitles=2`** when subtitle download is enabled, which spaces requests apart and prevents most 429s in the first place.

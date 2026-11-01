@@ -31,7 +31,7 @@ import platform
 import sys
 import threading
 import traceback
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
 from typing import Any
@@ -64,7 +64,7 @@ def _build_report(
 ) -> dict[str, Any]:
     """Assemble a JSON-serializable crash record."""
     report: dict[str, Any] = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "origin": origin,
         "thread": thread_name or threading.current_thread().name,
         "app_version": APP_VERSION,
@@ -93,7 +93,7 @@ def _read_log_tail() -> list[str]:
         log_path = Path(LOG_PATH)
         if not log_path.exists():
             return []
-        # Read full file then tail — log is rotated at 5MB so this is bounded.
+        # Read full file then tail: the log is rotated at 5MB so this is bounded.
         text = log_path.read_text(encoding="utf-8", errors="replace")
         return text.splitlines()[-LOG_TAIL_LINES:]
     except Exception:

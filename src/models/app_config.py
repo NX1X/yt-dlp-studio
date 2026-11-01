@@ -25,6 +25,8 @@ class AppConfig:
         check_updates_on_startup: Run a silent update check at launch
         skipped_update_version: Release version the user chose to skip
         last_update_check: ISO timestamp of the last successful update check
+        notifications_enabled: Show desktop notifications for download events
+        close_to_tray: Hide the window to the system tray on close, instead of quitting
     """
 
     output_directory: str
@@ -35,6 +37,8 @@ class AppConfig:
     check_updates_on_startup: bool = False
     skipped_update_version: str = ""
     last_update_check: str = ""
+    notifications_enabled: bool = True
+    close_to_tray: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """
