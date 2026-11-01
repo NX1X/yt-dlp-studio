@@ -2,7 +2,7 @@
 
 This guide covers every way to install YT-DLP Studio: the Windows installer, the portable EXE, the Linux packages and a source install. It also explains how to uninstall.
 
-Download all release files from the [Releases page](https://github.com/NX1X/yt-dlp-studio/releases/latest). The file names below use `<version>` for the version number, for example `0.3.1`.
+Download all release files from the [Releases page](https://github.com/NX1X/yt-dlp-studio/releases/latest). The file names below use `<version>` for the version number, for example `0.4.0`.
 
 ## System requirements
 
