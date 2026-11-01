@@ -366,6 +366,7 @@ jobs:
         Write-Host "Built $($setup.Name) ($([math]::Round($setup.Length / 1MB, 1)) MB)"
 
     - name: Test installer
+      timeout-minutes: 15
       # Silent per-user install, launch the INSTALLED GUI headless until it logs
       # "started successfully", silent uninstall (user data must survive), then
       # reinstall and uninstall with /PURGEDATA=yes (user data must go).
