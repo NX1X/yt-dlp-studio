@@ -11,8 +11,8 @@ dynamic = ["version"]
 description = "A user-friendly desktop GUI for yt-dlp — download videos and audio from YouTube and 1000+ sites."
 readme = "README.md"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
-requires-python = ">=3.10"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.11"
 authors = [
     { name = "NX1X" },
 ]
@@ -43,10 +43,10 @@ classifiers = [
     "Operating System :: Microsoft :: Windows :: Windows 11",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Multimedia :: Sound/Audio",
     "Topic :: Multimedia :: Video",
     "Topic :: Internet :: WWW/HTTP",
@@ -59,37 +59,31 @@ dependencies = [
     # CVE-2024-47081 (.netrc credential leak via crafted URL), and
     # CVE-2026-25645 (insecure temp-file reuse in extract_zipped_paths).
     "requests>=2.34.2",
-    "packaging>=23.2",
-    "plyer>=2.1.0",
+    "packaging>=26.3",
     # yt-dlp's external JavaScript solver. Ships the JS challenge solver
     # scripts that the vendored yt-dlp engine needs to handle YouTube's
     # anti-bot challenges. Without it, yt-dlp 2026.06.09+ either warns and
     # silently drops formats or asks the user to allow remote_components
     # downloads at runtime. Bundling avoids that runtime fetch.
     "yt-dlp-ejs>=0.8.0",
-    # Browser-impersonation HTTP client. Lets yt-dlp's networking layer
-    # mimic Chrome/Firefox/Safari TLS+JA3 fingerprints, which is how
-    # YouTube and other sites decide whether to rate-limit or block a
-    # request. Without it, yt-dlp's extractor warns
-    # "no impersonate target is available" and subtitle/metadata
-    # endpoints frequently return HTTP 429. The cp310-abi3 wheel is
-    # ~1.7 MB and works on every supported CPython (3.10 through 3.14).
-    "curl_cffi>=0.16.3",
+    # curl_cffi (browser impersonation) is intentionally NOT a dependency:
+    # it is banned by the project's software-origin policy. It is also
+    # listed in `excludes` in packaging/build*.spec so it is never bundled.
 ]
 
 [project.optional-dependencies]
 dev = [
     # Pin >=9.0.3 for CVE-2025-71176 (vulnerable tmpdir handling).
     "pytest>=9.1.1",
-    "pytest-qt>=4.2.0",
+    "pytest-qt>=4.5.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.16.6,<0.17",
     "black>=26.5.1",
-    "pre-commit>=3.7.0",
+    "pre-commit>=4.6.2",
     "pip-tools>=7.6.1",
 ]
 build = [
-    "pyinstaller>=6.22.2",
+    "pyinstaller>=6.22.3",
 ]
 docs = [
     "mkdocs>=1.6.1",
@@ -143,6 +137,7 @@ include = [
     "/README.md",
     "/ROADMAP.md",
     "/LICENSE",
+    "/NOTICE",
 ]
 exclude = [
     "/vendor",
@@ -200,11 +195,10 @@ exclude_lines = [
 # ---------------------------------------------------------------------------
 [tool.ruff]
 line-length = 120
-# py310, matching requires-python = ">=3.10" and the 3.10 classifier. Keeping
-# this at py311 previously let 3.11-only idioms (datetime.UTC) slip in and break
-# run-from-source on Python 3.10 - e.g. stock Ubuntu 22.04, whose system Python
-# is 3.10. Pinning it to py310 keeps lint honest about the supported floor.
-target-version = "py310"
+# py311, matching the requires-python floor of 3.11. The floor moved from 3.10
+# to 3.11 in 0.3.0, because the bundled yt-dlp (2026.10.26 and later) dropped
+# 3.10. Keeping the target at the floor keeps lint honest about it.
+target-version = "py311"
 src = ["src", "tests"]
 exclude = [
     "vendor",
@@ -257,7 +251,7 @@ known-first-party = ["src"]
 # ---------------------------------------------------------------------------
 [tool.black]
 line-length = 120
-target-version = ["py310"]
+target-version = ["py311"]
 extend-exclude = '''
 /(
     vendor

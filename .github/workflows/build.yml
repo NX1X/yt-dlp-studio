@@ -15,6 +15,7 @@ jobs:
   lint:
     name: Lint & Format Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
     - name: Harden runner
       # StepSecurity harden-runner: enforces a per-job network egress allowlist
@@ -24,7 +25,7 @@ jobs:
       # dependency exfiltrating data or pulling from an unexpected origin.
       # SHA pinned (Renovate keeps the digest current; matches the repo
       # convention for every other third-party action).
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: true                 # no apt/sudo step in this job
@@ -64,6 +65,7 @@ jobs:
   test:
     name: Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -74,7 +76,7 @@ jobs:
       # via matrix; the same policy is applied to both. The Linux leg uses
       # apt (`sudo apt-get`), so disable-sudo MUST be false. Port-80 entries
       # are for the Ubuntu apt mirror (HTTP-only on the Azure-backed mirror).
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: false                # Linux leg runs `sudo apt-get`
@@ -112,9 +114,9 @@ jobs:
 
     - name: Install Python dependencies
       run: |
-        python -m pip install --upgrade pip==26.1.2 --only-binary :all:
-        pip install --require-hashes -r requirements/lock.txt --only-binary :all:
-        pip install -e .[dev]
+        python -m pip install --require-hashes -r requirements/pip.txt --only-binary :all:
+        python -m pip install --require-hashes -r requirements/lock.txt --only-binary :all:
+        python -m pip install --require-hashes -r requirements/dev.txt --only-binary :all:
 
     - name: Run smoke tests
       run: bash tests/test_smoke.sh
@@ -155,6 +157,7 @@ jobs:
     name: Build Windows Executable
     needs: [lint, test]
     runs-on: windows-latest
+    timeout-minutes: 45
     # Run on direct pushes to main/dev AND on every pull request, so
     # PyInstaller-only regressions (missing hidden imports, broken bundle
     # paths, vendored-engine path math that only matters under _MEIPASS)
@@ -173,12 +176,12 @@ jobs:
       # When bumping a version, update the matching SHA-256 in the same commit.
       # Procedure: download the asset locally, run `Get-FileHash -Algorithm SHA256`,
       # cross-check against the publisher's own checksum file, then paste here.
-      DENO_VERSION: "2.9.6"
+      DENO_VERSION: "2.9.8"
       # Cross-checked against
-      # https://github.com/denoland/deno/releases/download/v2.9.6/deno-x86_64-pc-windows-msvc.zip.sha256sum
-      DENO_SHA256: "15e5300b0ba3c3695a7621d90160a746ec9e710228cee639afa9d580f6e3cd11"
-      FFMPEG_VERSION: "8.1.2"
-      FFMPEG_SHA256: "cba748035c21ce1431d0823c7a3a711f38616f89f87a265dceddf9b7f6749d2d"
+      # https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-pc-windows-msvc.zip.sha256sum
+      DENO_SHA256: "cba84b26e0df5ae7f74fc66b86a95b866872a86292ebd84fa1e959927edd93bf"
+      FFMPEG_VERSION: "9.0.2"
+      FFMPEG_SHA256: "4d2060a8b34a940aa47d785142055bb92a63053781e55f2ace4546edd519a8f5"
     steps:
     - name: Harden runner
       # See lint job for rationale. Windows runner, so no apt and disable-sudo
@@ -186,7 +189,7 @@ jobs:
       # redirect to objects.githubusercontent.com (the GitHub release CDN) -
       # both already in the baseline. Sigstore endpoints (incl. the often-
       # missed sigstore.github.com) are required by attest-build-provenance.
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: true                 # Windows; no sudo step
@@ -221,9 +224,9 @@ jobs:
       # requirements/build-tools.in). The spec puts the project root on
       # pathex, so the project itself is never pip-installed to build.
       run: |
-        python -m pip install --upgrade pip==26.1.2 --only-binary :all:
-        pip install --require-hashes -r requirements/lock.txt --only-binary :all:
-        pip install --require-hashes -r requirements/build-tools.txt --only-binary :all:
+        python -m pip install --require-hashes -r requirements/pip.txt --only-binary :all:
+        python -m pip install --require-hashes -r requirements/lock.txt --only-binary :all:
+        python -m pip install --require-hashes -r requirements/build-tools.txt --only-binary :all:
 
     - name: Download and verify Deno
       run: |
@@ -322,6 +325,45 @@ jobs:
     - name: Build executable
       run: pyinstaller packaging/build.spec
 
+    - name: Check bundle contents
+      # Opens the built executable and fails if a critical file is missing
+      # (yt-dlp-ejs solver scripts, the vendored engine, FFmpeg, Deno) or banned
+      # content (curl_cffi) got in. v0.1.3 shipped without the solver
+      # scripts and every YouTube download failed; this check catches that.
+      run: python scripts/check_bundle.py dist/yt-dlp-studio.exe
+
+    - name: Build installer
+      # Per-user Inno Setup installer around the SAME one-file EXE the portable
+      # download ships (packaging/installer.iss). Inno Setup is preinstalled on
+      # the windows-2022 and windows-2025 runner images; fail fast if it is
+      # missing or not the 6.x line the script was written for.
+      run: |
+        $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+        if (-not (Test-Path $iscc)) { Write-Error "Inno Setup 6 (ISCC.exe) not found on this runner"; exit 1 }
+        # ISCC.exe carries no version resource (reads as 0.0.0.0), so check the
+        # banner it prints instead, for example "Inno Setup 6 Command-Line Compiler".
+        $banner = (& $iscc /? 2>&1 | Select-Object -First 3) -join " "
+        Write-Host "ISCC: $banner"
+        if ($banner -notmatch 'Inno Setup 6\b') { Write-Error "Expected Inno Setup 6, got: $banner"; exit 1 }
+        $version = [regex]::Match((Get-Content src\__init__.py -Raw), '__version__\s*=\s*"([^"]+)"').Groups[1].Value
+        if (-not $version) { Write-Error "could not read __version__ from src/__init__.py"; exit 1 }
+        $numeric = ([regex]::Match($version, '^\d+\.\d+\.\d+').Value) + ".0"
+        Write-Host "AppVersion=$version AppVersionNumeric=$numeric"
+        & $iscc /Qp "/DAppVersion=$version" "/DAppVersionNumeric=$numeric" packaging\installer.iss
+        if ($LASTEXITCODE -ne 0) { Write-Error "ISCC failed with exit code $LASTEXITCODE"; exit 1 }
+        $setup = Get-ChildItem dist\YT-DLP-Studio-Setup-*.exe | Select-Object -First 1
+        if (-not $setup) { Write-Error "installer not produced"; exit 1 }
+        Write-Host "Built $($setup.Name) ($([math]::Round($setup.Length / 1MB, 1)) MB)"
+
+    - name: Test installer
+      # Silent per-user install, launch the INSTALLED GUI headless until it logs
+      # "started successfully", silent uninstall (user data must survive), then
+      # reinstall and uninstall with /PURGEDATA=yes (user data must go).
+      run: |
+        $setup = (Get-ChildItem dist\YT-DLP-Studio-Setup-*.exe | Select-Object -First 1).FullName
+        powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test_installer.ps1 -Setup $setup
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+
     - name: Generate build provenance attestation
       # Produces a Sigstore-signed SLSA provenance statement binding the
       # exe's SHA-256 to this workflow file at this commit on this runner.
@@ -334,7 +376,9 @@ jobs:
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: YT-DLP-Studio-Windows
-        path: dist/yt-dlp-studio.exe
+        path: |
+          dist/yt-dlp-studio.exe
+          dist/YT-DLP-Studio-Setup-*.exe
         retention-days: 7
 
     - name: Display build info
@@ -355,6 +399,7 @@ jobs:
     # Debian 12+, Fedora 36+, Mint 21+, and most 2022-and-later distros.
     # Keep this in lockstep with the build-linux job in release.yml.
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
     # Same rationale as build-windows: catch PyInstaller-only regressions
     # (missing hidden imports, broken bundle paths, vendored-engine path math
     # that only matters under _MEIPASS) on the Linux target in the PR, not
@@ -371,7 +416,7 @@ jobs:
       # See lint job for rationale. Linux runner uses apt (EGL/dbus libs for
       # the PySide6 offscreen import), so disable-sudo MUST be false. Mirrors
       # the test job's Linux allowlist plus PyInstaller wheel fetches.
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: false                # Linux leg runs `sudo apt-get`
@@ -386,6 +431,7 @@ jobs:
           packages.microsoft.com:443
           pypi.org:443
           raw.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
           results-receiver.actions.githubusercontent.com:443
           security.ubuntu.com:80
           *.blob.core.windows.net:443
@@ -401,18 +447,19 @@ jobs:
         python-version: '3.14.7'
 
     - name: Install system dependencies
+      # rpm, rpm2cpio and cpio build and inspect the .rpm package.
       run: |
         sudo apt-get update
-        sudo apt-get install -y libegl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0 libglib2.0-0 libgl1 libfontconfig1
+        sudo apt-get install -y libegl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0 libglib2.0-0 libgl1 libfontconfig1 rpm rpm2cpio cpio
 
     - name: Install dependencies
       # PyInstaller comes from its own hash-locked file (see
       # requirements/build-tools.in). The spec puts the project root on
       # pathex, so the project itself is never pip-installed to build.
       run: |
-        python -m pip install --upgrade pip==26.1.2 --only-binary :all:
-        pip install --require-hashes -r requirements/lock.txt --only-binary :all:
-        pip install --require-hashes -r requirements/build-tools.txt --only-binary :all:
+        python -m pip install --require-hashes -r requirements/pip.txt --only-binary :all:
+        python -m pip install --require-hashes -r requirements/lock.txt --only-binary :all:
+        python -m pip install --require-hashes -r requirements/build-tools.txt --only-binary :all:
 
     - name: Sync version metadata
       run: python scripts/sync_version.py
@@ -421,6 +468,13 @@ jobs:
       run: pyinstaller packaging/build_linux.spec
       env:
         QT_QPA_PLATFORM: offscreen
+
+    - name: Check bundle contents
+      # Opens the built executable and fails if a critical file is missing
+      # (yt-dlp-ejs solver scripts, the vendored engine) or banned
+      # content (curl_cffi) got in. v0.1.3 shipped without the solver
+      # scripts and every YouTube download failed; this check catches that.
+      run: python scripts/check_bundle.py dist/yt-dlp-studio
 
     - name: Verify build
       run: |
@@ -435,8 +489,9 @@ jobs:
       # Runtime-test the frozen binary, not just that it built: launch it under
       # the offscreen Qt platform, wait for it to reach the "started
       # successfully" milestone (logged after the main window is shown), then
-      # stop it. The frozen app skips the Deno download (sys.frozen), so this
-      # needs no network. Catches missing hidden imports / broken bundle paths
+      # stop it. The Linux app starts a Deno download on a background thread;
+      # startup does not wait for it, so this needs no network to pass.
+      # Catches missing hidden imports / broken bundle paths
       # / Qt plugin gaps that only surface at run time.
       env:
         QT_QPA_PLATFORM: offscreen
@@ -459,11 +514,29 @@ jobs:
         fi
         echo "Smoke test passed: the frozen binary launched and initialized."
 
+    - name: Build Linux packages
+      # AppImage, .deb and .rpm, all wrapping the binary above. The script
+      # downloads appimagetool and the AppImage runtime and checks them by
+      # SHA-256 before use.
+      run: |
+        version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' src/__init__.py)
+        test -n "$version"
+        bash packaging/linux/build_packages.sh "$version" dist/yt-dlp-studio dist/packages
+
+    - name: Test Linux packages
+      # Launches the AppImage, installs the .deb with apt, launches it, purges
+      # it (user data must survive) and launches the extracted .rpm payload.
+      run: bash scripts/test_linux_packages.sh dist/yt-dlp-studio dist/packages
+
     - name: Upload artifact
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: YT-DLP-Studio-Linux
-        path: dist/yt-dlp-studio
+        path: |
+          dist/yt-dlp-studio
+          dist/packages/*.AppImage
+          dist/packages/*.deb
+          dist/packages/*.rpm
         retention-days: 7
 
     - name: Display build info

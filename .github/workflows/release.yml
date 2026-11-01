@@ -9,10 +9,19 @@ on:
 permissions:
   contents: read
 
+# One release run at a time. Every push to main starts this workflow, and two
+# runs for the same new version used to race for the same tag and release.
+# A queued run starts only after the previous one ends, so its check-version
+# job sees the tag that run created and skips. Never cancel a run mid-release.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   check-version:
     name: Check for new version
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     outputs:
@@ -25,7 +34,7 @@ jobs:
       # Tightest list in this workflow: only checkout (with full history),
       # local-only python script, and a `git ls-remote --tags origin` to
       # decide release immutability. Everything contacts github.com.
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: true
@@ -96,6 +105,7 @@ jobs:
     needs: [check-version]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     permissions:
       contents: read
     strategy:
@@ -107,7 +117,7 @@ jobs:
       # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
       # Mirrors build.yml's test job: pip from PyPI, Linux leg uses apt for
       # xvfb/EGL/dbus libs (so disable-sudo MUST be false).
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: false                # Linux leg runs `sudo apt-get`
@@ -145,9 +155,9 @@ jobs:
 
     - name: Install Python dependencies
       run: |
-        python -m pip install --upgrade pip==26.1.2 --only-binary :all:
-        pip install --require-hashes -r requirements/lock.txt --only-binary :all:
-        pip install -e .[dev]
+        python -m pip install --require-hashes -r requirements/pip.txt --only-binary :all:
+        python -m pip install --require-hashes -r requirements/lock.txt --only-binary :all:
+        python -m pip install --require-hashes -r requirements/dev.txt --only-binary :all:
 
     - name: Run tests (Linux)
       if: runner.os == 'Linux'
@@ -166,6 +176,7 @@ jobs:
     needs: [check-version, test]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: windows-latest
+    timeout-minutes: 45
     permissions:
       contents: write
       id-token: write       # OIDC token for Sigstore signing
@@ -175,12 +186,12 @@ jobs:
       # When bumping a version, update the matching SHA-256 in the same commit.
       # Procedure: download the asset locally, run `Get-FileHash -Algorithm SHA256`,
       # cross-check against the publisher's own checksum file, then paste here.
-      DENO_VERSION: "2.9.6"
+      DENO_VERSION: "2.9.8"
       # Cross-checked against
-      # https://github.com/denoland/deno/releases/download/v2.9.6/deno-x86_64-pc-windows-msvc.zip.sha256sum
-      DENO_SHA256: "15e5300b0ba3c3695a7621d90160a746ec9e710228cee639afa9d580f6e3cd11"
-      FFMPEG_VERSION: "8.1.2"
-      FFMPEG_SHA256: "cba748035c21ce1431d0823c7a3a711f38616f89f87a265dceddf9b7f6749d2d"
+      # https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-pc-windows-msvc.zip.sha256sum
+      DENO_SHA256: "cba84b26e0df5ae7f74fc66b86a95b866872a86292ebd84fa1e959927edd93bf"
+      FFMPEG_VERSION: "9.0.2"
+      FFMPEG_SHA256: "4d2060a8b34a940aa47d785142055bb92a63053781e55f2ace4546edd519a8f5"
     steps:
     - name: Harden runner
       # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
@@ -188,7 +199,7 @@ jobs:
       # objects.githubusercontent.com for Deno/FFmpeg release downloads, and
       # the four Sigstore endpoints (incl. sigstore.github.com) for the
       # attest-build-provenance step.
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: true                 # Windows; no sudo step
@@ -223,9 +234,9 @@ jobs:
       # requirements/build-tools.in). The spec puts the project root on
       # pathex, so the project itself is never pip-installed to build.
       run: |
-        python -m pip install --upgrade pip==26.1.2 --only-binary :all:
-        pip install --require-hashes -r requirements/lock.txt --only-binary :all:
-        pip install --require-hashes -r requirements/build-tools.txt --only-binary :all:
+        python -m pip install --require-hashes -r requirements/pip.txt --only-binary :all:
+        python -m pip install --require-hashes -r requirements/lock.txt --only-binary :all:
+        python -m pip install --require-hashes -r requirements/build-tools.txt --only-binary :all:
 
     - name: Download and verify Deno
       run: |
@@ -324,6 +335,45 @@ jobs:
     - name: Build executable
       run: pyinstaller packaging/build.spec
 
+    - name: Check bundle contents
+      # Opens the built executable and fails if a critical file is missing
+      # (yt-dlp-ejs solver scripts, the vendored engine, FFmpeg, Deno) or banned
+      # content (curl_cffi) got in. v0.1.3 shipped without the solver
+      # scripts and every YouTube download failed; this check catches that.
+      run: python scripts/check_bundle.py dist/yt-dlp-studio.exe
+
+    - name: Build installer
+      # Per-user Inno Setup installer around the SAME one-file EXE the portable
+      # download ships (packaging/installer.iss). Inno Setup is preinstalled on
+      # the windows-2022 and windows-2025 runner images; fail fast if it is
+      # missing or not the 6.x line the script was written for.
+      run: |
+        $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+        if (-not (Test-Path $iscc)) { Write-Error "Inno Setup 6 (ISCC.exe) not found on this runner"; exit 1 }
+        # ISCC.exe carries no version resource (reads as 0.0.0.0), so check the
+        # banner it prints instead, for example "Inno Setup 6 Command-Line Compiler".
+        $banner = (& $iscc /? 2>&1 | Select-Object -First 3) -join " "
+        Write-Host "ISCC: $banner"
+        if ($banner -notmatch 'Inno Setup 6\b') { Write-Error "Expected Inno Setup 6, got: $banner"; exit 1 }
+        $version = [regex]::Match((Get-Content src\__init__.py -Raw), '__version__\s*=\s*"([^"]+)"').Groups[1].Value
+        if (-not $version) { Write-Error "could not read __version__ from src/__init__.py"; exit 1 }
+        $numeric = ([regex]::Match($version, '^\d+\.\d+\.\d+').Value) + ".0"
+        Write-Host "AppVersion=$version AppVersionNumeric=$numeric"
+        & $iscc /Qp "/DAppVersion=$version" "/DAppVersionNumeric=$numeric" packaging\installer.iss
+        if ($LASTEXITCODE -ne 0) { Write-Error "ISCC failed with exit code $LASTEXITCODE"; exit 1 }
+        $setup = Get-ChildItem dist\YT-DLP-Studio-Setup-*.exe | Select-Object -First 1
+        if (-not $setup) { Write-Error "installer not produced"; exit 1 }
+        Write-Host "Built $($setup.Name) ($([math]::Round($setup.Length / 1MB, 1)) MB)"
+
+    - name: Test installer
+      # Silent per-user install, launch the INSTALLED GUI headless until it logs
+      # "started successfully", silent uninstall (user data must survive), then
+      # reinstall and uninstall with /PURGEDATA=yes (user data must go).
+      run: |
+        $setup = (Get-ChildItem dist\YT-DLP-Studio-Setup-*.exe | Select-Object -First 1).FullName
+        powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test_installer.ps1 -Setup $setup
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+
     - name: Verify build
       run: |
         if (-Not (Test-Path "dist/yt-dlp-studio.exe")) {
@@ -376,6 +426,14 @@ jobs:
         $version = $env:VERSION
         Copy-Item -Path "dist/yt-dlp-studio.exe" -Destination "YT-DLP Studio.exe"
         Write-Host "Standalone exe: YT-DLP Studio.exe"
+        # Top level, so the release job's artifacts/* glob picks it up. Copy the
+        # file ISCC produced: it is named from src/__init__.py (0.3.0), while
+        # $version here is the tag (v0.3.0), so a path built from $version
+        # would not exist.
+        $setup = Get-ChildItem dist/YT-DLP-Studio-Setup-*.exe | Select-Object -First 1
+        if (-not $setup) { Write-Error "installer missing from dist/"; exit 1 }
+        Copy-Item -Path $setup.FullName -Destination $setup.Name
+        Write-Host "Installer: $($setup.Name)"
 
     - name: Upload Windows artifact
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -384,6 +442,7 @@ jobs:
         path: |
           yt-dlp-studio-*-Windows.zip
           YT-DLP Studio.exe
+          YT-DLP-Studio-Setup-*.exe
 
   build-linux:
     name: Build Linux Executable
@@ -395,6 +454,7 @@ jobs:
     # distros. 22.04's 2.35 covers Ubuntu 22.04+, Debian 12+, Fedora 36+, and
     # most 2022-and-later distributions. Keep in lockstep with build.yml.
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write       # OIDC token for Sigstore signing
@@ -405,7 +465,7 @@ jobs:
       # Mirrors the Linux test allowlist plus PyInstaller wheel fetches and the
       # Sigstore endpoints required by attest-build-provenance (incl. the often-
       # missed sigstore.github.com). Kept in lockstep with build-windows.
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: false                # `sudo apt-get` for EGL/dbus libs
@@ -440,18 +500,19 @@ jobs:
         python-version: '3.14.7'
 
     - name: Install system dependencies
+      # rpm, rpm2cpio and cpio build and inspect the .rpm package.
       run: |
         sudo apt-get update
-        sudo apt-get install -y libegl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0 libglib2.0-0 libgl1 libfontconfig1
+        sudo apt-get install -y libegl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0 libglib2.0-0 libgl1 libfontconfig1 rpm rpm2cpio cpio
 
     - name: Install Python dependencies
       # PyInstaller comes from its own hash-locked file (see
       # requirements/build-tools.in), shared with the Windows job so both
       # platforms freeze with the same, hash-verified PyInstaller.
       run: |
-        python -m pip install --upgrade pip==26.1.2 --only-binary :all:
-        pip install --require-hashes -r requirements/lock.txt --only-binary :all:
-        pip install --require-hashes -r requirements/build-tools.txt --only-binary :all:
+        python -m pip install --require-hashes -r requirements/pip.txt --only-binary :all:
+        python -m pip install --require-hashes -r requirements/lock.txt --only-binary :all:
+        python -m pip install --require-hashes -r requirements/build-tools.txt --only-binary :all:
 
     - name: Sync version metadata
       # Linux build_linux.spec doesn't currently use version_info.txt, but
@@ -463,6 +524,13 @@ jobs:
       run: pyinstaller packaging/build_linux.spec
       env:
         QT_QPA_PLATFORM: offscreen
+
+    - name: Check bundle contents
+      # Opens the built executable and fails if a critical file is missing
+      # (yt-dlp-ejs solver scripts, the vendored engine) or banned
+      # content (curl_cffi) got in. v0.1.3 shipped without the solver
+      # scripts and every YouTube download failed; this check catches that.
+      run: python scripts/check_bundle.py dist/yt-dlp-studio
 
     - name: Verify build
       run: |
@@ -477,8 +545,9 @@ jobs:
       # Runtime-test the frozen binary before attesting/publishing it: launch it
       # under the offscreen Qt platform, wait for the "started successfully"
       # milestone (logged after the main window is shown), then stop it. The
-      # frozen app skips the Deno download (sys.frozen), so this needs no
-      # network. A broken bundle that still produces a file fails here instead
+      # Linux app starts a Deno download on a background thread; startup does
+      # not wait for it, so this needs no network to pass. A broken bundle
+      # that still produces a file fails here instead
       # of shipping to users.
       env:
         QT_QPA_PLATFORM: offscreen
@@ -501,13 +570,30 @@ jobs:
         fi
         echo "Smoke test passed: the frozen binary launched and initialized."
 
+    - name: Build Linux packages
+      # AppImage, .deb and .rpm, all wrapping the binary above (same script as
+      # build.yml). Package versions drop the tag's leading "v".
+      env:
+        VERSION: ${{ needs.check-version.outputs.version }}
+      run: bash packaging/linux/build_packages.sh "${VERSION#v}" dist/yt-dlp-studio dist/packages
+
+    - name: Test Linux packages
+      # Same end-to-end test as build.yml: launch the AppImage, apt install,
+      # launch and purge the .deb (user data must survive), launch the .rpm
+      # payload, and check every payload is the attested binary.
+      run: bash scripts/test_linux_packages.sh dist/yt-dlp-studio dist/packages
+
     - name: Generate build provenance attestation
-      # Sigstore-signed SLSA provenance binding the binary's SHA-256 to this
-      # workflow at this commit. Verify with:
-      #   gh attestation verify dist/yt-dlp-studio --owner NX1X
+      # Sigstore-signed SLSA provenance binding the binary's and each package's
+      # SHA-256 to this workflow at this commit. Verify with:
+      #   gh attestation verify <file> --owner NX1X
       uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
       with:
-        subject-path: 'dist/yt-dlp-studio'
+        subject-path: |
+          dist/yt-dlp-studio
+          dist/packages/*.AppImage
+          dist/packages/*.deb
+          dist/packages/*.rpm
 
     - name: Create Linux archive
       env:
@@ -556,8 +642,10 @@ jobs:
         - FFmpeg must be installed. install.sh prints the right command for
           your package manager; e.g. Debian/Ubuntu: sudo apt install ffmpeg,
           Fedora: sudo dnf install ffmpeg, Arch: sudo pacman -S ffmpeg.
-        - Deno (optional): auto-downloaded on first run, or install from
-          https://deno.land
+        - Deno (optional, for YouTube): a system deno on PATH is used if
+          present. Otherwise the app downloads Deno on first run to
+          ~/.config/YT-DLP Studio/deno/ (about 40 MB). You can also install
+          it from https://deno.land
 
         SUPPORT
         - Website: https://nx1xlab.dev/nxtools
@@ -565,20 +653,28 @@ jobs:
         EOF
         tar -czf "yt-dlp-studio-${VERSION}-Linux.tar.gz" -C release .
         echo "Archive created: yt-dlp-studio-${VERSION}-Linux.tar.gz"
+        # Next to the archive, so the artifact (and the release) is flat.
+        cp dist/packages/*.AppImage dist/packages/*.deb dist/packages/*.rpm .
 
     - name: Upload Linux artifact
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: linux-release
-        path: yt-dlp-studio-*-Linux.tar.gz
+        path: |
+          yt-dlp-studio-*-Linux.tar.gz
+          YT-DLP-Studio-*-x86_64.AppImage
+          yt-dlp-studio_*_amd64.deb
+          yt-dlp-studio-*-1.x86_64.rpm
 
   create-release:
     name: Create GitHub Release
     needs: [check-version, build-windows, build-linux]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     permissions:
       contents: write
+      checks: read   # wait for required checks before tagging
     steps:
     - name: Harden runner
       # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
@@ -587,7 +683,7 @@ jobs:
       # asset upload. uploads.github.com is the multipart PUT endpoint for
       # release assets and is required ONLY by this job — without it the
       # release object is created but file uploads silently fail.
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: block
         disable-sudo: true
@@ -615,18 +711,45 @@ jobs:
       # only sets should_release=true when the tag is absent, so the "exists"
       # branch below is just a defensive guard against partial-failure reruns.
       # To ship anything, bump __version__ (a NEW version/tag).
+      # The protect-tags ruleset accepts the tag only when the required checks
+      # on this commit have PASSED. This workflow's own test jobs share those
+      # names with CI's, so a tag pushed while any of them still runs is
+      # refused (v0.2.1's first run failed this way). Wait for every required
+      # check on the commit to finish, then push, with a few retries.
       env:
         VERSION: ${{ needs.check-version.outputs.version }}
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        SHA: ${{ github.sha }}
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null 2>&1; then
           echo "Tag $VERSION already exists - immutable, nothing to do."
-        else
-          git tag -a "$VERSION" -m "Release $VERSION"
-          git push origin "refs/tags/$VERSION"
-          echo "Created and pushed immutable tag $VERSION"
+          exit 0
         fi
+        for i in $(seq 1 40); do
+          # Names of unfinished check runs, matched as fixed strings against
+          # the ruleset's required checks (no regex: jq treats \( as interpolation).
+          pending=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
+            --jq '.check_runs[] | select(.status != "completed") | .name' \
+            | grep -cxF -e 'Tests (ubuntu-latest)' -e 'Tests (windows-latest)' \
+                        -e 'Lint & Format Check' -e 'Analyze (python)' || true)
+          if [ "$pending" = "0" ]; then break; fi
+          echo "Waiting for $pending required check(s) on $SHA to finish ($i/40)"
+          sleep 30
+        done
+        git tag -a "$VERSION" -m "Release $VERSION"
+        for attempt in 1 2 3; do
+          if git push origin "refs/tags/$VERSION"; then
+            echo "Created and pushed immutable tag $VERSION"
+            exit 0
+          fi
+          echo "Tag push refused (attempt $attempt/3); retrying in 60 s"
+          sleep 60
+        done
+        echo "Could not push tag $VERSION: a required check on $SHA may have failed."
+        exit 1
 
     - name: Download Windows artifact
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -674,8 +797,12 @@ jobs:
           echo
           echo "| Platform | File | Notes |"
           echo "|----------|------|-------|"
-          echo "| **Windows** | \`yt-dlp-studio-...-Windows.zip\` | Includes FFmpeg + Deno. Just extract and run. |"
-          echo "| **Linux** | \`yt-dlp-studio-...-Linux.tar.gz\` | Extract and run \`./install.sh\` to add it to your app menu. Requires system FFmpeg. |"
+          echo "| **Windows (recommended)** | \`YT-DLP-Studio-Setup-....exe\` | Installer, no admin rights needed. Adds a Start-menu shortcut and updates itself in place. Uninstall keeps your settings and history. |"
+          echo "| **Windows (portable)** | \`yt-dlp-studio-...-Windows.zip\` or \`YT-DLP.Studio.exe\` | No install. Includes FFmpeg + Deno. Just extract and run. |"
+          echo "| **Linux (Debian, Ubuntu, Mint)** | \`yt-dlp-studio_..._amd64.deb\` | Install with \`sudo apt install ./yt-dlp-studio_*.deb\`. Pulls in FFmpeg. Removing it keeps your settings and history. |"
+          echo "| **Linux (Fedora, openSUSE)** | \`yt-dlp-studio-...-1.x86_64.rpm\` | Install with \`sudo dnf install ./yt-dlp-studio-*.rpm\`. Pulls in FFmpeg. |"
+          echo "| **Linux (any distro)** | \`YT-DLP-Studio-...-x86_64.AppImage\` | No install: make it executable and run it. Requires system FFmpeg. |"
+          echo "| **Linux (archive)** | \`yt-dlp-studio-...-Linux.tar.gz\` | Extract and run \`./install.sh\` to add it to your app menu. Requires system FFmpeg. |"
           echo
           echo "### What's changed in ${VERSION}"
           echo

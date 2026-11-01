@@ -13,6 +13,9 @@ from .. import __version__
 # Application Information
 APP_NAME = "YT-DLP Studio"
 APP_VERSION = __version__
+# Windows taskbar identity. Must match AppUserModelID in packaging/installer.iss,
+# which the installer puts on the Start-menu and desktop shortcuts.
+APP_USER_MODEL_ID = "NX1X.YTDLPStudio"
 APP_AUTHOR = "NX1X"
 APP_ORGANIZATION = "NXTools"
 APP_WEBSITE = "https://nx1xlab.dev"
@@ -20,7 +23,7 @@ APP_NXTOOLS_WEBSITE = "https://nx1xlab.dev/nxtools"
 APP_DESCRIPTION = "A user-friendly GUI for yt-dlp video downloader"
 
 # yt-dlp Engine Information
-YTDLP_VERSION = "2026.08.19"  # Version of bundled yt-dlp
+YTDLP_VERSION = "2026.10.26"  # Version of bundled yt-dlp
 YTDLP_ENGINE_DIR = "vendor/yt_dlp_engine"
 
 # File Names
@@ -91,7 +94,7 @@ AUDIO_FORMATS = {
 DEFAULT_AUDIO_FORMAT = "MP3 (Most Compatible)"
 
 # Thumbnail settings (v1.7.0)
-THUMBNAIL_DOWNLOAD = False  # Thumbnail off by default — user opts in
+THUMBNAIL_DOWNLOAD = False  # Thumbnail off by default; the user opts in
 THUMBNAIL_FORMATS = ["jpg", "png", "webp"]  # Supported formats
 
 # v2.0.0: Metadata Download Options

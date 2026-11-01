@@ -8,6 +8,7 @@ It handles video information extraction and downloading.
 import json
 import os
 import sys
+import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -22,10 +23,10 @@ logger = get_logger()
 # In a PyInstaller bundle the engine is extracted to <_MEIPASS>/yt_dlp_engine
 # (see packaging/build.spec datas); running from source it lives at
 # <project_root>/vendor/yt_dlp_engine.
-# Project root is resolved unconditionally so the project-local deno/ folder
-# lookup (see _get_deno_location) works even on a frozen build that does not
-# bundle Deno (e.g. the Linux build, which relies on the auto-installer
-# dropping the binary next to the executable rather than inside the bundle).
+# Project root is resolved unconditionally. A source run keeps an
+# auto-installed Deno in <project_root>/deno/ (see _get_deno_location). A
+# frozen build that does not bundle Deno (the Linux build) downloads it to
+# the app data folder instead, never next to the executable.
 _current_dir = Path(__file__).resolve().parent
 _project_root = _current_dir.parent.parent
 
@@ -43,6 +44,9 @@ if _engine_path is not None and str(_engine_path) not in sys.path:
 try:
     from yt_dlp import YoutubeDL
     from yt_dlp import version as ytdlp_version
+    from yt_dlp.postprocessor.common import PostProcessor
+    from yt_dlp.postprocessor.ffmpeg import ACODECS
+    from yt_dlp.utils import replace_extension
 
     logger.info(f"yt-dlp imported successfully. Version: {ytdlp_version.__version__}")
 except ImportError as e:
@@ -50,20 +54,24 @@ except ImportError as e:
     raise ImportError("Could not import yt-dlp. Please ensure yt_dlp_engine is properly set up.") from e
 
 
-# Resolve the impersonation target once. yt-dlp wants an ImpersonateTarget
-# instance, not a string. We default to "chrome" because YouTube has the
-# best behavior with a Chrome fingerprint (no 429 on subtitle endpoints
-# in practice). If curl_cffi is not installed the import below will fail,
-# in which case we simply do not pass `impersonate` to yt-dlp and the
-# original "no impersonate target is available" warning resurfaces.
-try:
-    from yt_dlp.networking.impersonate import ImpersonateTarget
+# Browser impersonation is deliberately not used. yt-dlp implements it through
+# curl_cffi, which this project does not ship (see the curl_cffi entry in the
+# 0.2.1 CHANGELOG and the `excludes` list in packaging/build*.spec). YouTube
+# rate limits are handled instead by sleep_interval_subtitles,
+# sleep_interval_requests and _make_subtitles_non_fatal below.
 
-    _DEFAULT_IMPERSONATE_TARGET: "ImpersonateTarget | None" = ImpersonateTarget.from_str("chrome")
-    logger.info(f"Impersonation target resolved: {_DEFAULT_IMPERSONATE_TARGET}")
-except Exception as e:
-    _DEFAULT_IMPERSONATE_TARGET = None
-    logger.warning(f"Could not resolve impersonation target ({e}); falling back to no impersonation.")
+
+# yt-dlp warnings that are expected in this app and harmless. They go to the
+# log at DEBUG instead of WARNING. Each entry is a stable substring of one
+# yt-dlp message, so other warnings are not affected.
+_QUIET_WARNING_MARKERS = (
+    # Some extractors ask for impersonation. It needs curl_cffi, which is not
+    # shipped (see the note above), so yt-dlp warns on every such download.
+    # Downloads still work without it. Full message: "The extractor specified
+    # to use impersonation for this download, but no impersonate target is
+    # available. ..."
+    "no impersonate target is available",
+)
 
 
 class _YtDlpLogBridge:
@@ -86,6 +94,9 @@ class _YtDlpLogBridge:
         logger.debug(msg)
 
     def warning(self, msg: str) -> None:
+        if any(marker in msg for marker in _QUIET_WARNING_MARKERS):
+            logger.debug(f"yt-dlp: {msg}")
+            return
         logger.warning(f"yt-dlp: {msg}")
 
     def error(self, msg: str) -> None:
@@ -132,6 +143,131 @@ def _make_subtitles_non_fatal(ydl: "YoutubeDL") -> None:
     ydl._write_subtitles = _safe_write_subtitles
 
 
+# ---------- auto-numbering of duplicate output files ----------
+#
+# yt-dlp has no auto-numbering of its own. When the setting is on, the
+# wrapper picks the final file name itself, just before yt-dlp computes its
+# output path, and switches the output template for that one download to
+# "<name> (1).%(ext)s", "<name> (2).%(ext)s" and so on.
+#
+# Paths that a running download in this process has chosen are reserved, so
+# two queue workers that download the same video at the same moment get two
+# different names. The check is not atomic against other processes: a second
+# app instance can still pick the same name in the same instant.
+
+_EXT_FIELD = ".%(ext)s"
+_MAX_DUPLICATE_NUMBER = 9999
+
+_reserved_outputs_lock = threading.Lock()
+_reserved_outputs: set[str] = set()
+
+
+def _output_key(path: str) -> str:
+    """Normalise a path for the reservation set (case-insensitive on Windows)."""
+    return os.path.normcase(os.path.abspath(path))
+
+
+def _numbered_template(template: str, number: int) -> str:
+    """Return ``template`` with `` (number)`` added before the extension field.
+
+    Only the literal suffix is added. The title and the other fields stay
+    template fields, so yt-dlp still fills and sanitises them (including
+    ``windowsfilenames``) exactly as for the plain name. The suffix holds no
+    ``%`` or ``$``, so it needs no escaping.
+    """
+    if number <= 0 or not template.endswith(_EXT_FIELD):
+        return template
+    return f"{template[: -len(_EXT_FIELD)]} ({number}){_EXT_FIELD}"
+
+
+def _final_extension(info: dict[str, Any], audio_format: str | None) -> str | None:
+    """Extension of the file the user ends up with.
+
+    For a merged video, ``info['ext']`` already holds the merge container
+    (``merge_output_format`` or the compatible one yt-dlp picked). Audio
+    extraction then renames the file to the codec's extension (``vorbis``
+    gives ``.ogg``, ``m4a`` gives ``.m4a``), see ``ACODECS`` in yt-dlp.
+    """
+    if audio_format:
+        codec = ACODECS.get(audio_format)
+        if codec:
+            return codec[0]
+    return info.get("ext")
+
+
+def _reserve_output_template(
+    ydl: Any, info: dict[str, Any], template: str, audio_format: str | None
+) -> tuple[str, str] | None:
+    """Pick the first free output template for ``info`` and reserve its path.
+
+    The candidate names come from ``ydl.prepare_filename``, so the check uses
+    the sanitised path yt-dlp will really write, with the final extension.
+
+    Returns:
+        ``(template, final_path)``, or None if no name could be computed.
+    """
+    ext = info.get("ext")
+    final_ext = _final_extension(info, audio_format)
+    with _reserved_outputs_lock:
+        for number in range(_MAX_DUPLICATE_NUMBER + 1):
+            candidate = _numbered_template(template, number)
+            if number and candidate == template:
+                return None  # template cannot be numbered
+            filename = ydl.prepare_filename(info, outtmpl=candidate)
+            if not filename:
+                return None
+            if final_ext and ext and final_ext != ext:
+                filename = replace_extension(filename, final_ext, ext)
+            key = _output_key(filename)
+            if key in _reserved_outputs or os.path.exists(filename):
+                continue
+            _reserved_outputs.add(key)
+            return candidate, filename
+    return None
+
+
+def _release_outputs(keys: list[str]) -> None:
+    """Drop reservations made by ``_reserve_output_template``."""
+    with _reserved_outputs_lock:
+        for key in keys:
+            _reserved_outputs.discard(key)
+    keys.clear()
+
+
+class _DuplicateNumberingPP(PostProcessor):
+    """Set a numbered output template when the final file already exists.
+
+    Registered at yt-dlp's ``video`` stage, which runs in ``process_info``
+    after format selection and just before yt-dlp computes the output path.
+    So the temporary files (``.part``, ``.fNNN``), the thumbnail, the
+    subtitles and the post-processors all use the chosen name.
+    """
+
+    def __init__(self, downloader: Any, template: str, audio_format: str | None, reserved: list[str]):
+        super().__init__(downloader)
+        self._template = template
+        self._audio_format = audio_format
+        self._reserved = reserved
+
+    def run(self, info: dict[str, Any]) -> tuple[list[str], dict[str, Any]]:
+        ydl = self._downloader
+        template = self._template
+        try:
+            choice = _reserve_output_template(ydl, info, self._template, self._audio_format)
+        except Exception:
+            # Fall back to the plain name. nooverwrites makes yt-dlp skip an
+            # existing file instead of replacing it.
+            logger.exception("Could not pick a numbered file name; using the plain name")
+            choice = None
+        if choice:
+            template, final_path = choice
+            self._reserved.append(_output_key(final_path))
+            if template != self._template:
+                logger.info(f"✓ File exists, saving as: {os.path.basename(final_path)}")
+        ydl.params["outtmpl"]["default"] = template
+        return [], info
+
+
 class YtDlpWrapper:
     """
     Wrapper for yt-dlp functionality.
@@ -161,7 +297,30 @@ class YtDlpWrapper:
         self._download_cancelled = False
         self._last_error = None
         self._last_error_type = None
+        # Result of the last successful download() (reset on every call)
+        self._last_output_files: list[str] = []
+        self._last_title: str | None = None
         logger.debug("YtDlpWrapper initialized")
+
+    @property
+    def last_error(self) -> str | None:
+        """Error message of the last failed download, or None."""
+        return self._last_error
+
+    @property
+    def last_output_files(self) -> list[str]:
+        """Final file paths of the last successful download.
+
+        These are the post-processed paths yt-dlp reports (merged .mp4,
+        converted .mp3), and each one existed when the download finished.
+        The list is empty before a download and after a failed one.
+        """
+        return list(self._last_output_files)
+
+    @property
+    def last_title(self) -> str | None:
+        """Video title of the last successful download, or None."""
+        return self._last_title
 
     def _get_ffmpeg_location(self) -> str | None:
         """
@@ -222,19 +381,33 @@ class YtDlpWrapper:
         YtDlpWrapper._ffmpeg_cache_checked = True
         return result
 
+    @classmethod
+    def reset_deno_cache(cls) -> None:
+        """Forget the cached Deno lookup, so the next call searches again.
+
+        Called after the startup thread has downloaded Deno, because a lookup
+        that ran before the download finished has cached "not found".
+        """
+        cls._deno_cache = None
+        cls._deno_cache_checked = False
+
     def _get_deno_location(self) -> str | None:
         """
         Find Deno executable location (cached after first lookup).
 
-        Checks multiple locations:
-        1. PyInstaller bundled location (when running from a frozen build)
-        2. Project-local deno/ folder (development / auto-installed)
-        3. System PATH
+        Precedence (the first match wins):
+        1. Bundled copy in the PyInstaller folder (``sys._MEIPASS``). Only
+           the frozen Windows build bundles Deno.
+        2. Project-local ``deno/`` folder. Source runs only, where the
+           auto-installer puts its download.
+        3. System PATH (``shutil.which("deno")``).
+        4. The copy downloaded to the app data folder,
+           ``<APP_DATA_DIR>/deno/<DENO_VERSION>/``. This is where a frozen
+           build without a bundled Deno (Linux) puts its download.
 
-        The executable name is platform-aware: ``deno.exe`` on Windows,
-        ``deno`` elsewhere. The auto-installer (utils/deno_installer.py)
-        drops the binary into the project-local ``deno/`` folder under the
-        same name, so Method 2 finds it on every platform.
+        A system deno wins over the app data copy, the same order the
+        installer uses (utils/deno_installer.py). The executable name is
+        platform-aware: ``deno.exe`` on Windows, ``deno`` elsewhere.
 
         Returns:
             Path to deno executable, or None if not found
@@ -245,11 +418,14 @@ class YtDlpWrapper:
 
         import shutil
 
+        from ..utils.deno_installer import get_app_data_deno_dir
+
         result = None
+        frozen = getattr(sys, "frozen", False)
         deno_binary = "deno.exe" if os.name == "nt" else "deno"
 
         # Method 1: Check if running from PyInstaller bundle
-        if getattr(sys, "frozen", False):
+        if frozen:
             bundle_dir = getattr(sys, "_MEIPASS", None)
             if bundle_dir:
                 deno_path = os.path.join(bundle_dir, deno_binary)
@@ -257,8 +433,8 @@ class YtDlpWrapper:
                     logger.debug(f"Found Deno in bundle: {deno_path}")
                     result = deno_path
 
-        # Method 2: Check project-local deno/ folder
-        if result is None:
+        # Method 2: Check project-local deno/ folder (source runs)
+        if result is None and not frozen:
             deno_local = _project_root / "deno" / deno_binary
             if deno_local.exists():
                 logger.debug(f"Found Deno locally: {deno_local}")
@@ -270,6 +446,13 @@ class YtDlpWrapper:
             if deno_exe:
                 logger.debug(f"Found Deno in PATH: {deno_exe}")
                 result = deno_exe
+
+        # Method 4: Check the copy downloaded to the app data folder
+        if result is None:
+            deno_downloaded = get_app_data_deno_dir() / deno_binary
+            if deno_downloaded.is_file():
+                logger.debug(f"Found downloaded Deno: {deno_downloaded}")
+                result = str(deno_downloaded)
 
         if result is None:
             logger.warning("Deno not found - YouTube JS challenges may be limited")
@@ -316,12 +499,6 @@ class YtDlpWrapper:
         if deno_path:
             ydl_opts["js_runtimes"] = {"deno": {"path": deno_path}}
 
-        # Browser impersonation (curl_cffi). Set when available so YouTube
-        # treats us like a real browser and stops 429'ing subtitle/metadata
-        # endpoints.
-        if _DEFAULT_IMPERSONATE_TARGET is not None:
-            ydl_opts["impersonate"] = _DEFAULT_IMPERSONATE_TARGET
-
         try:
             with YoutubeDL(ydl_opts) as ydl:
                 info_dict = ydl.extract_info(url, download=False)
@@ -364,7 +541,7 @@ class YtDlpWrapper:
             "no_warnings": True,
             "skip_download": True,
             "listsubtitles": False,  # Don't print to console
-            "noplaylist": True,  # Never process the full playlist — only the single video
+            "noplaylist": True,  # Never process the full playlist, only the single video
         }
 
         if ffmpeg_location:
@@ -374,12 +551,6 @@ class YtDlpWrapper:
         deno_path = self._get_deno_location()
         if deno_path:
             ydl_opts["js_runtimes"] = {"deno": {"path": deno_path}}
-
-        # Browser impersonation (curl_cffi). Subtitle listings are an HTTPS
-        # endpoint that is particularly aggressive about rate-limiting clients
-        # that do not impersonate a browser.
-        if _DEFAULT_IMPERSONATE_TARGET is not None:
-            ydl_opts["impersonate"] = _DEFAULT_IMPERSONATE_TARGET
 
         try:
             with YoutubeDL(ydl_opts) as ydl:
@@ -506,10 +677,13 @@ class YtDlpWrapper:
             selected_subtitles: List of specific subtitle languages (overrides subtitle_languages if provided)
             download_metadata: If True, download metadata (description, comments, etc.) as separate files
             download_comments: If True, download comments to a separate .txt file (v2.0.0)
-            auto_number_duplicates: If True, add (1), (2) etc. to duplicate files instead of failing
+            auto_number_duplicates: If True and the final file already exists, save the new
+                one as "name (1).ext", "name (2).ext" and so on. If False, skip the
+                download of an existing file (never overwrite).
 
         Returns:
-            True if download successful, False otherwise
+            True if download successful, False otherwise. On success,
+            ``last_output_files`` and ``last_title`` hold the result.
 
         Example:
             >>> wrapper = YtDlpWrapper(progress_callback=my_callback)
@@ -547,6 +721,10 @@ class YtDlpWrapper:
         logger.info("=" * 80)
 
         self._download_cancelled = False
+        self._last_error = None
+        self._last_error_type = None
+        self._last_output_files = []
+        self._last_title = None
 
         # Detect FFmpeg location (for PyInstaller bundled exe)
         logger.info("\n[STEP 1/5] Detecting FFmpeg location...")
@@ -565,9 +743,10 @@ class YtDlpWrapper:
         else:
             filename_template = "%(title)s_%(height)sp.%(ext)s"
 
+        output_template = os.path.join(output_dir, filename_template)
         ydl_opts = {
             "format": format_string if not audio_only else "bestaudio",  # Force audio-only for audio downloads
-            "outtmpl": os.path.join(output_dir, filename_template),
+            "outtmpl": output_template,
             "progress_hooks": [self._progress_hook],
             "quiet": False,
             "no_warnings": False,
@@ -581,14 +760,15 @@ class YtDlpWrapper:
             "noplaylist": True,  # Never download a full playlist - always download the single video
         }
 
-        # Handle duplicate files
+        # Handle duplicate files. Never overwrite: with auto-numbering on,
+        # _DuplicateNumberingPP picks a free name before the download starts
+        # (see _reserve_output_template); with it off, yt-dlp skips a file
+        # that already exists. nooverwrites also lets yt-dlp reuse finished
+        # intermediate files of an interrupted attempt.
+        ydl_opts["nooverwrites"] = True
         if auto_number_duplicates:
-            # yt-dlp will automatically add (1), (2), etc. to duplicates
-            ydl_opts["nooverwrites"] = False  # Allow yt-dlp to handle numbering
             logger.info("✓ Auto-numbering duplicates enabled")
         else:
-            # Don't overwrite existing files (will skip if exists)
-            ydl_opts["nooverwrites"] = True
             logger.info("✓ Skip duplicates enabled (won't overwrite)")
 
         logger.info("✓ Base options created")
@@ -602,16 +782,6 @@ class YtDlpWrapper:
         deno_path = self._get_deno_location()
         if deno_path:
             ydl_opts["js_runtimes"] = {"deno": {"path": deno_path}}
-
-        # Browser impersonation (curl_cffi). Without this, YouTube's
-        # subtitle and comments endpoints return HTTP 429 on what looks like
-        # an automated client, which in turn would have aborted the whole
-        # video download (see ignoreerrors comment above).
-        if _DEFAULT_IMPERSONATE_TARGET is not None:
-            ydl_opts["impersonate"] = _DEFAULT_IMPERSONATE_TARGET
-            logger.info(f"✓ Browser impersonation enabled: {_DEFAULT_IMPERSONATE_TARGET}")
-        else:
-            logger.warning("⚠ Browser impersonation unavailable (curl_cffi missing); some endpoints may 429")
 
         # Set video container format if specified (only for video downloads - not audio-only)
         if video_container is not None and not audio_only:
@@ -643,9 +813,9 @@ class YtDlpWrapper:
 
             ydl_opts["subtitleslangs"] = langs
             ydl_opts["subtitlesformat"] = "srt"
-            # YouTube rate-limits subtitle requests aggressively without browser
-            # impersonation. Sleeping ~2s between subtitle downloads avoids the
-            # HTTP 429 cascade that would otherwise abort the video download.
+            # YouTube rate-limits subtitle requests aggressively. Sleeping ~2s
+            # between subtitle downloads avoids the HTTP 429 cascade that would
+            # otherwise abort the video download.
             ydl_opts["sleep_interval_subtitles"] = 2
             logger.info(f"✓ Subtitle download enabled: {len(langs)} languages (2s spacing)")
 
@@ -678,7 +848,7 @@ class YtDlpWrapper:
         # When subtitles AND comments are both enabled, the comment phase
         # burns through YouTube's per-IP rate-limit budget BEFORE the
         # subtitle HTTP request goes out, so the subtitle download gets
-        # 429'd even with Chrome impersonation. Adding a 1s gap between
+        # 429'd. Adding a 1s gap between
         # every API request pre-empts that 429 cascade. It costs ~10-30s
         # extra during the comment phase but lets subtitles actually land.
         # Single-flag scenarios do not need this (no rate-limit pressure).
@@ -740,6 +910,10 @@ class YtDlpWrapper:
         log_bridge = _YtDlpLogBridge()
         ydl_opts["logger"] = log_bridge
 
+        # Output paths this download reserved for auto-numbering; released
+        # in the finally block below.
+        reserved_outputs: list[str] = []
+
         try:
             logger.info("\n[STEP 5/5] Initializing yt-dlp and starting download...")
             with YoutubeDL(ydl_opts) as ydl:
@@ -747,6 +921,15 @@ class YtDlpWrapper:
                 if self._download_cancelled:
                     logger.info("Download cancelled before starting")
                     return False
+
+                if auto_number_duplicates:
+                    numbering_pp = _DuplicateNumberingPP(
+                        ydl,
+                        output_template,
+                        audio_format if audio_only else None,
+                        reserved_outputs,
+                    )
+                    ydl.add_post_processor(numbering_pp, when="video")
 
                 # Make subtitle write failures non-fatal so a YouTube 429 on
                 # subtitles cannot abort the video download.
@@ -767,7 +950,8 @@ class YtDlpWrapper:
                 # Never report success without a file on disk (see
                 # _existing_output_files). Raising routes this through the
                 # normal failure path so the UI shows the error.
-                if not _existing_output_files(info_dict):
+                output_files = _existing_output_files(info_dict)
+                if not output_files:
                     reason = log_bridge.last_error or "no error was reported"
                     raise RuntimeError(f"yt-dlp finished without writing a file: {reason}")
 
@@ -980,6 +1164,10 @@ class YtDlpWrapper:
                 logger.info("\n" + "=" * 80)
                 logger.info("✓✓✓ DOWNLOAD COMPLETED SUCCESSFULLY ✓✓✓")
                 logger.info("=" * 80)
+                # Set only on success, so a failure never leaves stale paths.
+                self._last_output_files = output_files
+                title = info_dict.get("title")
+                self._last_title = title if isinstance(title, str) and title else None
                 return True
 
         except Exception as e:
@@ -996,6 +1184,11 @@ class YtDlpWrapper:
             logger.error("=" * 80)
 
             return False
+
+        finally:
+            # The file exists now (or the download failed), so the
+            # reservation is no longer needed.
+            _release_outputs(reserved_outputs)
 
     def cancel_download(self) -> None:
         """

@@ -1,5 +1,5 @@
 # ============================================================================
-# Repo reorganization — root cleanup
+# Repo reorganization: root cleanup
 # ----------------------------------------------------------------------------
 # Run this from the repo root. It is idempotent: safe to re-run.
 # Each operation is gated on existence/tracking checks, and uses `git mv` /
@@ -90,7 +90,7 @@ Move-Tracked 'open-source-templates' 'docs-internal/templates'
 # ----------------------------------------------------------------------------
 # pyproject.toml is now the single source of truth for dependency declarations
 # (see [project.dependencies] and [project.optional-dependencies]).
-# requirements.txt and requirements-dev.txt were duplicating those — removed.
+# requirements.txt and requirements-dev.txt were duplicating those, so they were removed.
 # requirements.lock keeps its hash-pinned values; regenerate next time with:
 #   pip-compile --generate-hashes -o requirements/lock.txt pyproject.toml
 # ----------------------------------------------------------------------------
