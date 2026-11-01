@@ -66,6 +66,10 @@ function Install-App {
         Get-Content install.log -ErrorAction SilentlyContinue | Select-Object -Last 30
         Fail "installer exited with code $($p.ExitCode)"
     }
+    # setup.exe hands off to a temporary helper and can exit before the files
+    # are in place, so wait for the uninstaller (written last) to appear.
+    $uninstaller = Join-Path $InstallDir "unins000.exe"
+    for ($i = 0; $i -lt 120 -and -not (Test-Path $uninstaller); $i++) { Start-Sleep -Seconds 1 }
 }
 
 function Uninstall-App([string[]]$ExtraArgs = @()) {
