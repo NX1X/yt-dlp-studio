@@ -1,133 +1,141 @@
 # YT-DLP Studio
 
-<div align="center">
+YT-DLP Studio is a desktop app for Windows and Linux that puts a graphical interface on top of [yt-dlp](https://github.com/yt-dlp/yt-dlp).
 
-[![Version](https://img.shields.io/github/v/release/NX1X/yt-dlp-studio?label=version&color=blue)](https://github.com/NX1X/yt-dlp-studio/releases)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue.svg)](https://www.python.org/)
-[![Build YT-DLP Studio](https://github.com/NX1X/yt-dlp-studio/actions/workflows/build.yml/badge.svg)](https://github.com/NX1X/yt-dlp-studio/actions/workflows/build.yml)
-[![Release](https://github.com/NX1X/yt-dlp-studio/actions/workflows/release.yml/badge.svg)](https://github.com/NX1X/yt-dlp-studio/actions/workflows/release.yml)
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-yellow?logo=buy-me-a-coffee&logoColor=white)](https://buymeacoffee.com/nx1x)
-![Views](https://visitor-badge.laobi.icu/badge?page_id=NX1X.yt-dlp-studio)
+[![Latest release](https://img.shields.io/github/v/release/NX1X/yt-dlp-studio?label=release)](https://github.com/NX1X/yt-dlp-studio/releases/latest)
+[![Build](https://github.com/NX1X/yt-dlp-studio/actions/workflows/build.yml/badge.svg)](https://github.com/NX1X/yt-dlp-studio/actions/workflows/build.yml)
+[![License: Apache-2.0](https://img.shields.io/github/license/NX1X/yt-dlp-studio)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 
-**A user-friendly GUI for yt-dlp**
+yt-dlp is a command-line tool. YT-DLP Studio lets you use it without the command line: paste a URL, pick a quality and download.
 
-Download videos from YouTube with a simple, intuitive interface - more sites coming during the beta.
+YT-DLP Studio is part of [NXTools](https://nx1xlab.dev/nxtools), a collection of tools by NX1X. Project website: [studio.nx1xlab.dev](https://studio.nx1xlab.dev).
 
-</div>
+## Contents
 
----
+- [Project status](#project-status)
+- [Features](#features)
+- [Download and install](#download-and-install)
+- [Quick start](#quick-start)
+- [FAQ and troubleshooting](#faq-and-troubleshooting)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [Security](#security)
+- [License](#license)
+- [Credits](#credits)
 
-### Part of NXTools 🔧
+## Project status
 
-This tool is part of **[NXTools](https://nx1xlab.dev/nxtools)** by **NX1X** - a collection of productivity and development tools.
+YT-DLP Studio is in public beta. The current release is
+[0.3.1](https://github.com/NX1X/yt-dlp-studio/releases/tag/v0.3.1).
 
-- **Website:** https://nx1xlab.dev/nxtools
-- **Main Site:** https://nx1xlab.dev
-- **Support Development:** https://buymeacoffee.com/nx1x
+YouTube is the only site that is officially supported and tested (videos, playlists and channels). yt-dlp supports more than 1000 sites, and support for more sites is planned. Until a site is listed here, treat it as untested. To ask for a site, [open a feature request](https://github.com/NX1X/yt-dlp-studio/issues/new/choose).
 
----
+## Features
 
-## 💡 I Built This
+- **Downloads:** paste a URL and download one video, a playlist or a full channel.
+- **Video quality:** Best Quality, 8K, 4K, 2K, 1080p, 720p, 480p or 360p.
+- **Video containers:** MP4, MKV, WebM, or Auto (yt-dlp chooses).
+- **Audio only:** MP3, M4A, OPUS, FLAC, WAV or Vorbis, at 320, 256, 192 or 128 kbps.
+- **Queue:** add many URLs and run up to 3 downloads at the same time. The queue is kept when you restart the app.
+- **Batch input:** paste a list of URLs or import them from a file.
+- **Video info preview:** see the title, thumbnail, duration and other details before you download.
+- **Extras:** subtitles, thumbnails, comments and metadata (JSON).
+- **Speed limit:** set a maximum download speed in KB/s.
+- **Notifications:** a desktop notification when a download completes or fails, and a sound on success.
+- **History:** search past downloads and export them to CSV.
+- **Interface:** dark and light themes, English and Hebrew (right-to-left), drag and drop, keyboard shortcuts.
+- **Updates:** check for a new release from inside the app. The app checks the SHA-256 of a downloaded update against the digest that GitHub publishes. It never starts an update that it could not verify.
 
-I was looking for a feature-rich, modern tool to download videos from YouTube
-and other sites. yt-dlp is an awesome tool, but it's command-line only, so a lot
-of people never get the most out of it. I built YT-DLP Studio to put a clean,
-intuitive UI on top of it so anyone can use its full power without touching the
-CLI.
+The [Getting Started guide](docs/GETTING_STARTED.md) explains each feature.
 
-Have a feature request or feedback? I'd love to hear it:
+## Download and install
 
-- Open a [feature request](https://github.com/NX1X/yt-dlp-studio/issues/new/choose) in the Issues tab
-- Connect on [LinkedIn](https://linkedin.com/in/edenporat)
-- Reach out via my [website](https://nx1xlab.dev/contact)
+Download every file from the [Releases page](https://github.com/NX1X/yt-dlp-studio/releases/latest). The examples below use version 0.3.1.
 
----
+### System requirements
 
-## ✨ Features
+- **Windows:** Windows 10 or 11, 64-bit.
+- **Linux:** 64-bit (x86_64) with glibc 2.35 or later. This includes Ubuntu 22.04+, Debian 12+, Fedora 36+, Linux Mint 21+, Arch and most distributions from 2022 and later.
+- **Run from source:** Python 3.11 or later, on Windows or Linux.
 
-- 🎥 **Easy downloads** - paste a URL and click; works with playlists and full channels
-- ⚡ **Quality options** - Best, 8K, 4K, 2K, 1080p, 720p, 480p, 360p
-- 🎵 **Audio extraction** - MP3, M4A, OPUS, FLAC, WAV, Vorbis at multiple bitrates
-- 📦 **Format selection** - MP4, MKV, WebM containers
-- 🎬 **YouTube** - videos, playlists, and full channels (more sites planned)
-- 📋 **Download queue** - queue many videos, up to 3 concurrent downloads
-- 🔍 **Info preview** - title, thumbnail, duration before downloading
-- 💬 **Extras** - comments, subtitles, thumbnails, and metadata (JSON)
-- ⚡ **Speed limiting** - cap download bandwidth
-- 🔔 **Alerts** - audio/visual notification when downloads finish or fail
-- ⌨️ **Keyboard shortcuts** - paste, download, and queue without the mouse
-- 🎨 **Dark/Light theme** and 🌍 **multi-language** (English, Hebrew RTL)
-- 🖱️ **Drag & drop**, custom output folder, persistent settings, download history
+The Linux builds need no Python. They also run on Ubuntu 22.04, whose system Python is 3.10.
 
-See the [Getting Started guide](docs/GETTING_STARTED.md) for how to use each feature.
+### Windows
 
----
+| File | Type | Notes |
+|------|------|-------|
+| `YT-DLP-Studio-Setup-0.3.1.exe` | Installer (recommended) | Installs per user. No admin rights. Updates itself in place. |
+| `YT-DLP.Studio.exe` | Portable EXE | One file. No install. Run it from any folder. |
+| `yt-dlp-studio-v0.3.1-Windows.zip` | Portable ZIP | The same portable EXE in a ZIP file. |
 
-## 🚀 Quick Start
+All three Windows downloads include FFmpeg and Deno. You do not need to install anything else.
 
-**Requirements:** Windows 10/11, or 64-bit Linux with glibc 2.35+ (Ubuntu
-22.04+, Debian 12+, Fedora 36+, Linux Mint 21+, Arch, and most 2022-and-later
-distributions). Python 3.11+ only if running from source. The standalone
-Linux binary needs no Python, so it also runs on Ubuntu 22.04, whose system
-Python is 3.10.
+**Installer (recommended):**
 
-### Option 1: Standalone executable (no Python)
+1. Download `YT-DLP-Studio-Setup-<version>.exe`.
+2. Run it. If SmartScreen shows a warning, see [the FAQ](#windows-shows-a-smartscreen-warning).
+3. Start YT-DLP Studio from the Start menu.
 
-**Windows**
+The installer puts the app in `%LOCALAPPDATA%\Programs\YT-DLP Studio`. It adds a Start menu shortcut and, if you select it, a desktop shortcut. When a new release is out, the app can download the new installer and update itself in place.
 
-1. Download the latest `YT-DLP-Studio-Setup-<version>.exe` from [Releases](https://github.com/NX1X/yt-dlp-studio/releases).
-2. Run it. It needs no admin rights and adds a Start-menu shortcut. FFmpeg and Deno are bundled.
-3. Later updates install themselves from inside the app.
+**Portable EXE or ZIP:**
 
-Prefer no install? Download `yt-dlp-studio-<version>-Windows.zip`, extract it and run `yt-dlp-studio.exe`.
+1. Download `YT-DLP.Studio.exe`, or download the ZIP file and extract it.
+2. Run the EXE.
 
-**Linux** (works on any glibc 2.35+ distribution, not just Ubuntu)
+A portable copy does not update itself in place. When you update, the app downloads the new portable EXE as a separate file. You can delete the old copy afterwards.
 
-Download the package for your distribution from
-[Releases](https://github.com/NX1X/yt-dlp-studio/releases) (0.3.1 and later):
+### Linux
 
-| Distro | File | Install |
-|--------|------|---------|
-| Debian / Ubuntu / Mint | `yt-dlp-studio_<version>_amd64.deb` | `sudo apt install ./yt-dlp-studio_*_amd64.deb` |
-| Fedora / openSUSE | `yt-dlp-studio-<version>-1.x86_64.rpm` | `sudo dnf install ./yt-dlp-studio-*.rpm` (or `sudo zypper install`) |
-| Any distro | `YT-DLP-Studio-<version>-x86_64.AppImage` | `chmod +x YT-DLP-Studio-*.AppImage`, then run it |
+Linux packages are available for 0.3.1 and later.
 
-The `.deb` and `.rpm` pull in FFmpeg and add YT-DLP Studio to your app menu.
-On Fedora, FFmpeg comes from `ffmpeg-free` or RPM Fusion. Removing either
-package keeps your settings and history in `~/.config/YT-DLP Studio`.
+| Distribution | File | Install command |
+|--------------|------|-----------------|
+| Debian, Ubuntu, Mint | `yt-dlp-studio_0.3.1_amd64.deb` | `sudo apt install ./yt-dlp-studio_*_amd64.deb` |
+| Fedora, openSUSE | `yt-dlp-studio-0.3.1-1.x86_64.rpm` | `sudo dnf install ./yt-dlp-studio-*.rpm` (openSUSE: `sudo zypper install ./yt-dlp-studio-*.rpm`) |
+| Any distribution | `YT-DLP-Studio-0.3.1-x86_64.AppImage` | `chmod +x YT-DLP-Studio-*.AppImage`, then run the file |
+| Any distribution | `yt-dlp-studio-v0.3.1-Linux.tar.gz` | See [Linux archive](#linux-archive-targz) below |
 
-The AppImage needs no install. Install FFmpeg yourself first (see the table
-below). Your desktop may offer to add the AppImage to the app menu.
+**.deb and .rpm packages:** the package manager installs FFmpeg as a dependency and adds YT-DLP Studio to your app menu. On Fedora, FFmpeg comes from `ffmpeg-free` or from RPM Fusion.
 
-**Linux archive** (`.tar.gz`, for any distribution)
+**AppImage:** no install is needed. Install FFmpeg yourself first (see the table below). Your desktop may offer to add the AppImage to the app menu.
 
-1. Install FFmpeg with your distro's package manager:
+**FFmpeg:** the AppImage and the Linux archive need FFmpeg from your distribution.
 
-   | Distro | Command |
-   |--------|---------|
-   | Debian / Ubuntu / Mint | `sudo apt install ffmpeg` |
-   | Fedora / RHEL | `sudo dnf install ffmpeg` (may need RPM Fusion) |
-   | Arch / Manjaro | `sudo pacman -S ffmpeg` |
-   | openSUSE | `sudo zypper install ffmpeg` |
-   | Alpine | `sudo apk add ffmpeg` |
+| Distribution | Command |
+|--------------|---------|
+| Debian, Ubuntu, Mint | `sudo apt install ffmpeg` |
+| Fedora, RHEL | `sudo dnf install ffmpeg` (may need RPM Fusion) |
+| Arch, Manjaro | `sudo pacman -S ffmpeg` |
+| openSUSE | `sudo zypper install ffmpeg` |
+| Alpine | `sudo apk add ffmpeg` |
 
-2. Download the latest `yt-dlp-studio-<version>-Linux.tar.gz` from [Releases](https://github.com/NX1X/yt-dlp-studio/releases)
-3. Extract it, then add it to your application menu:
+**Deno:** the Linux builds do not include Deno. yt-dlp uses Deno to solve YouTube's JavaScript challenges. Without Deno, the app still works, but YouTube may offer fewer formats. To use Deno, install it from [deno.land](https://deno.land/) and make sure `deno` is on your `PATH`.
+
+#### Linux archive (.tar.gz)
+
+1. Install FFmpeg (see the table above).
+2. Download `yt-dlp-studio-v<version>-Linux.tar.gz`.
+3. Extract the archive:
 
    ```bash
    tar -xzf yt-dlp-studio-*-Linux.tar.gz
-   ./install.sh          # installs to ~/.local, no root needed
    ```
 
-   `install.sh` works on any desktop that follows the XDG spec (GNOME, KDE,
-   XFCE, Cinnamon, ...). Launch it from your app menu, or run `yt-dlp-studio`.
-   To remove it later, run `./uninstall.sh`. You can also run the binary
-   directly without installing: `chmod +x yt-dlp-studio && ./yt-dlp-studio`.
-   Deno is downloaded automatically on first run.
+4. Add the app to your app menu (installs to `~/.local`, no root needed):
 
-### Option 2: Run from source
+   ```bash
+   ./install.sh
+   ```
+
+5. Start YT-DLP Studio from your app menu, or run `yt-dlp-studio`.
+
+`install.sh` works on any desktop that follows the XDG specification (GNOME, KDE, XFCE, Cinnamon and others). To remove the app, run `./uninstall.sh`. To run the binary without installing it, run `chmod +x yt-dlp-studio && ./yt-dlp-studio`.
+
+### Run from source
+
+You need Python 3.11 or later and Git. On Linux, install FFmpeg first (see the table above).
 
 ```bash
 git clone https://github.com/NX1X/yt-dlp-studio.git
@@ -136,123 +144,151 @@ pip install -e .
 python launcher.py
 ```
 
-On Linux, install FFmpeg first with your package manager (e.g.
-`sudo apt install ffmpeg`, `sudo dnf install ffmpeg`, or `sudo pacman -S ffmpeg`).
+When you run from source, the app downloads Deno 2.9.8 on the first start if it cannot find Deno. The download is about 30 MB.
 
-Full details: [Installation Guide](docs/INSTALLATION_GUIDE.md) ·
-[Getting Started](docs/GETTING_STARTED.md)
+The [Installation Guide](docs/INSTALLATION_GUIDE.md) has more detail, including a virtual environment setup and how to uninstall.
+
+## Quick start
+
+1. Copy a YouTube video, playlist or channel URL from your browser.
+2. Paste it into the URL field (`Ctrl+V`).
+3. Select a quality and a format.
+4. Select the output folder, or keep the default (your `Downloads` folder).
+5. Click **Download Now**, or click **Add to Queue** to download it later.
+
+For a playlist or channel, the app shows a list of all videos. Select the videos you want, then add them to the queue. The About tab lists all keyboard shortcuts.
+
+## FAQ and troubleshooting
+
+### Windows shows a SmartScreen warning
+
+The Windows EXE files are not code-signed (no Authenticode signature). For this reason, SmartScreen may show an "Unknown publisher" warning the first time you run them.
+
+1. Optional: verify the file first (see [Verify a download](#verify-a-download)).
+2. Click **More info**.
+3. Click **Run anyway**.
+
+[docs/CODE_SIGNING.md](docs/CODE_SIGNING.md) explains the plan to sign future releases.
+
+### Verify a download
+
+Each release publishes a signed build provenance attestation. It covers the portable EXE, the Linux binary, the AppImage, the .deb and the .rpm. It does not cover the Windows installer. To verify a file, install the [GitHub CLI](https://cli.github.com/) and run:
+
+```bash
+gh attestation verify "YT-DLP.Studio.exe" --repo NX1X/yt-dlp-studio
+```
+
+If the command fails, do not run the file. [SECURITY.md](SECURITY.md#verifying-a-downloaded-release) has the details.
+
+### Where are my settings, history and logs?
+
+They are in the app data folder:
+
+| System | App data folder |
+|--------|-----------------|
+| Windows | `%APPDATA%\YT-DLP Studio` |
+| Linux | `~/.config/YT-DLP Studio` |
+
+The app data folder holds the settings (`yt-dlp-studio_config.json`), the log (`yt-dlp-studio.log`), the download history, the saved queue and crash reports (`crashes`). The Settings tab shows the paths to the log, crash reports and settings file.
+
+The language choice is stored in a different folder: `.yt-dlp-studio` in your home folder (for example `~/.yt-dlp-studio` on Linux).
+
+### How do I uninstall? Do I lose my data?
+
+Uninstalling never deletes your downloaded videos. It keeps the app data folder unless you ask to delete it.
+
+- **Installer:** uninstall from Windows Settings, in the list of installed apps. The uninstaller asks if it should also delete your settings, history and logs. The default answer is No.
+- **Portable EXE or ZIP:** delete the EXE file.
+- **.deb or .rpm:** remove the package with `apt` or `dnf`. Removing or purging the package keeps the app data folder.
+- **AppImage:** delete the AppImage file.
+- **Linux archive:** run `./uninstall.sh`.
+
+To delete your settings and history too, delete the app data folder by hand.
+
+### A site other than YouTube fails
+
+This is expected during the beta. Only YouTube is officially supported now.
+
+### "Invalid URL"
+
+Make sure the URL starts with `http://` or `https://`. You can also try another video.
+
+### "Directory not writable"
+
+Select a different output folder, or fix the permissions of the folder.
+
+### Extraction error
+
+The video may be private, removed or geo-restricted. Check your internet connection and try another video.
+
+### Does it work on macOS?
+
+No. YT-DLP Studio supports Windows 10/11 and Linux. macOS support is possible later.
+
+### Why are the Windows downloads so large?
+
+The Windows downloads are about 200 MB (0.3.1). They include Python, PySide6, yt-dlp, FFmpeg and Deno, so you do not need to install anything else.
+
+### Is it free? Can I use it commercially?
+
+Yes. YT-DLP Studio is free and open source under the [Apache License 2.0](LICENSE). The license permits commercial use, modification and redistribution, if you keep the copyright and license notices.
+
+### Report a bug
+
+1. Open an [issue](https://github.com/NX1X/yt-dlp-studio/issues/new/choose) with the Bug Report template.
+2. Describe what you tried, what happened and the steps to reproduce it.
+3. Add your operating system, the app version and the relevant lines from the log file.
+
+## Documentation
+
+- [Getting Started](docs/GETTING_STARTED.md): how to use the app, keyboard shortcuts, playlists.
+- [Installation Guide](docs/INSTALLATION_GUIDE.md): all install options, run from source, uninstall.
+- [Development Guide](docs/DEVELOPMENT.md): set up a development environment, test and build.
+- [Architecture](docs/ARCHITECTURE.md): code structure and design.
+- [Roadmap](ROADMAP.md): planned features.
+- [Changelog](CHANGELOG.md): changes in each release.
+
+## Contributing
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before you open a pull request. This project follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Security
+
+Do not report security problems in public issues. [SECURITY.md](SECURITY.md) explains how to report them privately.
+
+## License
+
+Copyright 2024-present NX1X. Licensed under the [Apache License, Version 2.0](LICENSE).
+
+Bundled third-party components keep their own licenses. Inclusion in this project does not relicense them under Apache-2.0. See [NOTICE](NOTICE).
+
+| Component | License |
+|-----------|---------|
+| PySide6 | LGPL v3 |
+| yt-dlp | The Unlicense (public domain) |
+| FFmpeg | LGPL or GPL, depending on the build |
+| Deno | MIT |
+
+## Credits
+
+YT-DLP Studio is built on these open-source projects:
+
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp): the download engine (The Unlicense).
+- [FFmpeg](https://ffmpeg.org/): audio and video processing (LGPL/GPL).
+- [Deno](https://deno.land/): JavaScript runtime for YouTube JavaScript challenges (MIT).
+- [PySide6 / Qt 6](https://www.qt.io/qt-for-python): the GUI framework (LGPL).
+- [Python](https://www.python.org/): the programming language (PSF License).
+- [PyInstaller](https://pyinstaller.org/): builds the executables (GPL).
+- [UPX](https://upx.github.io/): compresses the executables (GPL).
+
+Thanks to all contributors and users.
+
+## Contact and support
+
+- Issues: [github.com/NX1X/yt-dlp-studio/issues](https://github.com/NX1X/yt-dlp-studio/issues)
+- Maintainer: [nx1xlab.dev](https://nx1xlab.dev) ([contact](https://nx1xlab.dev/contact), [LinkedIn](https://linkedin.com/in/edenporat))
+- Support development: [Buy Me a Coffee](https://buymeacoffee.com/nx1x)
 
 ---
 
-## 🎯 Supported Sites
-
-YT-DLP Studio is in **public beta**. Right now **YouTube is the only officially
-supported and tested site** (videos, playlists, and channels).
-
-It's built on [yt-dlp](https://github.com/yt-dlp/yt-dlp), which supports 1000+
-sites under the hood, so broader support is planned during the beta and ongoing
-development. Until a site is officially listed here, treat it as untested. Want a
-specific site? [Open a feature request](https://github.com/NX1X/yt-dlp-studio/issues/new/choose).
-
----
-
-## 📚 Documentation
-
-- [Getting Started](docs/GETTING_STARTED.md) - using the app, shortcuts, playlists
-- [Installation Guide](docs/INSTALLATION_GUIDE.md) - setup and build
-- [Architecture](docs/ARCHITECTURE.md) - code structure and design
-- [Development](docs/DEVELOPMENT.md) - how to contribute and build from source
-- [Roadmap](ROADMAP.md) - planned features · [Changelog](CHANGELOG.md) - what shipped
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome. Please read [ARCHITECTURE.md](docs/ARCHITECTURE.md)
-and [DEVELOPMENT.md](docs/DEVELOPMENT.md), keep files small and focused, add
-tests and documentation, and open a pull request.
-
----
-
-## 🐛 Bug Reports
-
-[Open an issue](https://github.com/NX1X/yt-dlp-studio/issues/new/choose) using the
-Bug Report template. Include what you tried, what happened, steps to reproduce,
-your OS/Python version, and relevant log lines.
-
-**Log file location**
-- Windows: `%APPDATA%\YT-DLP Studio\yt-dlp-studio.log`
-- Linux: `~/.config/YT-DLP Studio/yt-dlp-studio.log`
-
----
-
-## 📄 License
-
-**License:** [Apache License 2.0](LICENSE)
-
-Copyright © 2024-present NX1X. Licensed under the Apache License, Version 2.0.
-You may obtain a copy at https://www.apache.org/licenses/LICENSE-2.0.
-
-### Bundled / Third-Party Components
-
-- **PySide6** - LGPL v3
-- **yt-dlp** - The Unlicense (Public Domain)
-- **FFmpeg** - LGPL/GPL depending on build
-- **Deno** - MIT License
-
-These components retain their original licenses and are not relicensed under
-Apache-2.0 by inclusion in this project. See [LICENSE](LICENSE) for the full
-notice.
-
----
-
-## 💝 Acknowledgments
-
-Built with and thanks to these open source projects:
-
-- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - the video downloader engine (Unlicense)
-- **[FFmpeg](https://ffmpeg.org/)** - multimedia processing (LGPL/GPL)
-- **[Deno](https://deno.land/)** - JavaScript runtime for YouTube JS challenges (MIT)
-- **[Python](https://www.python.org/)** - programming language (PSF License)
-- **[PySide6/Qt6](https://www.qt.io/qt-for-python)** - GUI framework (LGPL)
-- **[PyInstaller](https://pyinstaller.org/)** - executable bundler (GPL)
-- **[UPX](https://upx.github.io/)** - executable compressor (GPL)
-
-Special thanks to all contributors, users, and everyone who supports
-development ☕.
-
----
-
-## ❓ FAQ
-
-**Is this free?** Yes - free and open source under the [Apache 2.0 license](LICENSE).
-
-**Can I use it commercially?** Yes - Apache 2.0 permits commercial use,
-modification, and redistribution, provided you preserve copyright and license
-notices.
-
-**Is it safe?** All downloads go through yt-dlp, which is trusted by millions.
-
-**Does it work on macOS?** Not currently. Windows 10/11 and Linux (Ubuntu
-22.04+) are supported; macOS possibly later.
-
-**Why is the exe so large (~100MB)?** It bundles Python, PySide6, and yt-dlp so
-it runs with no installation.
-
----
-
-## 📞 Contact & Links
-
-- **Issues:** [github.com/NX1X/yt-dlp-studio/issues](https://github.com/NX1X/yt-dlp-studio/issues)
-- **Discussions:** [github.com/NX1X/yt-dlp-studio/discussions](https://github.com/NX1X/yt-dlp-studio/discussions)
-- **Security:** see [SECURITY.md](SECURITY.md)
-- **Maintainer:** [nx1xlab.dev](https://nx1xlab.dev) · [LinkedIn](https://linkedin.com/in/edenporat)
-- **Support:** [Buy Me a Coffee](https://buymeacoffee.com/nx1x)
-
-If you find this useful, please star the repository! ⭐
-
----
-
-**Made with ❤️ for the community**
-
-*YT-DLP Studio is not affiliated with yt-dlp or YouTube.*
+YT-DLP Studio is an independent project. It is not affiliated with, endorsed by or sponsored by YouTube, Google or the yt-dlp project.
