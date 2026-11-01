@@ -1,0 +1,143 @@
+<#
+.SYNOPSIS
+    End-to-end test of the Windows installer on a CI runner.
+
+.DESCRIPTION
+    1. Seeds a user-data marker file in %APPDATA%\YT-DLP Studio.
+    2. Installs silently, per user, and checks the EXE, the install marker,
+       the Start-menu shortcut and the uninstall registry entry.
+    3. Launches the INSTALLED GUI headless (QT_QPA_PLATFORM=offscreen) and waits
+       for "started successfully" in the app log. A CLI-only check would not
+       load the Qt stack, so it could pass while the app cannot start.
+    4. Uninstalls silently and checks that the program, shortcut and registry
+       entry are gone and that the user-data marker SURVIVED.
+    5. Installs again and uninstalls with /PURGEDATA=yes, and checks that the
+       user data is removed only then.
+
+    Exits 1 on the first failed check.
+
+.PARAMETER Setup
+    Path to YT-DLP-Studio-Setup-<version>.exe.
+#>
+param(
+    [Parameter(Mandatory = $true)][string]$Setup
+)
+
+$ErrorActionPreference = "Stop"
+
+$AppId = "{A55A4BB4-4BB7-48A4-970B-C0A9E9545BC2}"
+$InstallDir = Join-Path $env:LOCALAPPDATA "Programs\YT-DLP Studio"
+$Exe = Join-Path $InstallDir "yt-dlp-studio.exe"
+$DataDir = Join-Path $env:APPDATA "YT-DLP Studio"
+$LogFile = Join-Path $DataDir "yt-dlp-studio.log"
+$Marker = Join-Path $DataDir "ci-user-data-marker.txt"
+$Shortcut = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\YT-DLP Studio.lnk"
+$UninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\${AppId}_is1"
+
+function Fail([string]$Message) {
+    Write-Host "FAIL: $Message"
+    exit 1
+}
+
+function Assert([bool]$Condition, [string]$Message) {
+    if (-not $Condition) { Fail $Message }
+    Write-Host "ok: $Message"
+}
+
+function Install-App {
+    $p = Start-Process -FilePath $Setup -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/LOG=install.log" -Wait -PassThru
+    if ($p.ExitCode -ne 0) {
+        Get-Content install.log -ErrorAction SilentlyContinue | Select-Object -Last 30
+        Fail "installer exited with code $($p.ExitCode)"
+    }
+}
+
+function Uninstall-App([string[]]$ExtraArgs = @()) {
+    $uninstaller = Join-Path $InstallDir "unins000.exe"
+    Assert (Test-Path $uninstaller) "uninstaller present"
+    $uninstallArgs = @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") + $ExtraArgs
+    Start-Process -FilePath $uninstaller -ArgumentList $uninstallArgs -Wait | Out-Null
+    # unins000.exe hands off to a temporary copy and returns at once, so wait
+    # for the uninstall to actually finish.
+    for ($i = 0; $i -lt 60 -and (Test-Path $Exe); $i++) { Start-Sleep -Seconds 1 }
+}
+
+# --- 1. user data that must survive an uninstall -------------------------
+New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
+Set-Content -Path $Marker -Value "user data that an uninstall must keep"
+
+# --- 2. silent per-user install ------------------------------------------
+Install-App
+Assert (Test-Path $Exe) "EXE installed at $Exe"
+Assert (Test-Path (Join-Path $InstallDir "install.ini")) "install marker written"
+Assert (Test-Path $Shortcut) "Start-menu shortcut created"
+Assert (Test-Path $UninstallKey) "per-user uninstall entry registered (HKCU)"
+
+# --- 3. the installed GUI starts -----------------------------------------
+$before = 0
+if (Test-Path $LogFile) { $before = @(Select-String -Path $LogFile -Pattern "started successfully").Count }
+$env:QT_QPA_PLATFORM = "offscreen"
+$app = Start-Process -FilePath $Exe -PassThru
+$started = $false
+# The one-file EXE unpacks itself before Python starts, so allow time.
+for ($i = 0; $i -lt 120; $i++) {
+    Start-Sleep -Seconds 1
+    if (Test-Path $LogFile) {
+        $now = @(Select-String -Path $LogFile -Pattern "started successfully").Count
+        if ($now -gt $before) { $started = $true; break }
+    }
+    if ($app.HasExited) { break }
+}
+if (-not $app.HasExited) { Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue }
+Get-Process -Name "yt-dlp-studio" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 3
+if (-not $started) {
+    if (Test-Path $LogFile) { Get-Content $LogFile | Select-Object -Last 40 }
+    Fail "installed app did not log 'started successfully' within 120 s"
+}
+Write-Host "ok: installed GUI started (log reached 'started successfully')"
+
+# --- 3b. update started from the app relaunches it ------------------------
+# The app starts the installer with /SILENT /LAUNCH=yes and quits. The
+# installer inherits the app's PyInstaller variables, which point at the
+# app's temp folder; that folder is gone once the app has quit. Before the
+# fix, the relaunched app failed with "Failed to load Python DLL" from it.
+$before = @(Select-String -Path $LogFile -Pattern "started successfully").Count
+$env:_PYI_APPLICATION_HOME_DIR = Join-Path $env:TEMP "_MEI_gone_$(Get-Random)"
+$env:_PYI_ARCHIVE_FILE = Join-Path $env:TEMP "gone-$(Get-Random).exe"
+$env:_PYI_PARENT_PROCESS_LEVEL = "1"
+# Wait for the installer process only: Start-Process -Wait also waits for
+# the app the installer starts, which keeps running, so it would never return.
+$p = Start-Process -FilePath $Setup -ArgumentList "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/LAUNCH=yes", "/LOG=update.log" -PassThru
+if (-not $p.WaitForExit(300000)) { Fail "update installer did not finish within 5 minutes" }
+Remove-Item Env:_PYI_APPLICATION_HOME_DIR, Env:_PYI_ARCHIVE_FILE, Env:_PYI_PARENT_PROCESS_LEVEL
+if ($p.ExitCode -ne 0) { Fail "update install exited with $($p.ExitCode)" }
+$started = $false
+for ($i = 0; $i -lt 120; $i++) {
+    Start-Sleep -Seconds 1
+    $now = @(Select-String -Path $LogFile -Pattern "started successfully").Count
+    if ($now -gt $before) { $started = $true; break }
+}
+Get-Process -Name "yt-dlp-studio" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 3
+if (-not $started) {
+    Get-Content $LogFile | Select-Object -Last 40
+    Fail "app relaunched by a silent update (with the old app's PyInstaller variables) did not start within 120 s"
+}
+Write-Host "ok: silent update relaunched the app despite stale PyInstaller variables"
+
+# --- 4. silent uninstall keeps user data ---------------------------------
+Uninstall-App
+Assert (-not (Test-Path $Exe)) "EXE removed"
+Assert (-not (Test-Path $Shortcut)) "Start-menu shortcut removed"
+Assert (-not (Test-Path $UninstallKey)) "uninstall entry removed"
+Assert (Test-Path $Marker) "user data KEPT after a normal uninstall"
+
+# --- 5. explicit purge removes user data ---------------------------------
+Install-App
+Uninstall-App @("/PURGEDATA=yes")
+Assert (-not (Test-Path $Exe)) "EXE removed (purge run)"
+Assert (-not (Test-Path $DataDir)) "user data removed with /PURGEDATA=yes"
+
+Write-Host "Installer test passed."
+exit 0

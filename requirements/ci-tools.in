@@ -7,19 +7,13 @@
 # Pinning + hashing them satisfies OpenSSF Scorecard Pinned-Dependencies and
 # stops a compromised tool release from tampering with CI.
 #
-# Regenerate the lock after editing this file. Run it on Linux with
-# Python 3.11 — that is exactly what every CI tooling job uses
-# (ubuntu-latest + actions/setup-python python-version: '3.11'). Compiling
-# on a newer Python drops version-conditional transitives (e.g.
-# typing-extensions, only required by cyclonedx-python-lib on
-# python_version < "3.13"), which then fail --require-hashes on 3.11:
-#
-#   python3.11 -m pip install pip-tools
-#   python3.11 -m piptools compile --generate-hashes \
-#       --output-file=requirements/ci-tools.txt requirements/ci-tools.in
-#
-# Renovate's lock-file maintenance keeps requirements/ci-tools.txt current the
-# same way it does requirements/lock.txt.
+# Regenerate the lock after editing this file with scripts/relock.sh, which
+# builds all four lock files with the same 14-day cooldown. It targets
+# Python 3.11, which every CI tooling job uses (ubuntu-latest +
+# actions/setup-python python-version: '3.11'), with --universal so
+# version-conditional transitives (e.g. typing-extensions, only required by
+# cyclonedx-python-lib on python_version < "3.13") stay in the lock and
+# --require-hashes does not fail on 3.11.
 
 pip
 ruff

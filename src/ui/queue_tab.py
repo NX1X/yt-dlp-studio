@@ -23,6 +23,7 @@ from ..backend.queue_manager import QueueManager
 from ..models.download_task import DownloadTask, TaskStatus
 from ..utils.file_helper import FileHelper
 from ..utils.logger import get_logger
+from ..utils.status_labels import task_status_text
 from ..utils.translations import tr
 
 logger = get_logger()
@@ -196,6 +197,14 @@ class QueueTab(QWidget):
         self.clear_failed_button.setMinimumWidth(140)
         self.clear_failed_button.clicked.connect(self._on_clear_failed_clicked)
 
+        # Retry every failed task. Enabled only while the queue has one.
+        self.retry_failed_button = QPushButton(tr("button_retry_all_failed"))
+        self.retry_failed_button.setMinimumWidth(140)
+        self.retry_failed_button.setToolTip(tr("tooltip_retry_all_failed"))
+        self.retry_failed_button.setEnabled(False)
+        self.retry_failed_button.clicked.connect(self._on_retry_all_failed_clicked)
+
+        button_layout.addWidget(self.retry_failed_button)
         button_layout.addWidget(self.clear_completed_button)
         button_layout.addWidget(self.clear_failed_button)
 
@@ -249,6 +258,7 @@ class QueueTab(QWidget):
         self.active_label.setText(f"{tr('stat_active')}: {stats['active']}")
         self.completed_label.setText(f"{tr('stat_completed')}: {stats['completed']}")
         self.failed_label.setText(f"{tr('stat_failed')}: {stats['failed']}")
+        self.retry_failed_button.setEnabled(stats["failed"] > 0)
 
         # Update table
         tasks = self.queue_manager.get_all_tasks()
@@ -278,8 +288,8 @@ class QueueTab(QWidget):
             quality_item = QTableWidgetItem(task.quality)
             self.queue_table.setItem(row, 2, quality_item)
 
-            # Status
-            status_item = QTableWidgetItem(task.status.value.upper())
+            # Status: translated for display only; the stored value stays English.
+            status_item = QTableWidgetItem(task_status_text(task.status))
             status_item.setForeground(self._get_status_color(task.status))
             self.queue_table.setItem(row, 3, status_item)
 
@@ -382,6 +392,11 @@ class QueueTab(QWidget):
         count = self.queue_manager.clear_failed()
         logger.info(f"Cleared {count} failed tasks")
 
+    def _on_retry_all_failed_clicked(self) -> None:
+        """Handle retry all failed button click."""
+        count = self.queue_manager.retry_all_failed()
+        logger.info(f"Retrying {count} failed tasks")
+
     def _on_open_file_clicked(self) -> None:
         """Handle open file button click (v1.7.0)."""
         import os
@@ -413,9 +428,10 @@ class QueueTab(QWidget):
             QMessageBox.warning(self, tr("msg_file_not_found"), tr("msg_file_path_unknown"))
             return
 
-        file_path = os.path.join(task.output_directory, task.filename)
+        file_path = task.output_path()
 
-        if not os.path.exists(file_path):
+        # The file may have been moved or deleted after the download.
+        if not os.path.isfile(file_path):
             QMessageBox.warning(self, tr("msg_file_not_found"), f"{tr('msg_file_not_found_desc')}:\n{file_path}")
             return
 
@@ -524,16 +540,11 @@ class QueueTab(QWidget):
         Args:
             row: Task row index
         """
-        task = self.queue_manager.get_all_tasks()[row]
-        if task.status == TaskStatus.DOWNLOADING:
-            # Cancel the running worker
-            if row in self.queue_manager.workers:
-                self.queue_manager.workers[row].cancel()
-                logger.info(f"Cancelled downloading task at row {row}")
-        elif task.status == TaskStatus.PENDING:
-            # Remove pending task
-            self.queue_manager.remove_task(row)
-            logger.info(f"Removed pending task at row {row}")
+        # The manager finds the worker by task, not by row: rows shift when
+        # tasks are removed or reordered. A running task is cancelled; a
+        # pending task without a worker is removed.
+        if self.queue_manager.cancel_task(row):
+            logger.info(f"Cancelled or removed task at row {row}")
 
     def _on_retry_task(self, row: int) -> None:
         """
@@ -542,16 +553,9 @@ class QueueTab(QWidget):
         Args:
             row: Task row index
         """
-        task = self.queue_manager.get_all_tasks()[row]
-        if task.status == TaskStatus.ERROR:
-            # Reset task status to pending
-            task.status = TaskStatus.PENDING
-            task.error_message = ""
-            task.progress_percent = 0.0
-            self.queue_manager.queue_updated.emit()
-            # Try to start it
-            if self.queue_manager._auto_start:
-                self.queue_manager._try_start_next()
+        # The manager resets the task, saves the queue and starts it if the
+        # queue is not paused.
+        if self.queue_manager.retry_task(row):
             logger.info(f"Retrying failed task at row {row}")
 
     @staticmethod

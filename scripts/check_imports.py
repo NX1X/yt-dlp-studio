@@ -67,7 +67,7 @@ def main() -> int:
         if not _check_import(module, desc):
             all_passed = False
 
-    print("\n[GUI Framework — PySide6]")
+    print("\n[GUI Framework - PySide6]")
     print("-" * 80)
     for module, desc in [
         ("PySide6", "Qt for Python"),
@@ -102,9 +102,9 @@ def main() -> int:
 
     print("\n" + "=" * 80)
     if all_passed:
-        print("[SUCCESS] All checks passed — safe to build")
+        print("[SUCCESS] All checks passed - safe to build")
         return 0
-    print("[FAILED] Some checks failed — fix before building")
+    print("[FAILED] Some checks failed - fix before building")
     return 1
 
 

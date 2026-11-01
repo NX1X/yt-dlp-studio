@@ -10,10 +10,10 @@ the Hebrew runtime no longer sees English islands.
 
 from __future__ import annotations
 
-import subprocess
 import sys
+import threading
 
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QFont
 from PySide6.QtWidgets import (
     QGroupBox,
@@ -26,6 +26,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..backend.environment import (
+    cached_ffmpeg_version_info,
+    ffmpeg_version_text,
+    get_ffmpeg_version_info,
+)
 from ..backend.yt_dlp_wrapper import YtDlpWrapper
 from ..utils.constants import APP_NAME, APP_VERSION
 from ..utils.logger import get_logger
@@ -42,28 +47,6 @@ BUYMEACOFFEE_URL = "https://buymeacoffee.com/nx1x"
 # defer to the theme manager). A medium blue with high contrast against
 # both white and near-black backgrounds.
 _LINK_COLOR = "#1976d2"
-
-
-def _detect_ffmpeg_version() -> str:
-    """Return a short FFmpeg version string or a translated fallback.
-
-    Used by the System Information group. Never raises - callers can
-    drop the return value straight into the UI.
-    """
-    try:
-        result = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True, timeout=5)
-        if result.returncode == 0:
-            first_line = result.stdout.split("\n")[0]
-            if "version" in first_line:
-                parts = first_line.split()
-                if len(parts) >= 3:
-                    return parts[2]
-        return tr("text_ffmpeg_unknown")
-    except FileNotFoundError:
-        return tr("text_ffmpeg_not_found")
-    except Exception:  # noqa: BLE001
-        logger.exception("Error getting FFmpeg version")
-        return tr("text_ffmpeg_error")
 
 
 def _detect_python_version() -> str:
@@ -87,12 +70,58 @@ def _detect_ytdlp_version() -> str:
 
 
 class AboutTab(QWidget):
-    """About tab displaying application information."""
+    """About tab displaying application information.
+
+    The FFmpeg version needs a process start, so it is not read while the
+    tab is built at startup. The row shows "Checking..." until the tab is
+    first shown, then a background thread fills it in. When the startup
+    environment log has already probed FFmpeg, the cached value is used at
+    once.
+    """
+
+    # (status, version) from the FFmpeg probe. Emitted from a worker thread;
+    # Qt queues it to the GUI thread.
+    _ffmpeg_info_ready = Signal(str, str)
 
     def __init__(self):
         super().__init__()
+        self._ffmpeg_text = tr("text_ffmpeg_checking")
+        self._ffmpeg_probe_started = False
+        self._system_info_label: QLabel | None = None
+        self._ffmpeg_info_ready.connect(self._on_ffmpeg_info)
         self._setup_ui()
         logger.debug("AboutTab initialized")
+
+    # ------------------------------------------------------------ FFmpeg
+
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt override
+        super().showEvent(event)
+        self._start_ffmpeg_probe()
+
+    def _start_ffmpeg_probe(self) -> None:
+        """Fill in the FFmpeg row once, without blocking the GUI thread."""
+        if self._ffmpeg_probe_started:
+            return
+        self._ffmpeg_probe_started = True
+        cached = cached_ffmpeg_version_info()
+        if cached is not None:
+            self._on_ffmpeg_info(cached[0], cached[1] or "")
+            return
+        threading.Thread(target=self._probe_ffmpeg, name="about-ffmpeg-probe", daemon=True).start()
+
+    def _probe_ffmpeg(self) -> None:
+        """Worker thread: run the probe and hand the result to the GUI thread."""
+        status, version = get_ffmpeg_version_info()
+        try:
+            self._ffmpeg_info_ready.emit(status, version or "")
+        except RuntimeError:
+            # The tab was destroyed while the probe ran (app closing).
+            pass
+
+    def _on_ffmpeg_info(self, status: str, version: str) -> None:
+        self._ffmpeg_text = ffmpeg_version_text((status, version or None))
+        if self._system_info_label is not None:
+            self._system_info_label.setText(self._wrap_html(self._system_info_html()))
 
     # ------------------------------------------------------------------ UI
 
@@ -173,10 +202,16 @@ class AboutTab(QWidget):
         group = QGroupBox(tr("group_about_system_info"))
         layout = QVBoxLayout(group)
 
+        text = self._make_rich_label(self._system_info_html(), max_height=140)
+        self._system_info_label = text
+        layout.addWidget(text)
+        return group
+
+    def _system_info_html(self) -> str:
         rows = [
             (tr("label_app_version"), APP_VERSION),
             (tr("label_yt_dlp_version"), _detect_ytdlp_version()),
-            (tr("label_ffmpeg_version"), _detect_ffmpeg_version()),
+            (tr("label_ffmpeg_version"), self._ffmpeg_text),
             (tr("label_python_version"), _detect_python_version()),
             (tr("label_pyside_version"), _detect_pyside_version()),
         ]
@@ -185,11 +220,7 @@ class AboutTab(QWidget):
             f'<tr><td style="padding: 4px 16px 4px 0;"><b>{label}</b></td><td style="padding: 4px 0;">{value}</td></tr>'
             for label, value in rows
         )
-        body = f'<table style="border-spacing: 0;">{body_rows}</table>'
-
-        text = self._make_rich_label(body, max_height=140)
-        layout.addWidget(text)
-        return group
+        return f'<table style="border-spacing: 0;">{body_rows}</table>'
 
     def _build_developer_group(self) -> QGroupBox:
         group = QGroupBox(tr("group_about_developer"))
@@ -323,12 +354,8 @@ class AboutTab(QWidget):
         """
         del max_height  # explicit no-op
 
-        tm = get_translation_manager()
-        is_rtl = tm.get_language() == "he"
-        dir_attr = "rtl" if is_rtl else "ltr"
-        html = f'<div dir="{dir_attr}">{body_html}</div>'
-
-        label = QLabel(html)
+        is_rtl = self._is_rtl()
+        label = QLabel(self._wrap_html(body_html))
         label.setTextFormat(Qt.RichText)
         label.setWordWrap(True)
         # Allow clicking links + selecting text without making the label
@@ -340,6 +367,15 @@ class AboutTab(QWidget):
         label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
         label.setAlignment(Qt.AlignRight | Qt.AlignTop if is_rtl else Qt.AlignLeft | Qt.AlignTop)
         return label
+
+    @staticmethod
+    def _is_rtl() -> bool:
+        return get_translation_manager().get_language() == "he"
+
+    def _wrap_html(self, body_html: str) -> str:
+        """Wrap a body in a ``<div>`` with the reading direction of the UI language."""
+        dir_attr = "rtl" if self._is_rtl() else "ltr"
+        return f'<div dir="{dir_attr}">{body_html}</div>'
 
     def _open_github(self) -> None:
         QDesktopServices.openUrl(QUrl(GITHUB_URL))

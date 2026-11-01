@@ -4,7 +4,7 @@ Settings tab UI for YT-DLP Studio.
 Provides interface for configuring application settings.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
 )
@@ -47,6 +48,14 @@ class SettingsTab(QWidget):
 
     # Signal emitted when default folder changes (v1.9.0)
     default_folder_changed = Signal(str)
+
+    # Emitted with the saved value after a save or a reset, so the main
+    # window can apply it to the NotificationManager.
+    notifications_enabled_changed = Signal(bool)
+
+    # Emitted with the saved value after a save or a reset, so the main
+    # window can switch hide-to-tray on or off.
+    close_to_tray_changed = Signal(bool)
 
     def __init__(self, config_manager: ConfigManager, parent=None):
         """
@@ -150,6 +159,18 @@ class SettingsTab(QWidget):
         self.notifications_checkbox.setToolTip(tr("tooltip_notifications"))
         features_layout.addWidget(self.notifications_checkbox)
 
+        # Keep running in the tray on close. Without a system tray (for
+        # example stock GNOME) the window could not come back, so the
+        # option is disabled and the tooltip says why.
+        self.close_to_tray_checkbox = QCheckBox(tr("checkbox_close_to_tray"))
+        self.close_to_tray_checkbox.setChecked(False)
+        if QSystemTrayIcon.isSystemTrayAvailable():
+            self.close_to_tray_checkbox.setToolTip(tr("tooltip_close_to_tray"))
+        else:
+            self.close_to_tray_checkbox.setEnabled(False)
+            self.close_to_tray_checkbox.setToolTip(tr("tooltip_close_to_tray_unavailable"))
+        features_layout.addWidget(self.close_to_tray_checkbox)
+
         # Auto-check updates checkbox
         self.auto_update_checkbox = QCheckBox(tr("checkbox_auto_update"))
         self.auto_update_checkbox.setChecked(True)
@@ -230,6 +251,8 @@ class SettingsTab(QWidget):
         self.output_input.setText(config.output_directory)
         self.quality_combo.setCurrentText(config.default_quality)
         self.auto_update_checkbox.setChecked(config.check_updates_on_startup)
+        self.notifications_checkbox.setChecked(config.notifications_enabled)
+        self.close_to_tray_checkbox.setChecked(config.close_to_tray)
         logger.debug("Settings loaded into UI")
 
     def _browse_directory(self) -> None:
@@ -283,10 +306,14 @@ class SettingsTab(QWidget):
             output_directory=output_dir,
             default_quality=default_quality,
             check_updates_on_startup=self.auto_update_checkbox.isChecked(),
+            notifications_enabled=self.notifications_checkbox.isChecked(),
+            close_to_tray=self.close_to_tray_checkbox.isChecked(),
         )
 
         if success:
             logger.info("Settings saved successfully")
+            self.notifications_enabled_changed.emit(self.notifications_checkbox.isChecked())
+            self.close_to_tray_changed.emit(self.close_to_tray_checkbox.isChecked())
 
             # Emit signal if folder changed (v1.9.0 smart folder logic)
             if output_dir != old_output_dir:
@@ -319,6 +346,8 @@ class SettingsTab(QWidget):
         if reply == QMessageBox.Yes:
             self.config_manager.reset_to_defaults()
             self._load_settings()
+            self.notifications_enabled_changed.emit(self.notifications_checkbox.isChecked())
+            self.close_to_tray_changed.emit(self.close_to_tray_checkbox.isChecked())
             logger.info("Settings reset to defaults")
             QMessageBox.information(self, tr("dialog_settings_reset"), tr("msg_all_settings_reset"))
 
@@ -356,7 +385,7 @@ class SettingsTab(QWidget):
                 )
             return
 
-        self.config_manager.update_config(last_update_check=datetime.now(timezone.utc).isoformat())
+        self.config_manager.update_config(last_update_check=datetime.now(UTC).isoformat())
 
         if result.update_available and result.release_info:
             logger.info(f"Update available: {result.release_info['version']}")
