@@ -164,8 +164,9 @@ def test_deno_lookup_is_cached():
     assert mock_which.call_count <= 1
 
 
-def test_deno_lookup_returns_none_when_missing(monkeypatch):
+def test_deno_lookup_returns_none_when_missing(monkeypatch, tmp_path):
     monkeypatch.setattr("sys.frozen", False, raising=False)
+    monkeypatch.setattr("src.utils.deno_installer.get_app_data_deno_dir", lambda: tmp_path / "none")
     with patch("shutil.which", return_value=None):
         with patch("pathlib.Path.exists", return_value=False):
             result = YtDlpWrapper()._get_deno_location()

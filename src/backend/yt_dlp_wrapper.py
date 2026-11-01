@@ -23,10 +23,10 @@ logger = get_logger()
 # In a PyInstaller bundle the engine is extracted to <_MEIPASS>/yt_dlp_engine
 # (see packaging/build.spec datas); running from source it lives at
 # <project_root>/vendor/yt_dlp_engine.
-# Project root is resolved unconditionally so the project-local deno/ folder
-# lookup (see _get_deno_location) works even on a frozen build that does not
-# bundle Deno (e.g. the Linux build, which relies on the auto-installer
-# dropping the binary next to the executable rather than inside the bundle).
+# Project root is resolved unconditionally. A source run keeps an
+# auto-installed Deno in <project_root>/deno/ (see _get_deno_location). A
+# frozen build that does not bundle Deno (the Linux build) downloads it to
+# the app data folder instead, never next to the executable.
 _current_dir = Path(__file__).resolve().parent
 _project_root = _current_dir.parent.parent
 
@@ -381,19 +381,33 @@ class YtDlpWrapper:
         YtDlpWrapper._ffmpeg_cache_checked = True
         return result
 
+    @classmethod
+    def reset_deno_cache(cls) -> None:
+        """Forget the cached Deno lookup, so the next call searches again.
+
+        Called after the startup thread has downloaded Deno, because a lookup
+        that ran before the download finished has cached "not found".
+        """
+        cls._deno_cache = None
+        cls._deno_cache_checked = False
+
     def _get_deno_location(self) -> str | None:
         """
         Find Deno executable location (cached after first lookup).
 
-        Checks multiple locations:
-        1. PyInstaller bundled location (when running from a frozen build)
-        2. Project-local deno/ folder (development / auto-installed)
-        3. System PATH
+        Precedence (the first match wins):
+        1. Bundled copy in the PyInstaller folder (``sys._MEIPASS``). Only
+           the frozen Windows build bundles Deno.
+        2. Project-local ``deno/`` folder. Source runs only, where the
+           auto-installer puts its download.
+        3. System PATH (``shutil.which("deno")``).
+        4. The copy downloaded to the app data folder,
+           ``<APP_DATA_DIR>/deno/<DENO_VERSION>/``. This is where a frozen
+           build without a bundled Deno (Linux) puts its download.
 
-        The executable name is platform-aware: ``deno.exe`` on Windows,
-        ``deno`` elsewhere. The auto-installer (utils/deno_installer.py)
-        drops the binary into the project-local ``deno/`` folder under the
-        same name, so Method 2 finds it on every platform.
+        A system deno wins over the app data copy, the same order the
+        installer uses (utils/deno_installer.py). The executable name is
+        platform-aware: ``deno.exe`` on Windows, ``deno`` elsewhere.
 
         Returns:
             Path to deno executable, or None if not found
@@ -404,11 +418,14 @@ class YtDlpWrapper:
 
         import shutil
 
+        from ..utils.deno_installer import get_app_data_deno_dir
+
         result = None
+        frozen = getattr(sys, "frozen", False)
         deno_binary = "deno.exe" if os.name == "nt" else "deno"
 
         # Method 1: Check if running from PyInstaller bundle
-        if getattr(sys, "frozen", False):
+        if frozen:
             bundle_dir = getattr(sys, "_MEIPASS", None)
             if bundle_dir:
                 deno_path = os.path.join(bundle_dir, deno_binary)
@@ -416,8 +433,8 @@ class YtDlpWrapper:
                     logger.debug(f"Found Deno in bundle: {deno_path}")
                     result = deno_path
 
-        # Method 2: Check project-local deno/ folder
-        if result is None:
+        # Method 2: Check project-local deno/ folder (source runs)
+        if result is None and not frozen:
             deno_local = _project_root / "deno" / deno_binary
             if deno_local.exists():
                 logger.debug(f"Found Deno locally: {deno_local}")
@@ -429,6 +446,13 @@ class YtDlpWrapper:
             if deno_exe:
                 logger.debug(f"Found Deno in PATH: {deno_exe}")
                 result = deno_exe
+
+        # Method 4: Check the copy downloaded to the app data folder
+        if result is None:
+            deno_downloaded = get_app_data_deno_dir() / deno_binary
+            if deno_downloaded.is_file():
+                logger.debug(f"Found downloaded Deno: {deno_downloaded}")
+                result = str(deno_downloaded)
 
         if result is None:
             logger.warning("Deno not found - YouTube JS challenges may be limited")
