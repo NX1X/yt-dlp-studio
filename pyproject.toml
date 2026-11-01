@@ -79,7 +79,7 @@ dev = [
     "pytest-cov>=4.1.0",
     "ruff>=0.16.6,<0.17",
     "black>=26.5.1",
-    "pre-commit>=4.6.2",
+    "pre-commit>=4.7.0",
     "pip-tools>=7.6.1",
 ]
 build = [
