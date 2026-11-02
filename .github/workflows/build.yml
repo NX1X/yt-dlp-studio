@@ -399,7 +399,7 @@ jobs:
     # distributions older than ~2024. 22.04's 2.35 covers Ubuntu 22.04+,
     # Debian 12+, Fedora 36+, Mint 21+, and most 2022-and-later distros.
     # Keep this in lockstep with the build-linux job in release.yml.
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     # Same rationale as build-windows: catch PyInstaller-only regressions
     # (missing hidden imports, broken bundle paths, vendored-engine path math
