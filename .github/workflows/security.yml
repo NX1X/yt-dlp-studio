@@ -59,7 +59,7 @@ jobs:
       # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
       # pip-audit queries two CVE backends — PyPI JSON for package metadata
       # and api.osv.dev for advisory data. No `deps.dev` (that's Scorecard).
-      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: block
         disable-sudo: true
@@ -82,9 +82,9 @@ jobs:
         persist-credentials: false   # this job never uses git creds
 
     - name: Set up Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
-        python-version: '3.14.7'
+        python-version: '3.15.2'
 
     - name: Install pip-audit
       # Hash-pinned CI tooling (see requirements/ci-tools.in).
@@ -116,7 +116,7 @@ jobs:
       # zizmor's online audits hit api.github.com only (to resolve action
       # SHAs / permissions). SARIF upload via codeql-action/upload-sarif
       # also goes through api.github.com.
-      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: block
         disable-sudo: true
@@ -138,9 +138,9 @@ jobs:
         persist-credentials: false   # this job never uses git creds
 
     - name: Set up Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
-        python-version: '3.14.7'
+        python-version: '3.15.2'
 
     - name: Install zizmor
       # Hash-pinned CI tooling (see requirements/ci-tools.in).
@@ -163,7 +163,7 @@ jobs:
 
     - name: Upload SARIF to code scanning
       if: always() && github.event.pull_request.head.repo.fork != true
-      uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+      uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
       with:
         sarif_file: zizmor.sarif
         category: zizmor
@@ -194,7 +194,7 @@ jobs:
       # of a `block`-mode false positive; if a check fails on an unlisted
       # endpoint, the harden-runner network log in the run summary will name
       # it — add it here and rerun (do NOT flip the policy back to audit).
-      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: block
         disable-sudo: true
@@ -229,7 +229,7 @@ jobs:
         persist-credentials: false
 
     - name: Run Scorecard analysis
-      uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
+      uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
       with:
         results_file: scorecard.sarif
         results_format: sarif
@@ -241,7 +241,7 @@ jobs:
         publish_results: true
 
     - name: Upload Scorecard SARIF to code scanning
-      uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+      uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
       with:
         sarif_file: scorecard.sarif
         category: scorecard
