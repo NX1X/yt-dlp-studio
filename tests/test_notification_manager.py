@@ -88,7 +88,8 @@ class TestTrayBackend:
         manager.tray_icon.showMessage.assert_called_once()
         title, message, icon, timeout = manager.tray_icon.showMessage.call_args.args
         assert title == "Download Complete"
-        assert "My Video" in message and "10 MB" in message
+        assert "My Video" in message
+        assert "10 MB" in message
         assert icon == QSystemTrayIcon.MessageIcon.Information
         assert timeout > 0
         manager.run_mock.assert_not_called()

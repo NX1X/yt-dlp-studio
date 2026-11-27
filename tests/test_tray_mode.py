@@ -295,7 +295,8 @@ class TestTrayTooltip:
         text = window.tray_tooltip_text()
         assert text.startswith(f"{APP_NAME} - 2 ")
         assert "3" in text
-        assert chr(0x2013) not in text and chr(0x2014) not in text
+        assert chr(0x2013) not in text
+        assert chr(0x2014) not in text
 
     def test_queue_signal_updates_tray_icon(self, window):
         self._set_counts(window, active=1, pending=4)
