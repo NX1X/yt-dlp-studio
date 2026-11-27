@@ -304,6 +304,7 @@ On a Linux machine without a display, use `xvfb-run --auto-servernum pytest test
 
 ```python
 import logging
+
 logging.basicConfig(level=logging.DEBUG)
 ```
 

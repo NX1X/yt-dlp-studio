@@ -51,6 +51,7 @@ tests/
 import pytest
 from src.backend.some_module import SomeClass
 
+
 class TestSomeFeature:
     """Test suite for SomeFeature."""
 
