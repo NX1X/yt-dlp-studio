@@ -59,7 +59,7 @@ def test_video_fails_without_real_formats(check_extractors, monkeypatch, info):
     from src.backend import yt_dlp_wrapper
 
     monkeypatch.setattr(yt_dlp_wrapper.YtDlpWrapper, "get_video_info", lambda self, url: info)
-    assert not check_extractors.check_video("https://example.invalid/v").ok
+    assert check_extractors.check_video("https://example.invalid/v").status == "FAIL"
 
 
 @pytest.mark.parametrize(("count", "ok"), [(0, False), (9, False), (10, True), (96, True)])
@@ -75,24 +75,53 @@ def test_playlist_fails_when_extraction_fails(check_extractors, monkeypatch):
     from src.backend import playlist_fetcher
 
     monkeypatch.setattr(playlist_fetcher.PlaylistFetcher, "fetch_playlist_info", staticmethod(lambda url: None))
-    assert not check_extractors.check_playlist("https://example.invalid/p").ok
+    assert check_extractors.check_playlist("https://example.invalid/p").status == "FAIL"
 
 
 def test_main_exit_code_and_report(check_extractors, monkeypatch, tmp_path):
-    passing = check_extractors.Result("Deno", "-", True, "found")
-    failing = check_extractors.Result("YouTube video", "u", False, "Unexpected error:\nTraceback ...")
+    R = check_extractors.Result
+    passing = R("Deno", "-", "pass", "found")
+    failing = R("YouTube video", "u", "FAIL", "Unexpected error:\nTraceback ...")
+    blocked = R("YouTube video", "u", "blocked", check_extractors.BLOCKED_DETAIL)
     monkeypatch.setattr(check_extractors, "check_deno", lambda: passing)
     monkeypatch.setattr(check_extractors, "check_video", lambda url: failing)
     monkeypatch.setattr(check_extractors, "check_playlist", lambda url: passing)
 
-    report = tmp_path / "report.md"
-    assert check_extractors.main(["--report", str(report)]) == 1
+    monkeypatch.chdir(tmp_path)
+    report = tmp_path / check_extractors.REPORT_FILE
+    assert check_extractors.main(["--report"]) == 1
     text = report.read_text(encoding="utf-8")
     assert "| YouTube video (u) | FAIL | Unexpected error: |" in text
     assert "<details><summary>YouTube video traceback</summary>" in text
 
+    monkeypatch.setattr(check_extractors, "check_video", lambda url: blocked)
+    assert check_extractors.main([]) == 2
+
     monkeypatch.setattr(check_extractors, "check_video", lambda url: passing)
     assert check_extractors.main([]) == 0
+
+
+def _log_bot_check(url):
+    from src.utils.logger import get_logger
+
+    try:
+        raise RuntimeError("ERROR: [youtube] x: Sign in to confirm you\u2019re not a bot. Use --cookies")
+    except RuntimeError:
+        get_logger().exception("Error extracting video info")
+    return None
+
+
+def test_bot_check_is_blocked_not_failed(check_extractors, monkeypatch):
+    from src.backend import playlist_fetcher, yt_dlp_wrapper
+
+    monkeypatch.setattr(yt_dlp_wrapper.YtDlpWrapper, "get_video_info", lambda self, url: _log_bot_check(url))
+    monkeypatch.setattr(playlist_fetcher.PlaylistFetcher, "fetch_playlist_info", staticmethod(_log_bot_check))
+    for result in (
+        check_extractors.check_video("https://example.invalid/v"),
+        check_extractors.check_playlist("https://example.invalid/p"),
+    ):
+        assert result.status == "blocked"
+        assert not result.ok
 
 
 def test_unexpected_exception_is_a_failure(check_extractors):
@@ -100,5 +129,5 @@ def test_unexpected_exception_is_a_failure(check_extractors):
         raise RuntimeError("network down")
 
     result = check_extractors._run("YouTube video", "u", boom)
-    assert not result.ok
+    assert result.status == "FAIL"
     assert "network down" in result.detail

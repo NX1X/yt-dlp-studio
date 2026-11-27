@@ -10,6 +10,11 @@ name: Extractor check
 # then opens one issue labelled `extractor-broken`, or comments on the open
 # one. When the check passes again, it closes that issue.
 #
+# YouTube sometimes answers a runner's cloud IP address with "Sign in to
+# confirm you're not a bot". That result is "blocked": inconclusive, not an
+# engine fault. The job then passes with a warning and the issue is left as
+# it is.
+#
 # A pull request that changes the check itself also runs the `check` job, so
 # a change is tested before it merges. Pull request runs never touch issues.
 
@@ -37,6 +42,8 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+    outputs:
+      outcome: ${{ steps.check.outputs.outcome }}
     steps:
     - name: Harden runner
       # See build.yml (lint job) for the rationale. Baseline plus the hosts
@@ -83,7 +90,23 @@ jobs:
       # The script gets Deno itself through src/utils/deno_installer.py, the
       # same path a source run uses: the pinned version, checked against the
       # SHA-256 pinned in that file before it is used.
-      run: python scripts/check_extractors.py --report extractor-report.md
+      # Exit code 0 = pass, 1 = fail, 2 = blocked by the bot check.
+      id: check
+      run: |
+        set +e
+        python scripts/check_extractors.py --report
+        rc=$?
+        set -e
+        case "$rc" in
+          0) outcome=pass ;;
+          2) outcome=blocked ;;
+          *) outcome=fail ;;
+        esac
+        echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
+        if [ "$outcome" = blocked ]; then
+          echo "::warning title=Extractor check inconclusive::YouTube asked this runner to sign in to confirm it is not a bot. No check failed; see the report."
+        fi
+        [ "$outcome" != fail ]
 
     - name: Upload report
       if: always()
@@ -129,6 +152,7 @@ jobs:
         GH_TOKEN: ${{ github.token }}
         GH_REPO: ${{ github.repository }}
         CHECK_RESULT: ${{ needs.check.result }}
+        OUTCOME: ${{ needs.check.outputs.outcome }}
         RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         REF_NAME: ${{ github.ref_name }}
       run: |
@@ -146,7 +170,13 @@ jobs:
           fi
         } > body.md
 
-        if [ "$CHECK_RESULT" = "failure" ]; then
+        # The check job fails only on a real failure or before the check ran.
+        if [ "$CHECK_RESULT" = "failure" ]; then OUTCOME=fail; fi
+        echo "Outcome: ${OUTCOME:-unknown}"
+
+        if [ "$OUTCOME" = "blocked" ]; then
+          echo "Inconclusive (bot check). The issue, if any, stays as it is."
+        elif [ "$OUTCOME" = "fail" ]; then
           gh label create "$label" --color B60205 \
             --description "The weekly extractor check failed" --force
           if [ -n "$open" ]; then
@@ -157,7 +187,7 @@ jobs:
               --title "Extractor check failed: YouTube extraction is broken" \
               --body-file body.md
           fi
-        elif [ -n "$open" ]; then
+        elif [ "$OUTCOME" = "pass" ] && [ -n "$open" ]; then
           {
             echo "The extractor check passes again, so this issue is closed."
             echo
@@ -166,5 +196,5 @@ jobs:
           gh issue close "$open" --comment "$(cat close.md)"
           echo "Closed issue #$open"
         else
-          echo "Check passed and no issue is open. Nothing to do."
+          echo "No issue to open or close. Nothing to do."
         fi

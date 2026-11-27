@@ -12,14 +12,22 @@ download:
 3. ``PlaylistFetcher.fetch_playlist_info()`` reads one public playlist.
    It must return at least ``MIN_PLAYLIST_ENTRIES`` entries.
 
-The exit code is 0 only if every check passes. A short Markdown report
-goes to stdout and, with ``--report FILE``, to that file. The weekly
-workflow (.github/workflows/extractor-check.yml) puts the report in an
-issue when a check fails.
+YouTube sometimes answers a cloud IP address (such as a GitHub runner)
+with "Sign in to confirm you're not a bot". That says nothing about the
+engine, so such a check is "blocked" (inconclusive), not failed.
+
+Exit codes:
+    0  every check passed
+    1  at least one check failed
+    2  no check failed, but at least one was blocked by the bot check
+
+A short Markdown report goes to stdout and, with ``--report``, to
+``extractor-report.md`` in the current folder. The weekly workflow (.github/workflows/extractor-check.yml)
+puts the report in an issue when a check fails.
 
 Run from the project root:
 
-    python scripts/check_extractors.py [--report extractor-report.md]
+    python scripts/check_extractors.py [--report]
 
 This script needs network access to youtube.com and github.com.
 """
@@ -27,8 +35,11 @@ This script needs network access to youtube.com and github.com.
 from __future__ import annotations
 
 import argparse
+import contextlib
+import logging
 import sys
 import traceback
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -42,19 +53,77 @@ VIDEO_URL = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
 # upstream yt-dlp test suite also uses (extractor/youtube/_tab.py).
 PLAYLIST_URL = "https://www.youtube.com/playlist?list=PLwP_SiAcdui0KVebT0mU9Apz359a4ubsC"
 MIN_PLAYLIST_ENTRIES = 10
+REPORT_FILE = "extractor-report.md"
+
+DENO_CHECK = "Deno"
+VIDEO_CHECK = "YouTube video"
+PLAYLIST_CHECK = "YouTube playlist"
+
+# Stable part of YouTube's "Sign in to confirm you're not a bot" message.
+BOT_CHECK_MARKER = "confirm you"
+BOT_CHECK_MARKER_2 = "not a bot"
+BLOCKED_DETAIL = (
+    "YouTube asked this runner to sign in to confirm it is not a bot. "
+    "This depends on the runner's IP address, not on the engine, so the result is inconclusive."
+)
+
+PASS, FAIL, BLOCKED = "pass", "FAIL", "blocked"
 
 
 @dataclass
 class Result:
     name: str
     url: str
-    ok: bool
+    status: str
     detail: str
+
+    @property
+    def ok(self) -> bool:
+        return self.status == PASS
 
 
 def _is_real_format(fmt: dict) -> bool:
     """False for storyboard image formats, which every video has."""
     return fmt.get("ext") != "mhtml" and "storyboard" not in str(fmt.get("format_note", "")).lower()
+
+
+class _ListHandler(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__(logging.DEBUG)
+        self.setFormatter(logging.Formatter("%(levelname)s %(message)s"))
+        self.lines: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.lines.append(self.format(record))
+
+
+@contextlib.contextmanager
+def _captured_app_log() -> Iterator[list[str]]:
+    """Collect what the app logger writes, tracebacks included.
+
+    The wrapper and the playlist fetcher return None on an error and log
+    the reason. This is how the script learns that reason.
+    """
+    from src.utils.logger import get_logger
+
+    app_logger = get_logger()
+    handler = _ListHandler()
+    app_logger.addHandler(handler)
+    try:
+        yield handler.lines
+    finally:
+        app_logger.removeHandler(handler)
+
+
+def _is_bot_check(log_lines: list[str]) -> bool:
+    text = "\n".join(log_lines)
+    return BOT_CHECK_MARKER in text and BOT_CHECK_MARKER_2 in text
+
+
+def _extraction_failed(name: str, url: str, log_lines: list[str]) -> Result:
+    if _is_bot_check(log_lines):
+        return Result(name, url, BLOCKED, BLOCKED_DETAIL)
+    return Result(name, url, FAIL, "Extraction failed. See the log above.")
 
 
 def check_deno() -> Result:
@@ -65,56 +134,45 @@ def check_deno() -> Result:
     YtDlpWrapper.reset_deno_cache()
     path = YtDlpWrapper()._get_deno_location()
     if path is None:
-        return Result("Deno", "-", False, f"Deno {DENO_VERSION} was not found and the download failed.")
-    return Result("Deno", "-", True, f"Deno found at {path}")
+        return Result(DENO_CHECK, "-", FAIL, f"Deno {DENO_VERSION} was not found and the download failed.")
+    return Result(DENO_CHECK, "-", PASS, f"Deno found at {path}")
 
 
 def check_video(url: str) -> Result:
     from src.backend.yt_dlp_wrapper import YtDlpWrapper
 
-    info = YtDlpWrapper().get_video_info(url)
+    name = VIDEO_CHECK
+    with _captured_app_log() as log_lines:
+        info = YtDlpWrapper().get_video_info(url)
     if info is None:
-        return Result("YouTube video", url, False, "Extraction failed. See the log above.")
+        return _extraction_failed(name, url, log_lines)
     real = [f for f in info.formats if _is_real_format(f)]
     if not real:
-        return Result(
-            "YouTube video",
-            url,
-            False,
-            f"Extraction returned no real formats ({len(info.formats)} formats in total).",
-        )
+        return Result(name, url, FAIL, f"Extraction returned no real formats ({len(info.formats)} formats in total).")
     video = sum(1 for f in real if f.get("vcodec") not in (None, "none"))
     audio = sum(1 for f in real if f.get("acodec") not in (None, "none"))
-    return Result(
-        "YouTube video",
-        url,
-        True,
-        f"'{info.title}': {len(real)} formats ({video} with video, {audio} with audio).",
-    )
+    return Result(name, url, PASS, f"'{info.title}': {len(real)} formats ({video} with video, {audio} with audio).")
 
 
 def check_playlist(url: str) -> Result:
     from src.backend.playlist_fetcher import PlaylistFetcher
 
-    info = PlaylistFetcher.fetch_playlist_info(url)
+    name = PLAYLIST_CHECK
+    with _captured_app_log() as log_lines:
+        info = PlaylistFetcher.fetch_playlist_info(url)
     if info is None:
-        return Result("YouTube playlist", url, False, "Extraction failed. See the log above.")
+        return _extraction_failed(name, url, log_lines)
     count = len(info.videos)
     if count < MIN_PLAYLIST_ENTRIES:
-        return Result(
-            "YouTube playlist",
-            url,
-            False,
-            f"'{info.title}': {count} entries, expected at least {MIN_PLAYLIST_ENTRIES}.",
-        )
-    return Result("YouTube playlist", url, True, f"'{info.title}': {count} entries.")
+        return Result(name, url, FAIL, f"'{info.title}': {count} entries, expected at least {MIN_PLAYLIST_ENTRIES}.")
+    return Result(name, url, PASS, f"'{info.title}': {count} entries.")
 
 
 def _run(name: str, url: str, func) -> Result:
     try:
         return func()
     except Exception:  # noqa: BLE001 - every failure must end up in the report
-        return Result(name, url, False, "Unexpected error:\n" + traceback.format_exc())
+        return Result(name, url, FAIL, "Unexpected error:\n" + traceback.format_exc())
 
 
 def render(results: list[Result], engine_version: str) -> str:
@@ -125,12 +183,11 @@ def render(results: list[Result], engine_version: str) -> str:
         "| --- | --- | --- |",
     ]
     for r in results:
-        status = "pass" if r.ok else "FAIL"
         detail = r.detail.strip().splitlines()[0] if r.detail.strip() else ""
         target = r.name if r.url == "-" else f"{r.name} ({r.url})"
-        lines.append(f"| {target} | {status} | {detail.replace('|', '/')} |")
+        lines.append(f"| {target} | {r.status} | {detail.replace('|', '/')} |")
     for r in results:
-        if not r.ok and "\n" in r.detail.strip():
+        if r.status == FAIL and "\n" in r.detail.strip():
             lines += [
                 "",
                 f"<details><summary>{r.name} traceback</summary>",
@@ -144,14 +201,22 @@ def render(results: list[Result], engine_version: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def exit_code(results: list[Result]) -> int:
+    if any(r.status == FAIL for r in results):
+        return 1
+    if any(r.status == BLOCKED for r in results):
+        return 2
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--report", type=Path, help="also write the Markdown report to this file")
+    parser.add_argument("--report", action="store_true", help=f"also write the Markdown report to {REPORT_FILE}")
     args = parser.parse_args(argv)
 
-    results = [_run("Deno", "-", check_deno)]
-    results.append(_run("YouTube video", VIDEO_URL, lambda: check_video(VIDEO_URL)))
-    results.append(_run("YouTube playlist", PLAYLIST_URL, lambda: check_playlist(PLAYLIST_URL)))
+    results = [_run(DENO_CHECK, "-", check_deno)]
+    results.append(_run(VIDEO_CHECK, VIDEO_URL, lambda: check_video(VIDEO_URL)))
+    results.append(_run(PLAYLIST_CHECK, PLAYLIST_URL, lambda: check_playlist(PLAYLIST_URL)))
 
     try:
         from src.backend.yt_dlp_wrapper import YtDlpWrapper
@@ -163,9 +228,9 @@ def main(argv: list[str] | None = None) -> int:
     report = render(results, engine_version)
     print(report)
     if args.report:
-        args.report.write_text(report, encoding="utf-8")
+        Path(REPORT_FILE).write_text(report, encoding="utf-8")
 
-    return 0 if all(r.ok for r in results) else 1
+    return exit_code(results)
 
 
 if __name__ == "__main__":

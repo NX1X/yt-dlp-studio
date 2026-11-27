@@ -576,8 +576,8 @@ jobs:
       FEDORA_MIRROR: https://mirrors.kernel.org/fedora
     steps:
     - name: Harden runner
-      # See lint job for rationale. Baseline plus the Fedora registry (image
-      # pull; it serves the layers itself) and the single dnf mirror. No sudo:
+      # See lint job for rationale. Baseline plus the Fedora registry and its
+      # layer CDN (image pull) and the single dnf mirror. No sudo:
       # the runner user can use docker without it.
       uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
@@ -585,6 +585,7 @@ jobs:
         disable-sudo: true                 # docker needs no sudo here
         allowed-endpoints: >
           api.github.com:443
+          cdn.registry.fedoraproject.org:443
           codeload.github.com:443
           github.com:443
           mirrors.kernel.org:443
