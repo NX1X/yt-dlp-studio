@@ -223,12 +223,13 @@ All files below are in the app data folder: `%APPDATA%\YT-DLP Studio` on Windows
 | File | Contents |
 |------|----------|
 | `yt-dlp-studio_config.json` | Settings |
+| `language.json` | Language choice |
 | `yt-dlp-studio.log` | Log file (rotates at 5 MB, 3 backups) |
 | `download_history.json` | Download history |
 | `download_queue.json` | Saved queue |
 | `crashes/crash-*.json` | Crash reports |
 
-The language choice is an exception. `src/ui/settings_tab.py` saves it to `~/.yt-dlp-studio/language.json`.
+`src/utils/translations.py` reads and writes `language.json`. Up to 0.4.0 it was in `~/.yt-dlp-studio/`. At startup, `migrate_legacy_language_file()` moves an old file into the app data folder, then deletes the old folder if it is empty.
 
 ## Packaging
 

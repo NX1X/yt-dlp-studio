@@ -5,8 +5,11 @@ Supports Hebrew and English with automatic language detection.
 Includes RTL (Right-to-Left) support for Hebrew.
 """
 
+import json
 import locale
+from pathlib import Path
 
+from ..utils.constants import APP_DATA_DIR
 from ..utils.logger import get_logger
 
 logger = get_logger()
@@ -831,6 +834,94 @@ TRANSLATIONS = {
 }
 
 
+# The saved language choice, inside the app data folder (so the uninstaller
+# purge removes it). Up to 0.4.0 it was in ~/.yt-dlp-studio/language.json;
+# migrate_legacy_language_file() moves it.
+LANGUAGE_FILE = "language.json"
+LEGACY_LANGUAGE_DIR_NAME = ".yt-dlp-studio"
+
+
+def get_language_file() -> Path:
+    """Path of the file that holds the saved language choice."""
+    return APP_DATA_DIR / LANGUAGE_FILE
+
+
+def _legacy_language_dir() -> Path:
+    """Folder of the language file before 0.4.1 (``~/.yt-dlp-studio``)."""
+    return Path.home() / LEGACY_LANGUAGE_DIR_NAME
+
+
+def _read_language_file(path: Path) -> str | None:
+    """Return the language code saved in ``path``, or None if it is missing or invalid."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    language = data.get("language") if isinstance(data, dict) else None
+    return language if language in TRANSLATIONS else None
+
+
+def save_language(language_code: str) -> bool:
+    """
+    Save the language choice in the app data folder.
+
+    Returns:
+        True if the file was written
+    """
+    path = get_language_file()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"language": language_code}), encoding="utf-8")
+    except OSError:
+        logger.exception("Failed to save language preference")
+        return False
+    logger.info(f"Language preference saved: {language_code}")
+    return True
+
+
+def migrate_legacy_language_file() -> None:
+    """
+    Move a language file from ``~/.yt-dlp-studio`` into the app data folder.
+
+    The old file is read only when the app data folder has no language file
+    yet. Then the old file is deleted, and its folder too if it is empty. If
+    the new file cannot be written, the old file stays for the next start.
+    """
+    legacy_dir = _legacy_language_dir()
+    legacy_file = legacy_dir / LANGUAGE_FILE
+    if not legacy_file.is_file():
+        return
+
+    if not get_language_file().exists():
+        language = _read_language_file(legacy_file)
+        if language is not None and not save_language(language):
+            return
+        logger.info(f"Moved the language preference from {legacy_file} to {get_language_file()}")
+
+    try:
+        legacy_file.unlink()
+    except OSError:
+        logger.warning(f"Could not delete the old language file {legacy_file}", exc_info=True)
+        return
+    try:
+        legacy_dir.rmdir()  # only succeeds when the folder is empty
+    except OSError:
+        pass
+
+
+def load_saved_language() -> str | None:
+    """
+    Return the saved language choice, or None if there is none.
+
+    Moves a language file from the old location first.
+    """
+    try:
+        migrate_legacy_language_file()
+    except Exception as e:  # noqa: BLE001 - startup must not fail here
+        logger.debug(f"Language file migration failed: {e}")
+    return _read_language_file(get_language_file())
+
+
 class TranslationManager:
     """
     Manages translations and language switching.
@@ -853,22 +944,10 @@ class TranslationManager:
             Language code ("en" or "he")
         """
         # Check for saved language preference (v1.7.0)
-        try:
-            import json
-            from pathlib import Path
-
-            config_dir = Path.home() / ".yt-dlp-studio"
-            language_file = config_dir / "language.json"
-
-            if language_file.exists():
-                with open(language_file, encoding="utf-8") as f:
-                    data = json.load(f)
-                    saved_lang = data.get("language")
-                    if saved_lang in ["en", "he"]:
-                        logger.info(f"Loaded saved language preference: {saved_lang}")
-                        return saved_lang
-        except Exception as e:
-            logger.debug(f"No saved language preference found: {e}")
+        saved_lang = load_saved_language()
+        if saved_lang is not None:
+            logger.info(f"Loaded saved language preference: {saved_lang}")
+            return saved_lang
 
         # Fall back to system locale detection
         try:
