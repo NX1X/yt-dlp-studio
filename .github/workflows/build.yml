@@ -49,7 +49,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
-        python-version: '3.15.2'
+        python-version: '3.14.10'
 
     - name: Install linting tools
       # Hash-pinned CI tooling (see requirements/ci-tools.in).
@@ -104,7 +104,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
-        python-version: '3.15.2'
+        python-version: '3.14.10'
 
     - name: Install system dependencies (Linux)
       if: runner.os == 'Linux'
@@ -217,7 +217,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
-        python-version: '3.15.2'
+        python-version: '3.14.10'
 
     - name: Install dependencies
       # PyInstaller comes from its own hash-locked file (see
@@ -445,7 +445,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
-        python-version: '3.15.2'
+        python-version: '3.14.10'
 
     - name: Install system dependencies
       # rpm, rpm2cpio and cpio build and inspect the .rpm package.
