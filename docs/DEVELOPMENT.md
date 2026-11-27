@@ -65,7 +65,7 @@ yt-dlp-studio/
 │   ├── backend/           # Downloads, queue, history, config, updates
 │   ├── models/            # Data models
 │   ├── utils/             # Constants, logging, translations, helpers
-│   └── resources/         # Icons, stylesheet, default config
+│   └── resources/         # Icons
 ├── vendor/yt_dlp_engine/  # Vendored yt-dlp
 ├── packaging/             # PyInstaller specs, Inno Setup script, Linux packaging
 ├── requirements/          # Hash-pinned lock files

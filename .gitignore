@@ -48,7 +48,6 @@ logs/
 # ========================================
 yt-dlp-studio_config.json
 config.json
-!src/resources/config/default_config.json
 
 # ========================================
 # Testing

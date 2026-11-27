@@ -82,7 +82,7 @@ yt-dlp-studio/
 │   │   ├── crash_handler.py     # Crash reports
 │   │   ├── deno_installer.py    # Downloads Deno when running from source
 │   │   └── ...                  # Other helpers
-│   └── resources/               # Icons, stylesheet, default config
+│   └── resources/               # Icons
 ├── vendor/yt_dlp_engine/yt_dlp/ # Vendored yt-dlp
 ├── packaging/                   # PyInstaller specs, Inno Setup, Linux packaging
 ├── requirements/                # Hash-pinned lock files
