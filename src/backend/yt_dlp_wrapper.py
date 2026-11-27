@@ -391,6 +391,18 @@ class YtDlpWrapper:
         cls._deno_cache = None
         cls._deno_cache_checked = False
 
+    @staticmethod
+    def _bundled_deno(deno_binary: str) -> str | None:
+        """Return the Deno copy in the PyInstaller folder (``sys._MEIPASS``), or None."""
+        bundle_dir = getattr(sys, "_MEIPASS", None)
+        if not bundle_dir:
+            return None
+        deno_path = os.path.join(bundle_dir, deno_binary)
+        if not os.path.exists(deno_path):
+            return None
+        logger.debug(f"Found Deno in bundle: {deno_path}")
+        return deno_path
+
     def _get_deno_location(self) -> str | None:
         """
         Find Deno executable location (cached after first lookup).
@@ -426,12 +438,7 @@ class YtDlpWrapper:
 
         # Method 1: Check if running from PyInstaller bundle
         if frozen:
-            bundle_dir = getattr(sys, "_MEIPASS", None)
-            if bundle_dir:
-                deno_path = os.path.join(bundle_dir, deno_binary)
-                if os.path.exists(deno_path):
-                    logger.debug(f"Found Deno in bundle: {deno_path}")
-                    result = deno_path
+            result = YtDlpWrapper._bundled_deno(deno_binary)
 
         # Method 2: Check project-local deno/ folder (source runs)
         if result is None and not frozen:

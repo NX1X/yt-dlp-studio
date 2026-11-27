@@ -480,7 +480,7 @@ TRANSLATIONS = {
         "duplicate_download": "הורדה כפולה?",
         "duplicate_download_message": "הורדה זהה (אותו URL, איכות, ופורמט) כבר נמצאת בתור.\n\nהאם להוסיף שוב?",
         # Batch Input Dialog
-        "batch_count": "URLs: {count}",
+        "batch_count": "כתובות URL: {count}",
         # Queue Tab
         "queue_empty": "אין הורדות בתור",
         "queue_empty_hint": "עבור ללשונית ההורדה כדי להוסיף סרטון.",
