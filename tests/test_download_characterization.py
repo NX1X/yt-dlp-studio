@@ -23,6 +23,7 @@ import time
 import pytest
 
 from src.backend import yt_dlp_wrapper as mod
+from src.backend.download_options import DownloadOptions
 from src.backend.download_worker import DownloadWorker
 from src.models.download_task import DownloadTask, TaskStatus
 from src.utils.constants import QUALITY_NAMES
@@ -107,7 +108,7 @@ def _normalize(value, out_dir):
 
 def _call_download(wrapper, **kwargs):
     """The one place that knows how download() is called."""
-    return wrapper.download(**kwargs)
+    return wrapper.download(DownloadOptions(**kwargs))
 
 
 def _snapshot(wrapper, run, ok, out_dir):

@@ -14,11 +14,36 @@ from PySide6.QtCore import QThread, Signal
 from ..models.download_task import DownloadTask
 from ..utils.constants import PROGRESS_UPDATE_INTERVAL
 from ..utils.logger import get_logger
+from .download_options import DownloadOptions
 from .format_handler import FormatHandler
 from .progress_handler import ProgressHandler
 from .yt_dlp_wrapper import YtDlpWrapper
 
 logger = get_logger()
+
+
+def download_options_for(task: DownloadTask) -> DownloadOptions:
+    """Turn the settings stored on a queue task into download options."""
+    # Use the task flag (set by the UI). Do NOT re-derive audio mode from
+    # the quality name: "Best Quality" in audio mode has no "kbps".
+    audio_only = task.audio_only
+    return DownloadOptions(
+        task.url,
+        task.output_directory,
+        FormatHandler.get_format_string(task.quality),
+        audio_only=audio_only,
+        audio_quality=FormatHandler.get_audio_quality(task.quality) if audio_only else "192",
+        audio_format=task.audio_format,
+        video_container=task.video_container,
+        download_thumbnail=task.download_thumbnail,
+        download_subtitles=task.download_subtitles,
+        subtitle_languages=task.subtitle_languages,
+        selected_subtitles=getattr(task, "selected_subtitles", None),
+        download_metadata=getattr(task, "download_metadata", False),
+        download_comments=getattr(task, "download_comments", False),
+        speed_limit=task.speed_limit,
+        auto_number_duplicates=getattr(task, "auto_number_duplicates", True),
+    )
 
 
 class DownloadWorker(QThread):
@@ -105,41 +130,14 @@ class DownloadWorker(QThread):
                 logger.warning(f"Could not extract video info: {e}")
                 self.download_started.emit("Video")
 
-            # Determine if audio only - use task flag (task.audio_only is set by the UI)
-            # Do NOT re-derive from quality name: "Best Quality" in audio mode has no "kbps"
-            is_audio = self.task.audio_only
-
-            # Get format string
-            format_string = FormatHandler.get_format_string(self.task.quality)
-
-            # Get audio quality if audio only
-            audio_quality = "192"  # default
-            if is_audio:
-                audio_quality = FormatHandler.get_audio_quality(self.task.quality)
+            options = download_options_for(self.task)
 
             # Check if cancelled before downloading
             if self._is_cancelled:
                 self._handle_cancellation()
                 return
 
-            # Start download with all v2.1.0 parameters
-            success = self.wrapper.download(
-                url=self.task.url,
-                output_dir=self.task.output_directory,
-                format_string=format_string,
-                audio_only=is_audio,
-                audio_quality=audio_quality,
-                download_thumbnail=self.task.download_thumbnail,
-                download_subtitles=self.task.download_subtitles,
-                subtitle_languages=self.task.subtitle_languages,
-                speed_limit=self.task.speed_limit,
-                video_container=self.task.video_container,
-                audio_format=self.task.audio_format,
-                selected_subtitles=getattr(self.task, "selected_subtitles", None),
-                download_metadata=getattr(self.task, "download_metadata", False),
-                download_comments=getattr(self.task, "download_comments", False),
-                auto_number_duplicates=getattr(self.task, "auto_number_duplicates", True),
-            )
+            success = self.wrapper.download(options)
 
             # Check result
             if self._is_cancelled:
