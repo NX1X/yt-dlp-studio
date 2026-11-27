@@ -115,7 +115,7 @@ jobs:
         name: extractor-report
         path: extractor-report.md
         if-no-files-found: warn
-        retention-days: 30
+        retention-days: 7         # the repository maximum
 
   report:
     name: Report to issue
