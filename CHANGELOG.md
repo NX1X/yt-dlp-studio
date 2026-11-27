@@ -8,10 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > **Note.** YT-DLP Studio was developed privately from October 2024 through
 > April 2026, reaching internal version 0.9.2. In May 2026 we reset the public
 > version to **0.1.0** to mark the first public beta. The earlier development
-> changelog is archived at
-> [`docs-internal/OLD_CHANGELOG.md`](docs-internal/OLD_CHANGELOG.md). Rationale and
-> the version management pipeline are documented in
-> [`docs-internal/VERSIONING.md`](docs-internal/VERSIONING.md).
+> changelog is archived in the private `docs-internal/OLD_CHANGELOG.md`.
+> Rationale and the version management pipeline are documented in the
+> private `docs-internal/VERSIONING.md`.
 
 ---
 
