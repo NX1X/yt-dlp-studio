@@ -16,9 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **F1 opens the online help.** The About tab listed F1 as a shortcut, but nothing handled it. F1 now opens the README on GitHub in your browser.
+- **The language choice is in the app data folder.** It was saved in `~/.yt-dlp-studio/language.json`, so the uninstaller purge missed it. It is now `language.json` in the app data folder. The app moves an old file there once, then deletes the old folder if it is empty.
+- **Dead links.** The issue templates and the release notes pointed to GitHub Discussions, which is not enabled; they now point to Issues. Links to the private `docs-internal/` folder are gone (the text stays).
+- **The Hebrew batch URL count** was still in English.
+
 ### Removed
 
 - **Funding links.** The Buy Me a Coffee link is gone from the About tab, the README, the release notes and the release archives, and the repository no longer shows a Sponsor button.
+- **Dead code and unused files:** `DownloadTab._start_download()`, `src/resources/styles/stylesheet.qss`, `src/resources/config/default_config.json`, and the stale `docs/RELEASE_NOTES.md` and `docs/FUTURE_FEATURES.md`.
+
+### Changed
+
+- **Code cleanup for SonarCloud findings,** with no change in behavior: long functions split into helpers, duplicate regex ranges and string literals removed, `noqa` comments fixed, workflow errors sent to stderr.
+- **`pre-commit run --all-files` passes again.** Formatting fixes outside `src/` and `tests/`, the exec bit on the Linux install and uninstall scripts, and quoting in `release.yml`.
+- **ruff in the CI tools lock is 0.16.10** (was 0.15.13), the same 0.16 line as the pre-commit hook and `pyproject.toml`.
 
 ---
 
