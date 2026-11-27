@@ -69,7 +69,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # windows-latest is Windows Server 2025 today and keeps the required
+        # check name "Tests (windows-latest)" (repo ruleset). windows-2022 adds
+        # the older Windows Server image. These are Windows Server runner
+        # images, not Windows 10 or 11.
+        os: [ubuntu-latest, windows-latest, windows-2022]
     steps:
     - name: Harden runner
       # See lint job for rationale. This job runs on both ubuntu and windows
@@ -545,3 +549,71 @@ jobs:
         echo "Build completed successfully!"
         echo "Executable location: dist/yt-dlp-studio"
         echo "File size: $(du -h dist/yt-dlp-studio | cut -f1)"
+
+  test-fedora-rpm:
+    name: Test .rpm on Fedora
+    needs: [build-linux]
+    # The build-linux job only extracts the .rpm on Ubuntu. This job installs
+    # it with dnf on a real Fedora system, launches the installed app and
+    # removes it again (see scripts/test_fedora_rpm.sh). Fedora runs in a
+    # `docker run` step, not as a job container, because harden-runner does
+    # not run inside job containers.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: >
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/dev'
+    permissions:
+      contents: read
+    env:
+      # Current Fedora stable, pinned by tag AND digest (multi-arch index).
+      # Bump both together; read the digest from the registry with
+      # `docker buildx imagetools inspect registry.fedoraproject.org/fedora:<N>`.
+      FEDORA_IMAGE: registry.fedoraproject.org/fedora:45@sha256:1bd80cd53c142fe07d25dac925494e02fa7aec33534ea30440e74f85014359a1
+      # dnf uses this one https mirror instead of the Fedora metalink, so the
+      # allowlist below stays small (Linux Foundation, US).
+      FEDORA_MIRROR: https://mirrors.kernel.org/fedora
+    steps:
+    - name: Harden runner
+      # See lint job for rationale. Baseline plus the Fedora registry (image
+      # pull; it serves the layers itself) and the single dnf mirror. No sudo:
+      # the runner user can use docker without it.
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      with:
+        egress-policy: block
+        disable-sudo: true                 # docker needs no sudo here
+        allowed-endpoints: >
+          api.github.com:443
+          codeload.github.com:443
+          github.com:443
+          mirrors.kernel.org:443
+          objects.githubusercontent.com:443
+          registry.fedoraproject.org:443
+          results-receiver.actions.githubusercontent.com:443
+          *.blob.core.windows.net:443
+
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false   # no job here pushes via git
+
+    - name: Download Linux packages
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        name: YT-DLP-Studio-Linux
+        path: linux-artifact
+
+    - name: Install, launch and remove the .rpm on Fedora
+      run: |
+        rpms=(linux-artifact/packages/yt-dlp-studio-*.rpm)
+        if [ "${#rpms[@]}" -ne 1 ] || [ ! -f "${rpms[0]}" ]; then
+          echo "Expected exactly one .rpm in linux-artifact/packages"; ls -R linux-artifact; exit 1
+        fi
+        docker pull "$FEDORA_IMAGE"
+        docker run --rm \
+          -e FEDORA_MIRROR \
+          -v "$PWD/scripts:/scripts:ro" \
+          -v "$PWD/linux-artifact/packages:/packages:ro" \
+          "$FEDORA_IMAGE" \
+          bash /scripts/test_fedora_rpm.sh "/packages/$(basename "${rpms[0]}")"

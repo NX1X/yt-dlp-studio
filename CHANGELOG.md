@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **More CI checks: weekly YouTube check, Fedora .rpm install test, Windows Server 2022.** A weekly workflow reads one public YouTube video and one playlist with the vendored engine, with no download. If extraction fails or a video has no formats, it opens one `extractor-broken` issue. A new CI job installs the .rpm with dnf on Fedora 45, starts the installed app headless, removes the package and checks that user data stays. The tests also run on `windows-2022` next to `windows-latest` (Windows Server 2025). Both are Windows Server images, not Windows 10 or 11.
+
 ### Removed
 
 - **Funding links.** The Buy Me a Coffee link is gone from the About tab, the README, the release notes and the release archives, and the repository no longer shows a Sponsor button.
