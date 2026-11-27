@@ -9,11 +9,19 @@ name: Extractor check
 # fails if an extraction fails or a video returns no formats. The `report` job
 # then opens one issue labelled `extractor-broken`, or comments on the open
 # one. When the check passes again, it closes that issue.
+#
+# A pull request that changes the check itself also runs the `check` job, so
+# a change is tested before it merges. Pull request runs never touch issues.
 
 on:
   schedule:
     - cron: '0 6 * * 1'   # every Monday at 06:00 UTC
   workflow_dispatch:
+  pull_request:
+    branches: [ main, dev ]
+    paths:
+      - .github/workflows/extractor-check.yml
+      - scripts/check_extractors.py
 
 permissions:
   contents: read
@@ -89,8 +97,12 @@ jobs:
   report:
     name: Report to issue
     needs: check
-    # Runs after a pass or a fail, not after a cancel or a skip.
-    if: always() && (needs.check.result == 'success' || needs.check.result == 'failure')
+    # Runs after a pass or a fail, not after a cancel or a skip, and never
+    # for a pull request.
+    if: >
+      always() &&
+      github.event_name != 'pull_request' &&
+      (needs.check.result == 'success' || needs.check.result == 'failure')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
