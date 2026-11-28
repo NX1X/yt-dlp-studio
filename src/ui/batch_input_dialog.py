@@ -4,10 +4,12 @@ Batch URL Input Dialog for YT-DLP Studio.
 Allows users to add multiple video URLs at once via text input or file import.
 """
 
+import re
 from pathlib import Path
 
 from PySide6.QtWidgets import (
     QDialog,
+    QDialogButtonBox,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -17,10 +19,39 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from ..utils.constants import URL_PATTERN
 from ..utils.logger import get_logger
 from ..utils.translations import tr
+from .theme import repolish
 
 logger = get_logger()
+
+# Invalid lines listed under the text field before "... and N more"
+MAX_INVALID_SHOWN = 10
+
+
+def split_urls(text: str) -> tuple[list[str], list[tuple[int, str]]]:
+    """
+    Split pasted text into valid URLs and invalid lines.
+
+    Args:
+        text: One entry per line; empty lines are ignored
+
+    Returns:
+        (valid URLs, [(line number, line text)] for the lines that are not URLs)
+    """
+    pattern = re.compile(URL_PATTERN)
+    valid: list[str] = []
+    invalid: list[tuple[int, str]] = []
+    for number, raw in enumerate(text.splitlines(), 1):
+        line = raw.strip()
+        if not line:
+            continue
+        if pattern.match(line):
+            valid.append(line)
+        else:
+            invalid.append((number, line))
+    return valid, invalid
 
 
 class BatchInputDialog(QDialog):
@@ -49,72 +80,79 @@ class BatchInputDialog(QDialog):
         """Setup the dialog UI."""
         self.setWindowTitle(tr("dialog_batch_url_input"))
         self.setMinimumWidth(600)
-        self.setMinimumHeight(400)
+        self.setMinimumHeight(420)
 
-        layout = QVBoxLayout()
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(8)
 
-        # Instructions
         instructions = QLabel(tr("msg_batch_input_instructions"))
+        instructions.setWordWrap(True)
         layout.addWidget(instructions)
 
-        # Text area for URLs
         self.url_text = QTextEdit()
+        self.url_text.setAcceptRichText(False)
         self.url_text.setPlaceholderText(
             "https://youtube.com/watch?v=...\nhttps://youtube.com/watch?v=...\nhttps://youtube.com/playlist?list=..."
         )
-        layout.addWidget(self.url_text)
+        layout.addWidget(self.url_text, 1)
 
-        # Import from file button
-        import_layout = QHBoxLayout()
-        self.import_btn = QPushButton(tr("button_import_from_file"))
-        self.import_btn.clicked.connect(self._import_from_file)
-        import_layout.addWidget(self.import_btn)
-        import_layout.addStretch()
-        layout.addLayout(import_layout)
-
-        # URL count label
-        self.count_label = QLabel(tr("label_urls_count", count=0))
+        # Live count of valid and invalid lines
+        self.count_label = QLabel()
+        self.count_label.setProperty("labelStyle", "secondary")
         layout.addWidget(self.count_label)
 
-        # Buttons
-        button_layout = QHBoxLayout()
+        # Inline feedback (empty input, invalid lines); hidden when empty
+        self.feedback_label = QLabel()
+        self.feedback_label.setWordWrap(True)
+        self.feedback_label.setProperty("labelStyle", "error")
+        self.feedback_label.setVisible(False)
+        layout.addWidget(self.feedback_label)
+
+        # Text tools: all secondary, in one row
+        tools_layout = QHBoxLayout()
+        self.import_btn = QPushButton(tr("button_import_from_file"))
+        self.import_btn.clicked.connect(self._import_from_file)
+        tools_layout.addWidget(self.import_btn)
 
         self.validate_btn = QPushButton(tr("button_validate_urls"))
         self.validate_btn.clicked.connect(self._validate_urls)
-        button_layout.addWidget(self.validate_btn)
+        tools_layout.addWidget(self.validate_btn)
 
         self.clear_btn = QPushButton(tr("button_clear"))
         self.clear_btn.clicked.connect(self._clear_urls)
-        button_layout.addWidget(self.clear_btn)
+        tools_layout.addWidget(self.clear_btn)
+        tools_layout.addStretch()
+        layout.addLayout(tools_layout)
 
-        button_layout.addStretch()
-
-        self.ok_btn = QPushButton(tr("button_add_urls"))
-        self.ok_btn.clicked.connect(self._accept_urls)
+        # Dialog buttons
+        self.button_box = QDialogButtonBox()
+        self.ok_btn = QPushButton(tr("button_add_to_queue"))
+        self.ok_btn.setProperty("buttonStyle", "primary")
         self.ok_btn.setDefault(True)
-        button_layout.addWidget(self.ok_btn)
+        self.button_box.addButton(self.ok_btn, QDialogButtonBox.ButtonRole.AcceptRole)
+        self.cancel_btn = self.button_box.addButton(tr("cancel"), QDialogButtonBox.ButtonRole.RejectRole)
+        self.button_box.accepted.connect(self._accept_urls)
+        self.button_box.rejected.connect(self.reject)
+        layout.addWidget(self.button_box)
 
-        self.cancel_btn = QPushButton(tr("cancel"))
-        self.cancel_btn.clicked.connect(self.reject)
-        button_layout.addWidget(self.cancel_btn)
-
-        layout.addLayout(button_layout)
-
-        self.setLayout(layout)
-
-        # Connect text change to update count
         self.url_text.textChanged.connect(self._update_count)
+        self._update_count()
+
+    def _show_feedback(self, text: str = "", style: str = "error") -> None:
+        """Show ``text`` under the field, or hide the feedback line when empty."""
+        self.feedback_label.setText(text)
+        self.feedback_label.setProperty("labelStyle", style)
+        repolish(self.feedback_label)
+        self.feedback_label.setVisible(bool(text))
 
     def _update_count(self):
-        """Update the URL count label."""
-        text = self.url_text.toPlainText().strip()
-        if not text:
-            count = 0
-        else:
-            lines = [line.strip() for line in text.split("\n") if line.strip()]
-            count = len(lines)
-
-        self.count_label.setText(tr("label_urls_count", count=count))
+        """Update the valid/invalid count label."""
+        valid, invalid = split_urls(self.url_text.toPlainText())
+        self.count_label.setText(tr("label_batch_counts", valid=len(valid), invalid=len(invalid)))
+        self.ok_btn.setEnabled(bool(valid))
+        if self.feedback_label.isVisible():
+            self._show_feedback()
 
     def _import_from_file(self):
         """Import URLs from a text file."""
@@ -145,74 +183,47 @@ class BatchInputDialog(QDialog):
         self.url_text.clear()
         logger.debug("Cleared all URLs")
 
+    def _invalid_lines_text(self, valid: list[str], invalid: list[tuple[int, str]]) -> str:
+        lines = [tr("msg_validation_invalid_lines", valid=len(valid), invalid=len(invalid))]
+        lines += [tr("text_line_number", line=number, text=text) for number, text in invalid[:MAX_INVALID_SHOWN]]
+        if len(invalid) > MAX_INVALID_SHOWN:
+            lines.append(tr("text_and_more", count=len(invalid) - MAX_INVALID_SHOWN))
+        return "\n".join(lines)
+
     def _validate_urls(self):
-        """Validate entered URLs."""
-        import re
-
-        from ..utils.constants import URL_PATTERN
-
-        text = self.url_text.toPlainText().strip()
-        if not text:
-            QMessageBox.information(self, tr("dialog_no_urls"), tr("msg_enter_at_least_one_url"))
-            return
-
-        lines = [line.strip() for line in text.split("\n") if line.strip()]
-        valid_urls = []
-        invalid_lines = []
-
-        pattern = re.compile(URL_PATTERN)
-
-        for i, line in enumerate(lines, 1):
-            if pattern.match(line):
-                valid_urls.append(line)
-            else:
-                invalid_lines.append(f"Line {i}: {line}")
-
-        # Show validation results
-        if invalid_lines:
-            msg = f"Found {len(valid_urls)} valid URLs and {len(invalid_lines)} invalid entries:\n\n"
-            msg += "\n".join(invalid_lines[:10])  # Show first 10 invalid
-            if len(invalid_lines) > 10:
-                msg += f"\n... and {len(invalid_lines) - 10} more"
-
-            QMessageBox.warning(self, tr("dialog_validation_results"), msg)
+        """Check the entered lines and show the result under the field."""
+        valid, invalid = split_urls(self.url_text.toPlainText())
+        if not valid and not invalid:
+            self._show_feedback(tr("msg_enter_at_least_one_url"))
+        elif invalid:
+            self._show_feedback(self._invalid_lines_text(valid, invalid))
         else:
-            QMessageBox.information(self, tr("dialog_validation_successful"), f"All {len(valid_urls)} URLs are valid!")
-
-        logger.info(f"Validation: {len(valid_urls)} valid, {len(invalid_lines)} invalid")
+            self._show_feedback(tr("msg_all_urls_valid", count=len(valid)), "success")
+        logger.info(f"Validation: {len(valid)} valid, {len(invalid)} invalid")
 
     def _accept_urls(self):
         """Accept and parse URLs."""
-        import re
-
-        from ..utils.constants import URL_PATTERN
-
-        text = self.url_text.toPlainText().strip()
-        if not text:
-            QMessageBox.information(self, tr("dialog_no_urls"), tr("msg_enter_at_least_one_url"))
+        valid, invalid = split_urls(self.url_text.toPlainText())
+        if not valid and not invalid:
+            self._show_feedback(tr("msg_enter_at_least_one_url"))
+            self.url_text.setFocus()
             return
 
-        lines = [line.strip() for line in text.split("\n") if line.strip()]
-        pattern = re.compile(URL_PATTERN)
-
-        self.urls = [line for line in lines if pattern.match(line)]
-
-        if not self.urls:
-            QMessageBox.warning(self, tr("dialog_no_valid_urls"), tr("msg_no_valid_urls_found"))
+        if not valid:
+            self._show_feedback(tr("msg_no_valid_urls_found"))
             return
 
-        invalid_count = len(lines) - len(self.urls)
-        if invalid_count > 0:
+        if invalid:
             reply = QMessageBox.question(
                 self,
                 tr("dialog_invalid_urls_found"),
-                f"Found {len(self.urls)} valid URLs and {invalid_count} invalid entries.\n"
-                f"Do you want to proceed with the valid URLs only?",
+                tr("msg_proceed_with_valid_urls", valid=len(valid), invalid=len(invalid)),
                 QMessageBox.Yes | QMessageBox.No,
             )
             if reply == QMessageBox.No:
                 return
 
+        self.urls = valid
         logger.info(f"Accepted {len(self.urls)} URLs for batch download")
         self.accept()
 
