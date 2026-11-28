@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Batch links ask about duplicates once.** Links that are already in the queue with the same settings were added again without a question. Now one question covers all of them: Yes adds them again, No skips them and adds the other links.
 - **F1 no longer opens the README on GitHub.** It opens the website guide (see above). The shortcut list in the About tab says so.
 - **Code cleanup for SonarCloud findings,** with no change in behavior: the queue start logic and the "Now downloading" panel are split into smaller functions, and test assertions that joined two checks are now separate.
+- **PySide6-Essentials 6.12.0 replaces the PySide6 meta package.** `pyproject.toml` now requires `PySide6-Essentials>=6.12.0`, and shiboken6 moves from 6.11.2 to 6.12.0. The app imports only QtCore, QtGui and QtWidgets, all in Essentials, so the `pyside6` and `pyside6-addons` pins leave the locks. From 6.12 the meta package would also pull `PySide6_WebEngine` and `PySide6_Pdf`, which the app never uses. This replaces Renovate PR #90. 6.12.0 was uploaded to PyPI on 2026-10-08, past the 14-day cooldown. The PySide6 install in a dev venv shrinks from about 648 MB to about 245 MB (measured on Linux, Python 3.13).
 
 ---
 
