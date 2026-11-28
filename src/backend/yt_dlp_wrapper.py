@@ -18,7 +18,7 @@ from ..utils.logger import get_logger
 from ..utils.translations import tr
 from .download_options import DownloadOptions, build_ydl_opts, mask_proxy_url, redact_ydl_opts
 from .download_preferences import DownloadPreferences, explain_download_error, get_download_preferences
-from .side_files import write_side_files
+from .side_files import iter_downloads, write_side_files
 
 logger = get_logger()
 
@@ -121,12 +121,12 @@ def _existing_output_files(info_dict: dict | None) -> list[str]:
     ``extract_info`` returns ``None`` (or an entry without output), so the
     only reliable success signal is the output file itself. ``filepath`` in
     ``requested_downloads`` is the post-processed path (merged .mp4,
-    converted .mp3).
+    converted .mp3). A post with several videos (an Instagram carousel, an X
+    post with up to four videos) is a playlist result, which keeps
+    ``requested_downloads`` in each of its ``entries``.
     """
-    if not info_dict:
-        return []
-    paths = (d.get("filepath") for d in info_dict.get("requested_downloads") or [])
-    return [p for p in paths if p and os.path.exists(p)]
+    paths = (d.get("filepath") for d in iter_downloads(info_dict))
+    return list(dict.fromkeys(p for p in paths if p and os.path.exists(p)))
 
 
 def _make_subtitles_non_fatal(ydl: "YoutubeDL") -> None:
@@ -167,6 +167,7 @@ def _make_subtitles_non_fatal(ydl: "YoutubeDL") -> None:
 
 _EXT_FIELD = ".%(ext)s"
 _MAX_DUPLICATE_NUMBER = 9999
+
 
 _reserved_outputs_lock = threading.Lock()
 _reserved_outputs: set[str] = set()
@@ -278,6 +279,20 @@ class _DuplicateNumberingPP(PostProcessor):
         return [], info
 
 
+class _RestoreTemplatePP(_DuplicateNumberingPP):
+    """Put the plain output template back when an item is finished.
+
+    ``_DuplicateNumberingPP`` sets a numbered template for one item. Without
+    this reset, the next file that yt-dlp names (for example the JSON of the
+    whole post, written after the last item) would carry the number of the
+    last item. Registered at yt-dlp's ``after_video`` stage.
+    """
+
+    def run(self, info: dict[str, Any]) -> tuple[list[str], dict[str, Any]]:
+        self._downloader.params["outtmpl"]["default"] = self._template
+        return [], info
+
+
 def _drop_cookie_fields(value: Any) -> tuple[Any, bool]:
     """Return ``value`` without any ``"cookies"`` keys, and whether one was found."""
     if isinstance(value, dict):
@@ -375,7 +390,7 @@ def _log_enabled_options(options: DownloadOptions, ydl_opts: dict[str, Any]) -> 
         ("ratelimit" in ydl_opts, f"Speed limit applied: {o.speed_limit}KB/s"),
         (o.download_thumbnail, "Thumbnail download enabled (converted to JPG)"),
         (o.download_subtitles, f"Subtitle download enabled: {ydl_opts.get('subtitleslangs')} (2s spacing)"),
-        (o.download_metadata, "Metadata download enabled (JSON, description, annotations, comments)"),
+        (o.download_metadata, "Metadata download enabled (JSON, description, comments)"),
         (o.download_comments, "Comments download enabled (will be saved as .txt file)"),
         ("sleep_interval_requests" in ydl_opts, "Inter-request spacing: 1s (subtitles + comments/metadata combo)"),
         (o.audio_only, f"Audio extraction enabled ({o.audio_format.upper()}, {_audio_quality_label(o.audio_quality)})"),
@@ -403,10 +418,28 @@ def _configure_ydl(ydl: Any, options: DownloadOptions, reserved_outputs: list[st
             reserved_outputs,
         )
         ydl.add_post_processor(numbering_pp, when="video")
+        restore_pp = _RestoreTemplatePP(
+            ydl,
+            options.output_template,
+            options.extract_audio_format,
+            reserved_outputs,
+        )
+        ydl.add_post_processor(restore_pp, when="after_video")
 
     # A YouTube 429 on subtitles must not abort the video download.
     if options.download_subtitles:
         _make_subtitles_non_fatal(ydl)
+
+
+def _post_json_path(ydl: Any, info_dict: dict[str, Any] | None) -> str | None:
+    """Path of the JSON yt-dlp wrote for a whole post (a playlist result), or None."""
+    if not info_dict or not info_dict.get("entries"):
+        return None
+    try:
+        return ydl.prepare_filename(info_dict, "pl_infojson") or None
+    except Exception:
+        logger.debug("Could not work out the post JSON file name", exc_info=True)
+        return None
 
 
 def _require_output_files(info_dict: dict | None, log_bridge: _YtDlpLogBridge) -> list[str]:
@@ -939,10 +972,10 @@ class YtDlpWrapper:
 
             output_files = _require_output_files(info_dict, log_bridge)
             write_side_files(
-                options.output_dir,
                 info_dict,
                 metadata=options.download_metadata,
                 comments=options.download_comments,
+                post_json=_post_json_path(ydl, info_dict),
             )
             self._record_success(output_files, info_dict)
             return True
@@ -968,6 +1001,7 @@ class YtDlpWrapper:
             [str(error), log_bridge.last_error],
             cookies_browser=options.cookies_browser,
             proxy=options.proxy,
+            url=options.url,
         )
         self._last_error = self._user_error or str(error)
         self._last_error_type = type(error).__name__

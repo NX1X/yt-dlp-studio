@@ -195,6 +195,7 @@ TRANSLATIONS = {
         "proxy_error_connect": (
             "Could not connect through the proxy. Check the proxy address in Settings > Advanced Download Options."
         ),
+        "error_no_video_in_post": ("This post has no video. Downloading photo posts is planned for a later version."),
         # About tab - sections and labels
         "about_description": "is a user-friendly graphical interface for yt-dlp, making it easy to download videos from YouTube.",
         "group_about_details": "Details",
@@ -536,7 +537,7 @@ TRANSLATIONS = {
         "checkbox_metadata": "Download Metadata",
         "checkbox_comments": "Download Comments",
         "tooltip_select_subs": "Browse available subtitles and select which to download",
-        "tooltip_metadata": "Download video metadata (description, info.json, annotations)",
+        "tooltip_metadata": "Download video metadata (description, info.json)",
         "tooltip_comments": "Download video comments to a separate .txt file (may be slow for popular videos)",
         "button_cancel": "Cancel",
         "button_retry": "Retry",
@@ -1022,6 +1023,7 @@ TRANSLATIONS = {
             "האתר עדיין מבקש להתחבר. ודא שאתה מחובר לאתר ב-{browser}, עם הפרופיל שהוגדר בהגדרות, ואז נסה שוב."
         ),
         "proxy_error_connect": ("לא ניתן להתחבר דרך הפרוקסי. בדוק את כתובת הפרוקסי בהגדרות > אפשרויות הורדה מתקדמות."),
+        "error_no_video_in_post": ("בפוסט הזה אין סרטון. הורדת פוסטים של תמונות מתוכננת לגרסה עתידית."),
         # About tab - sections and labels
         "about_description": "הוא ממשק גרפי ידידותי למשתמש עבור yt-dlp שמקל על הורדת סרטונים מ-YouTube.",
         "group_about_details": "פרטים",
@@ -1363,7 +1365,7 @@ TRANSLATIONS = {
         "checkbox_metadata": "הורד מטא-דאטה",
         "checkbox_comments": "הורד תגובות",
         "tooltip_select_subs": "עיין בכתוביות הזמינות ובחר אילו להוריד",
-        "tooltip_metadata": "הורד מטא-דאטה של הסרטון (תיאור, info.json, הערות)",
+        "tooltip_metadata": "הורד מטא-דאטה של הסרטון (תיאור, info.json)",
         "tooltip_comments": "הורד תגובות הסרטון לקובץ .txt נפרד (עשוי להיות איטי עבור סרטונים פופולריים)",
         "button_cancel": "ביטול",
         "button_retry": "נסה שוב",

@@ -23,8 +23,10 @@ from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 # Output file names. The quality part keeps different qualities of one video
-# apart. Duplicate numbering adds " (1)" before ".%(ext)s".
-VIDEO_FILENAME_TEMPLATE = "%(title)s_%(height)sp.%(ext)s"
+# apart. "%(height&_{}p|)s" gives "_720p", or nothing when the format has no
+# height (Facebook sd/hd, Instagram progressive files), so the name never
+# holds "_NAp". Duplicate numbering adds " (1)" before ".%(ext)s".
+VIDEO_FILENAME_TEMPLATE = "%(title)s%(height&_{}p|)s.%(ext)s"
 AUDIO_FILENAME_TEMPLATE = "%(title)s_%(quality)s.%(ext)s"
 UPLOADER_TITLE_TEMPLATE = "%(uploader)s - %(title)s.%(ext)s"
 DATE_TITLE_TEMPLATE = "%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s"
@@ -364,7 +366,6 @@ def _metadata_opts(options: DownloadOptions) -> dict[str, Any]:
         "writeinfojson": True,  # Save video metadata as JSON
         "clean_infojson": False,  # Keep all fields in JSON
         "writedescription": True,  # Save video description as separate file
-        "writeannotations": True,  # Save annotations if available
         "getcomments": True,  # Download comments (can be slow for popular videos)
     }
 
