@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The status bar shows the queue state** ("Downloading 2 of 5", "Queue paused, 3 waiting", "Idle"). Routine confirmations (added to the queue, link copied, history cleared or saved) show there for 4 seconds instead of in a pop-up. Errors stay dialogs.
 - **The playlist question has named buttons** ("Choose videos...", "Whole playlist", Cancel) instead of Yes and No, and writes "YouTube" with a capital Y.
 - **The video info dialog has a Download button** when it opens from the Download tab. The download starts after the dialog closes. The About tab now names Ctrl+D "Download", like the button.
+- **ruff 0.17.5** in `pyproject.toml`, the pre-commit hook and both locks (was 0.16.8 to 0.16.10). It changes no code. msgpack in the CI tools lock is 1.2.4.
 
 ### Removed
 
