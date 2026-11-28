@@ -47,11 +47,13 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
    pip install --require-hashes -r requirements/dev.txt
    ```
 
-5. Install the pre-commit hooks (recommended):
+5. Install the git hooks (recommended):
 
    ```bash
-   pre-commit install
+   scripts/install-hooks.sh
    ```
+
+   The `pre-commit` hook checks the staged Python files with `ruff` and `black`. It never changes a file, and it prints the command that fixes a problem. The `commit-msg` hook checks that the first line follows Conventional Commits. The hooks do not scan for secrets or lint workflows: CI does that (GitGuardian and zizmor).
 
 If you change dependencies in `pyproject.toml`, regenerate the lock files with `scripts/relock.sh`. The script needs uv. It applies the 14-day cooldown and resolves for every platform.
 
