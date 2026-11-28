@@ -46,14 +46,21 @@ from ..backend.queue_manager import QueueManager
 from ..backend.subtitle_list_worker import SubtitleListWorker
 from ..backend.video_info_worker import VideoInfoWorker
 from ..models.download_task import DownloadTask
-from ..utils.constants import AUDIO_FORMATS, DEFAULT_AUDIO_FORMAT, DEFAULT_VIDEO_CONTAINER, VIDEO_CONTAINER_FORMATS
+from ..utils.constants import (
+    AUDIO_FORMAT_LABEL_KEYS,
+    AUDIO_FORMATS,
+    DEFAULT_AUDIO_FORMAT,
+    DEFAULT_VIDEO_CONTAINER,
+    VIDEO_CONTAINER_FORMATS,
+    VIDEO_CONTAINER_LABEL_KEYS,
+)
 from ..utils.logger import get_logger
 from ..utils.playlist_detector import PlaylistDetector
 from ..utils.site_tiers import SiteTier
-from ..utils.translations import tr
+from ..utils.translations import tr, tr_count
 from ..utils.validators import Validators
 from .collapsible_section import CollapsibleSection
-from .display_format import ltr, open_local_path, theme_colors
+from .display_format import ltr, open_local_path, quality_label, theme_colors
 from .error_dialog import show_download_error
 from .log_widget import LogWidget
 from .now_downloading import NowDownloadingPanel
@@ -274,17 +281,19 @@ class DownloadTab(QWidget):
         self.quality_combo.setMinimumContentsLength(10)
         self.quality_label.setBuddy(self.quality_combo)
 
-        # Container and audio format names (MP4, MKV, MP3) stay English:
-        # they are technical names people know in every language.
+        # Each format entry stores its stable English key as item data and
+        # shows a translated label, so the lookup uses currentData().
         self.format_label = QLabel(tr("label_format"))
         self.container_combo = QComboBox()
-        self.container_combo.addItems(list(VIDEO_CONTAINER_FORMATS.keys()))
-        self.container_combo.setCurrentText(DEFAULT_VIDEO_CONTAINER)
+        for key in VIDEO_CONTAINER_FORMATS:
+            self.container_combo.addItem(tr(VIDEO_CONTAINER_LABEL_KEYS[key]), key)
+        self.container_combo.setCurrentIndex(max(0, self.container_combo.findData(DEFAULT_VIDEO_CONTAINER)))
         self.container_combo.setToolTip(tr("tooltip_video_format"))
         self.container_combo.setAccessibleName(tr("label_format"))
         self.audio_format_combo = QComboBox()
-        self.audio_format_combo.addItems(list(AUDIO_FORMATS.keys()))
-        self.audio_format_combo.setCurrentText(DEFAULT_AUDIO_FORMAT)
+        for key in AUDIO_FORMATS:
+            self.audio_format_combo.addItem(tr(AUDIO_FORMAT_LABEL_KEYS[key]), key)
+        self.audio_format_combo.setCurrentIndex(max(0, self.audio_format_combo.findData(DEFAULT_AUDIO_FORMAT)))
         self.audio_format_combo.setToolTip(tr("tooltip_audio_format"))
         self.audio_format_combo.setAccessibleName(tr("label_format"))
         self.format_label.setBuddy(self.container_combo)
@@ -382,7 +391,7 @@ class DownloadTab(QWidget):
         self.subtitles_checkbox.toggled.connect(self._on_subtitles_toggled)
         self.subtitle_langs_label = QLabel(tr("label_languages"))
         self.subtitle_langs_input = QLineEdit()
-        self.subtitle_langs_input.setText("en")
+        self.subtitle_langs_input.setText("en")  # i18n-ok: language code, not text
         self.subtitle_langs_input.setPlaceholderText(tr("placeholder_subtitle_langs"))
         self.subtitle_langs_input.setMaximumWidth(160)
         self.subtitle_langs_input.setToolTip(tr("tooltip_subtitle_langs"))
@@ -551,13 +560,13 @@ class DownloadTab(QWidget):
         self.queue_manager.task_failed.connect(self._on_task_failed)
 
     def _on_task_started(self, _index: int, title: str) -> None:
-        self.log_widget.append_info(f"Started: {title}")
+        self.log_widget.append_info(tr("log_started", title=title))
 
     def _on_task_completed(self, _index: int, filename: str) -> None:
-        self.log_widget.append_success(f"Finished: {filename}")
+        self.log_widget.append_success(tr("log_finished", filename=filename))
 
     def _on_task_failed(self, _index: int, error: str) -> None:
-        self.log_widget.append_error(f"Stopped: {error}")
+        self.log_widget.append_error(tr("log_stopped", error=error))
 
     def _paste_from_clipboard(self) -> None:
         """Paste URL from clipboard into URL field."""
@@ -567,7 +576,7 @@ class DownloadTab(QWidget):
         if text:
             self.url_input.setText(text)
             self.url_input.setFocus()
-            self.log_widget.append_info(f"Pasted from clipboard: {text[:50]}...")
+            self.log_widget.append_info(tr("log_pasted", text=ltr(text[:50])))
             logger.debug(f"URL pasted from clipboard: {text}")
 
     def _load_config(self) -> None:
@@ -609,7 +618,7 @@ class DownloadTab(QWidget):
 
             if not current_url or current_url == config.last_url:
                 self.url_input.setText(text)
-                self.log_widget.append_info("Auto-detected URL from clipboard")
+                self.log_widget.append_info(tr("log_auto_detected_url"))
                 logger.info(f"Auto-filled URL from clipboard: {text[:50]}...")
             else:
                 logger.debug("URL field not empty, skipping auto-fill")
@@ -657,8 +666,10 @@ class DownloadTab(QWidget):
             self._set_url_error("")
             return True
         key = "error_link_empty" if not url else "error_link_invalid"
-        self._set_url_error(tr(key, http=ltr("http://"), https=ltr("https://")))
-        self.log_widget.append_error(f"{tr('error_invalid_url')}: {error}")
+        message = tr(key, http=ltr("http://"), https=ltr("https://"))
+        self._set_url_error(message)
+        logger.info(f"Link rejected: {error}")
+        self.log_widget.append_error(f"{tr('error_invalid_url')}: {message}")
         self.url_input.setFocus()
         return False
 
@@ -668,8 +679,10 @@ class DownloadTab(QWidget):
         if is_valid:
             self._set_folder_error("")
             return True
-        self._set_folder_error(tr("error_folder_invalid"))
-        self.log_widget.append_error(f"{tr('error_invalid_directory')}: {error}")
+        message = tr("error_folder_invalid")
+        self._set_folder_error(message)
+        logger.info(f"Folder rejected: {error}")
+        self.log_widget.append_error(f"{tr('error_invalid_directory')}: {message}")
         return False
 
     # ------------------------------------------------------------------
@@ -723,15 +736,16 @@ class DownloadTab(QWidget):
         self.format_label.setBuddy(self.audio_format_combo if self._is_audio_mode else self.container_combo)
 
         if hasattr(self, "log_widget"):
-            mode = "Audio-only mode" if self._is_audio_mode else "Video mode"
-            self.log_widget.append_info(f"{mode}: select quality and format")
+            self.log_widget.append_info(tr("log_mode_audio" if self._is_audio_mode else "log_mode_video"))
 
     def _on_quality_changed(self, *_args) -> None:
         """Log the quality choice with a short description."""
         quality = self._current_quality()
         if hasattr(self, "log_widget") and quality:
             description = FormatHandler.get_quality_description(quality)
-            self.log_widget.append_info(f"Quality selected: {quality} - {description}")
+            self.log_widget.append_info(
+                tr("log_quality_selected", quality=quality_label(quality), description=description)
+            )
 
     def _current_quality(self) -> str:
         # currentData() is the stable English key, currentText() the
@@ -754,7 +768,7 @@ class DownloadTab(QWidget):
             self._set_output_text(directory)
             self._set_folder_error("")
             self.config_manager.update_config(output_directory=directory)
-            self.log_widget.append_info(f"Output directory changed to: {directory}")
+            self.log_widget.append_info(tr("log_output_dir_changed", directory=ltr(directory)))
 
     def _open_directory(self) -> None:
         """Open the download directory in the file manager."""
@@ -767,7 +781,7 @@ class DownloadTab(QWidget):
             return
 
         if open_local_path(directory):
-            self.log_widget.append_success(f"Opened directory: {directory}")
+            self.log_widget.append_success(tr("log_opened_dir", directory=ltr(directory)))
         else:
             QMessageBox.critical(self, tr("error_generic"), tr("msg_failed_open_dir"))
 
@@ -859,8 +873,8 @@ class DownloadTab(QWidget):
             download_subtitles=download_subtitles,
             subtitle_languages=subtitle_languages,
             speed_limit=self.speed_limit_spinbox.value(),
-            video_container=VIDEO_CONTAINER_FORMATS.get(self.container_combo.currentText()),
-            audio_format=AUDIO_FORMATS.get(self.audio_format_combo.currentText(), "mp3"),
+            video_container=VIDEO_CONTAINER_FORMATS.get(self.container_combo.currentData()),
+            audio_format=AUDIO_FORMATS.get(self.audio_format_combo.currentData(), "mp3"),
             selected_subtitles=selected_subtitles,
             download_metadata=self.metadata_checkbox.isChecked(),
             download_comments=self.comments_checkbox.isChecked(),
@@ -879,7 +893,7 @@ class DownloadTab(QWidget):
             text = tr("status_added_paused", position=position)
         else:
             text = tr("status_added_to_queue", position=position)
-        self.log_widget.append_success(f"Added to queue at position {position}: {task.url}")
+        self.log_widget.append_success(tr("log_added_to_queue", position=position, url=ltr(task.url)))
         show_status(self, text)
 
     def _ask_playlist_choice(self, platform: str) -> str:
@@ -925,10 +939,10 @@ class DownloadTab(QWidget):
     def _fetch_in_progress(self) -> bool:
         """True (and a message in the log) while a video or playlist fetch runs."""
         if self.info_worker and self.info_worker.isRunning():
-            self.log_widget.append_error("Already fetching video info, please wait...")
+            self.log_widget.append_error(tr("log_already_fetching_video"))
             return True
         if self.playlist_worker and self.playlist_worker.isRunning():
-            self.log_widget.append_error("Already fetching playlist info, please wait...")
+            self.log_widget.append_error(tr("log_already_fetching_playlist"))
             return True
         return False
 
@@ -958,7 +972,7 @@ class DownloadTab(QWidget):
         """Fetch video info for a single video URL in a worker thread."""
         self.show_info_button.setEnabled(False)
         self.show_info_button.setText(tr("button_fetching"))
-        self.log_widget.append_info(f"Fetching video info: {url}")
+        self.log_widget.append_info(tr("log_fetching_video_info", url=ltr(url)))
 
         # The parent keeps the thread alive even if this reference changes;
         # deleteLater frees it once the thread has finished.
@@ -973,7 +987,7 @@ class DownloadTab(QWidget):
         """Fetch playlist info for a playlist URL in a worker thread."""
         self.show_info_button.setEnabled(False)
         self.show_info_button.setText(tr("button_fetching_playlist"))
-        self.log_widget.append_info(f"Detected {platform} playlist, fetching info...")
+        self.log_widget.append_info(tr("log_detected_playlist", platform=platform))
 
         self.playlist_worker = PlaylistWorker(url, parent=self)
         self.playlist_worker.finished.connect(self.playlist_worker.deleteLater)
@@ -989,7 +1003,7 @@ class DownloadTab(QWidget):
         if video_info.url:
             self.site_tier_label.update_for_url(video_info.url)
             self._sync_site_tier_icon()
-        self.log_widget.append_success(f"Video info fetched: {video_info.title}")
+        self.log_widget.append_success(tr("log_video_info_fetched", title=video_info.title))
 
         dialog = VideoInfoDialog(video_info, self)
         # The dialog shows a Download button because this is connected. The
@@ -1011,7 +1025,7 @@ class DownloadTab(QWidget):
     def _on_info_fetch_failed(self, error_message: str) -> None:
         """Handle video info fetch failure."""
         logger.error(f"Info fetch failed: {error_message}")
-        self.log_widget.append_error(f"Failed to fetch video info: {error_message}")
+        self.log_widget.append_error(tr("log_video_info_failed", error=error_message))
         self._show_error_dialog("dialog_failed_fetch_video_info", error_message)
 
     def _on_info_worker_finished(self) -> None:
@@ -1024,7 +1038,9 @@ class DownloadTab(QWidget):
     def _on_playlist_fetched(self, playlist_info) -> None:
         """Show the playlist dialog."""
         logger.info(f"Playlist info received: {playlist_info.title} ({playlist_info.video_count} videos)")
-        self.log_widget.append_success(f"Playlist fetched: {playlist_info.title} ({playlist_info.video_count} videos)")
+        self.log_widget.append_success(
+            tr_count("log_playlist_fetched", playlist_info.video_count, title=playlist_info.title)
+        )
 
         dialog = PlaylistDialog(playlist_info, self)
         dialog.videos_selected.connect(self._on_playlist_videos_selected)
@@ -1033,7 +1049,7 @@ class DownloadTab(QWidget):
     def _on_playlist_fetch_failed(self, error_message: str) -> None:
         """Handle playlist info fetch failure."""
         logger.error(f"Playlist fetch failed: {error_message}")
-        self.log_widget.append_error(f"Failed to fetch playlist info: {error_message}")
+        self.log_widget.append_error(tr("log_playlist_failed", error=error_message))
         self._show_error_dialog("dialog_failed_fetch_playlist_info", error_message)
 
     def _on_playlist_worker_finished(self) -> None:
@@ -1063,7 +1079,7 @@ class DownloadTab(QWidget):
         start_now = self._playlist_start_now
         self._playlist_start_now = False
         if not video_urls:
-            self.log_widget.append_warning("No videos selected from playlist")
+            self.log_widget.append_warning(tr("log_no_videos_selected"))
             return
 
         output_dir = self.output_input.text().strip()
@@ -1083,12 +1099,12 @@ class DownloadTab(QWidget):
         added_count = len(video_urls)
         if playlist_subs:
             self.log_widget.append_success(
-                f"Added {added_count} videos to queue (subtitles: {', '.join(playlist_subs)})"
+                tr_count("log_added_videos_subs", added_count, langs=", ".join(playlist_subs))
             )
         else:
-            self.log_widget.append_success(f"Added {added_count} videos to queue")
+            self.log_widget.append_success(tr_count("log_added_videos", added_count))
         self.url_input.clear()
-        show_status(self, tr("status_videos_added", count=added_count))
+        show_status(self, tr_count("status_videos_added", added_count))
 
     def _on_select_subtitles_clicked(self) -> None:
         """Handle the Choose subtitles button (v2.0.0).
@@ -1109,7 +1125,7 @@ class DownloadTab(QWidget):
 
         self.select_subs_button.setEnabled(False)
         self.select_subs_button.setText(tr("text_fetching_subs"))
-        self.log_widget.append_info(f"Fetching available subtitles for: {url}")
+        self.log_widget.append_info(tr("log_fetching_subs", url=ltr(url)))
 
         self.subtitle_list_worker = SubtitleListWorker(url, parent=self)
         self.subtitle_list_worker.subtitles_fetched.connect(self._on_subtitle_list_fetched)
@@ -1121,7 +1137,7 @@ class DownloadTab(QWidget):
         """Worker thread succeeded; open the selection dialog on the UI thread."""
         if not available_subs:
             show_status(self, tr("msg_no_subs_available"))
-            self.log_widget.append_warning("No subtitles found for this video")
+            self.log_widget.append_warning(tr("log_no_subs_found"))
             return
 
         dialog = SubtitleSelectionDialog(available_subs, self)
@@ -1131,10 +1147,10 @@ class DownloadTab(QWidget):
 
             if selected:
                 self.subtitle_langs_input.setText(",".join(selected))
-                self.log_widget.append_success(f"Selected {len(selected)} subtitle languages: {', '.join(selected)}")
+                self.log_widget.append_success(tr_count("log_selected_subs", len(selected), langs=", ".join(selected)))
             else:
                 self.subtitle_langs_input.setText("")
-                self.log_widget.append_info("No subtitles selected")
+                self.log_widget.append_info(tr("log_no_subs_selected"))
 
     def _on_subtitle_list_failed(self, error_msg: str) -> None:
         """Worker thread reported an error; surface it to the user."""
@@ -1172,8 +1188,8 @@ class DownloadTab(QWidget):
         for url in urls:
             self.queue_manager.add_task(self._build_task(url, output_dir))
 
-        self.log_widget.append_success(f"Batch: Added {len(urls)} URLs to queue")
-        show_status(self, tr("status_batch_added", count=len(urls)))
+        self.log_widget.append_success(tr_count("log_batch_added", len(urls)))
+        show_status(self, tr_count("status_batch_added", len(urls)))
 
     def _drag_enter_event(self, event) -> None:
         """Accept dragged text (a link) on the link field."""
@@ -1189,7 +1205,7 @@ class DownloadTab(QWidget):
             text = event.mimeData().text().strip()
             self.url_input.setText(text)
             self.url_input.setFocus()
-            self.log_widget.append_info(f"URL dropped: {text[:50]}...")
+            self.log_widget.append_info(tr("log_url_dropped", text=ltr(text[:50])))
             logger.info(f"URL dropped into input field: {text}")
             event.acceptProposedAction()
         else:

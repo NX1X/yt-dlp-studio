@@ -23,6 +23,7 @@ from urllib3.util.retry import Retry
 
 from ..utils.constants import APP_VERSION
 from ..utils.logger import get_logger
+from ..utils.translations import tr
 
 logger = get_logger()
 
@@ -585,7 +586,7 @@ class UpdateChecker:
             Formatted release notes
         """
         if not body:
-            return "No release notes available."
+            return tr("text_no_release_notes")
 
         formatted = body.strip()
 
