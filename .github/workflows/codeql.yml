@@ -22,6 +22,12 @@ on:
     - cron: '27 4 * * 1'  # Mondays 04:27 UTC
   workflow_dispatch:
 
+# A new push to a pull request cancels the older run for that PR. Other runs
+# (main, dev, schedule, manual) get a group of their own and are never cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # Least-privilege default; the analyze job grants only what it needs.
 permissions:
   contents: read
