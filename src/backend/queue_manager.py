@@ -162,6 +162,7 @@ class QueueManager(QObject):
     task_progress = Signal(int, dict)  # index, progress_data
     all_completed = Signal()
     history_recorded = Signal()  # a finished download was added to history
+    paused_changed = Signal(bool)  # True when the queue was paused
 
     # Queue file name inside APP_DATA_DIR (same folder as the history file)
     QUEUE_FILE = "download_queue.json"
@@ -218,6 +219,10 @@ class QueueManager(QObject):
         # Tasks waiting for their automatic retry, keyed by id(). The value
         # keeps a reference so the id cannot be reused while it waits.
         self._pending_auto_retries: dict[int, DownloadTask] = {}
+        # Tasks the user asked to start at once ("Download" button), keyed
+        # by id(). They start also while the queue is paused, and before the
+        # other waiting tasks. The value keeps the id from being reused.
+        self._start_now: dict[int, DownloadTask] = {}
         # Every change to the queue emits queue_updated, so one connection
         # covers add, remove, reorder, clear, retry and status changes.
         self.queue_updated.connect(self._on_queue_changed)
@@ -228,26 +233,35 @@ class QueueManager(QObject):
         """True if the queue does not start tasks on its own."""
         return not self._auto_start
 
-    def add_task(self, task: DownloadTask) -> int:
+    def add_task(self, task: DownloadTask, start_now: bool = False) -> int:
         """
         Add task to queue.
 
         Args:
             task: DownloadTask to add
+            start_now: True to start this task at once, also while the queue
+                is paused. If every download slot is in use, it is the next
+                task to start. Pause and Stop all cancel this request.
 
         Returns:
             Index of added task
         """
         self.queue.add_task(task)
         index = self.queue.get_queue_size() - 1
-        logger.info(f"Task added to queue at index {index}: {task.url}")
+        if start_now:
+            self._start_now[id(task)] = task
+        logger.info(f"Task added to queue at index {index}{' (start now)' if start_now else ''}: {task.url}")
         self.queue_updated.emit()
 
-        # Auto-start if enabled and capacity available
-        if self._auto_start:
-            self._try_start_next()
+        # Auto-start if enabled (or asked for) and capacity available
+        if self._auto_start or start_now:
+            self._try_start_next(waiting=self._auto_start)
 
         return index
+
+    def is_start_now(self, task: DownloadTask) -> bool:
+        """True if the user asked to start this waiting task at once."""
+        return self._start_now.get(id(task)) is task
 
     def remove_task(self, index: int) -> bool:
         """
@@ -316,13 +330,17 @@ class QueueManager(QObject):
         """Pause queue processing (disable auto-start)."""
         logger.info("Queue paused (auto-start disabled)")
         self._auto_start = False
+        # Pause means "start no new downloads", also no "start now" ones.
+        self._start_now.clear()
         self._autosave()
+        self.paused_changed.emit(True)
 
     def resume_queue(self) -> None:
         """Resume queue processing (enable auto-start)."""
         logger.info("Queue resumed (auto-start enabled)")
         self._auto_start = True
         self._autosave()
+        self.paused_changed.emit(False)
         self._fill_slots()
 
     def stop_all(self) -> None:
@@ -334,6 +352,7 @@ class QueueManager(QObject):
         ``finished``. Pending tasks then start as before, unless paused.
         """
         logger.info("Stopping all active downloads")
+        self._start_now.clear()
         for worker in self.workers.values():
             worker.cancel()
             self._stopping[id(worker)] = worker
@@ -492,22 +511,30 @@ class QueueManager(QObject):
 
         return False
 
-    def _fill_slots(self) -> None:
+    def _fill_slots(self, waiting: bool = True) -> None:
         """
         Start pending tasks until every free download slot is used.
 
         ``_try_start_next`` starts at most one task per call. Restoring a
         queue or retrying several failed tasks can free more than one slot
         at once, so call it until it stops starting new workers.
+
+        Args:
+            waiting: False to start only "start now" tasks (paused queue)
         """
         while not self._shutting_down:
             before = len(self.workers)
-            self._try_start_next()
+            self._try_start_next(waiting=waiting)
             if len(self.workers) <= before or self._slots_in_use() >= self.queue.max_concurrent:
                 break
 
-    def _try_start_next(self) -> None:
-        """Try to start next pending task if capacity available."""
+    def _try_start_next(self, waiting: bool = True) -> None:
+        """
+        Try to start next pending task if capacity available.
+
+        "Start now" tasks go first. Other pending tasks start only when
+        ``waiting`` is True; callers pass False while the queue is paused.
+        """
         if self._shutting_down:
             return
         # A worker sets its task to DOWNLOADING from its own thread, a moment
@@ -526,7 +553,18 @@ class QueueManager(QObject):
         # when a worker finishes and calls _try_start_next() again.
         next_task = None
         task_index = None
-        for i, task in enumerate(self.queue.get_all_tasks()):
+        tasks = self.queue.get_all_tasks()
+        # Forget "start now" requests for tasks that left the queue or are
+        # no longer waiting.
+        self._start_now = {
+            key: task
+            for key, task in self._start_now.items()
+            if task.status == TaskStatus.PENDING and self.queue.index_of(task) is not None
+        }
+        candidates = [(i, task) for i, task in enumerate(tasks) if id(task) in self._start_now]
+        if waiting:
+            candidates += [(i, task) for i, task in enumerate(tasks) if id(task) not in self._start_now]
+        for i, task in candidates:
             if task.status != TaskStatus.PENDING:
                 continue
             # A task stays PENDING until its worker thread runs. Never
@@ -544,7 +582,7 @@ class QueueManager(QObject):
             break
 
         if next_task is None:
-            if not self.workers and not self._stopping:
+            if waiting and not self.workers and not self._stopping:
                 logger.info("All tasks completed")
                 self.all_completed.emit()
             return
@@ -560,6 +598,7 @@ class QueueManager(QObject):
             task: DownloadTask to download
         """
         logger.info(f"Starting task {index}: {task.url}")
+        self._start_now.pop(id(task), None)
 
         # Create worker
         worker = DownloadWorker(task)
@@ -641,9 +680,8 @@ class QueueManager(QObject):
         self.task_completed.emit(index, filename)
         self.queue_updated.emit()
 
-        # Try to start next task
-        if self._auto_start:
-            self._try_start_next()
+        # Try to start next task ("start now" tasks also while paused)
+        self._try_start_next(waiting=self._auto_start)
 
     def _on_worker_failed(self, worker: DownloadWorker, error: str) -> None:
         """
@@ -675,9 +713,8 @@ class QueueManager(QObject):
         self.task_failed.emit(index, error)
         self.queue_updated.emit()
 
-        # Try to start next task
-        if self._auto_start:
-            self._try_start_next()
+        # Try to start next task ("start now" tasks also while paused)
+        self._try_start_next(waiting=self._auto_start)
 
     def _report_final_failure(self, task: DownloadTask, error: str, detail: str | None) -> None:
         """Send the desktop notification and record history for a failed or cancelled task."""
@@ -724,8 +761,8 @@ class QueueManager(QObject):
 
         worker.deleteLater()
 
-        if freed_slot and self._auto_start:
-            self._fill_slots()
+        if freed_slot:
+            self._fill_slots(waiting=self._auto_start)
 
     def set_max_concurrent(self, max_concurrent: int) -> None:
         """

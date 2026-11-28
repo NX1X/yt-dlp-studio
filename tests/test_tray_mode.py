@@ -252,18 +252,19 @@ class TestCloseBehaviour:
         """Answering No to the download-in-progress question cancels the quit."""
         config_manager.update_config(close_to_tray=True)
         window = make_window(config_manager)
+        # A running queue download makes the close ask first.
         worker = MagicMock()
-        worker.is_running.return_value = True
-        window.download_tab.current_worker = worker
+        window.queue_manager.workers[1] = worker
 
-        with patch.object(QMessageBox, "question", return_value=QMessageBox.No):
+        with patch.object(QMessageBox, "question", return_value=QMessageBox.No) as question:
             window.quit_application()
 
+        question.assert_called_once()
         window.queue_manager.shutdown.assert_not_called()
         quit_mock.assert_not_called()
         worker.cancel.assert_not_called()
         # The next close hides to the tray again.
-        window.download_tab.current_worker = None
+        window.queue_manager.workers.clear()
         assert window.close() is False
         window.queue_manager.shutdown.assert_not_called()
 

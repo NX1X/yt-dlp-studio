@@ -450,7 +450,7 @@ QLineEdit:disabled, QTextEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabl
     border-color: {c["border"]};
 }}
 
-QLineEdit[inputState="error"] {{
+QLineEdit[inputState="error"], QLineEdit[invalid="true"] {{
     border-color: {c["error"]};
 }}
 
@@ -856,6 +856,60 @@ QTextBrowser {{
     border: 1px solid {c["border"]};
     border-radius: 4px;
     padding: 8px;
+}}
+/* ===== DOWNLOAD, QUEUE AND HISTORY TABS (UI overhaul B) ===== */
+QScrollArea#downloadScroll, QWidget#downloadScrollContent {{
+    background: transparent;
+    border: none;
+}}
+
+QToolButton#collapsibleHeader {{
+    background: transparent;
+    border: none;
+    color: {c["text_primary"]};
+    font-weight: 600;
+    padding: 4px 2px;
+}}
+
+QToolButton#collapsibleHeader:hover {{
+    color: {c["link"]};
+}}
+
+QToolButton#collapsibleHeader:focus {{
+    color: {c["link"]};
+    text-decoration: underline;
+}}
+
+QLabel#inlineError {{
+    color: {c["error"]};
+    font-size: 9pt;
+}}
+
+QProgressBar#rowProgress {{
+    min-height: 8px;
+    max-height: 8px;
+    border: none;
+    border-radius: 4px;
+    background-color: {c["bg_tertiary"]};
+}}
+
+QProgressBar#rowProgress::chunk {{
+    background-color: {c["status_running"]};
+    border-radius: 4px;
+}}
+
+QWidget#nowDownloadingRow, QWidget#queueTopBar, QWidget#selectionBar, QWidget#siteTierRow,
+QWidget#collapsibleSection, QWidget#collapsibleContent, QWidget#moreOptions, QWidget#activityLogBody {{
+    background: transparent;
+}}
+
+QLabel#queueCounters, QLabel#historySummary {{
+    color: {c["text_secondary"]};
+}}
+
+QLabel#emptyTitle {{
+    font-size: 12pt;
+    font-weight: 600;
 }}
 """
 

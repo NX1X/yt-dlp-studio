@@ -40,6 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Settings tab layout.** The groups are Downloads, Appearance, Behavior, the advanced download options and Files for bug reports. The fields line up in one column, the language restart note shows under the language list, "Check for Updates Now" sits next to its check box, and each bug report file has Copy and Open folder. Reset and Save stay in a bar below the scroll area. "Settings saved" and "Path copied" show in the status bar, not in a message box.
 - **About tab.** A header with the name, the version, one sentence and GitHub and website buttons. System information has a "Copy for bug report" button that copies the versions, the OS and the UI language.
 - **Dialogs.** The update dialog uses the platform button order with three buttons, shows GitHub and the website as links, and shows the release notes as formatted Markdown (raw HTML is not rendered, and only http and https links open). The playlist dialog gives the video list the free space, uses check boxes in the list, shows "N of M selected", and closes the subtitle section by default. The batch dialog counts valid and invalid lines as you type and shows validation results under the field. The subtitle dialog is translated and its button says "Use selected languages". The video info dialog can show a Download button, and the download error dialog can copy the technical details.
+- **New Download tab layout.** One aligned form: Link (with Paste and Info), the site tier with an icon and text, Get, Quality and Format on one row, and Save to with Browse and Open folder. Subtitles, thumbnail, metadata, comments and the speed limit are in a folded "More options" section. Its header shows a one-line summary of what is on. A link points to the advanced options in the Settings tab. The tab scrolls when the window is small, so no row is squeezed. Download is the only primary button. Add to queue and Batch links are secondary.
+- **Download and Add to queue use one code path.** Both check the link, the folder, a playlist link and a duplicate in the same way. Download starts at once, also while the queue is paused. If the maximum number of downloads already runs, it is the next to start. Add to queue puts the link at the end of the queue and does not start while the queue is paused. The button tooltips say this.
+- **New Queue tab layout.** Start, Pause and Stop all and the counters are on one line at the top, with Retry failed and one "Clear finished" menu. The columns are Title, Status (with a progress bar while a task downloads), Size, Speed and Time left. The link, folder and quality are in the title tooltip. Row actions are in a bar under the table and in a right-click menu, not in the cells. Double-click opens a finished file or shows the error of a failed one.
+- **Stop all now asks first, then cancels the running downloads and pauses the queue.** Before, waiting downloads started at once in the freed slots.
+- **New History tab layout.** One summary line, search together with a status filter, and a wider Title column. The right-click menu and double-click open the file or its folder, copy the link, or put the link back into the Download tab ("Download again"). The three clear buttons are one "Clear" menu. The Refresh button is gone; the tab updates on its own.
+- **The status bar shows the queue state** ("Downloading 2 of 5", "Queue paused, 3 waiting", "Idle"). Routine confirmations (added to the queue, link copied, history cleared or saved) show there for 4 seconds instead of in a pop-up. Errors stay dialogs.
+- **The playlist question has named buttons** ("Choose videos...", "Whole playlist", Cancel) instead of Yes and No, and writes "YouTube" with a capital Y.
 
 ### Removed
 
@@ -48,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Hebrew text with a closing parenthesis after English text,** such as "(info.json)" or "(Ctrl+V)", no longer shows the parenthesis flipped on the wrong side.
 - **The .rpm installs the libraries Qt needs.** On a minimal Fedora the app failed to start with `libEGL.so.1` missing, because the package required only FFmpeg and glibc. It now requires libEGL, libGL, libxkbcommon, libdbus, libxcb-cursor, GLib and fontconfig by library name, so dnf and zypper install them. The Fedora CI test now installs only the .rpm to prove it.
 - **F1 opens the online help.** The About tab listed F1 as a shortcut, but nothing handled it. F1 now opens the README on GitHub in your browser.
 - **The language choice is in the app data folder.** It was saved in `~/.yt-dlp-studio/language.json`, so the uninstaller purge missed it. It is now `language.json` in the app data folder. The app moves an old file there once, then deletes the old folder if it is empty.
@@ -60,6 +68,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Missing translations** for `button_clear`, `dialog_no_urls` and `label_uploader` (the dialogs showed the raw key), the English-only subtitle dialog, the "Suggestions" and "Technical details" headings of the error dialog, and the update download progress. A new test checks that every `tr()` key used in `src/` exists in English and Hebrew.
 - **Saving settings in Hebrew failed.** The default quality was saved as the translated label, which the settings check rejects. It is now saved as the stable quality key.
 - **Numbers with units in Hebrew** (sizes, speeds, versions, durations) keep their left-to-right order.
+- **The Download tab shows download progress again.** The old Progress box never moved, because nothing fed it. A "Now downloading" panel now shows each running download with a progress bar, percent, speed and time left, fed by the queue. The dead code behind the old box is gone. Closing the app now asks first while queue downloads run; the old check looked at that dead code and never asked.
+- **Space on the Queue tab no longer starts or pauses the queue.** It toggled the queue instead of pressing the focused button. Delete, Ctrl+Up and Ctrl+Down now work only while the table has the focus, and Delete asks first for a running or waiting download.
+- **Queue rows no longer show empty colored bars** where the Cancel and Retry buttons were. A failed row now shows its error in a tooltip and in "Show error details".
+- **An empty or wrong link shows an error under the field** instead of a pop-up.
+- **History search keeps the status colors** and shows "No matches" instead of an empty table. Titles are no longer cut at 50 characters.
+- **Hebrew layout of numbers and links.** Speeds, sizes, times and dates read in the right order ("3.24 MB/s", not "MB/s 3.24"). Progress bars fill from the right, links are cut in the middle, and the stored quality names show translated.
 
 ---
 
