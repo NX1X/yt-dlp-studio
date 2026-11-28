@@ -229,16 +229,16 @@ The Windows uninstaller asks if it should also delete your settings, history and
 
 ### App data folder
 
-The app data folder holds your settings, log file, download history, saved queue and crash reports.
+The app data folder holds your settings, language choice, log file, download history, saved queue and crash reports.
 
 | System | App data folder |
 |--------|-----------------|
 | Windows | `%APPDATA%\YT-DLP Studio` |
 | Linux | `~/.config/YT-DLP Studio` |
 
-The language choice is stored in a different folder: `.yt-dlp-studio` in your home folder. No uninstaller removes it.
+Versions up to 0.4.0 stored the language choice in `.yt-dlp-studio` in your home folder. The app moves that file into the app data folder on the next start, and deletes the old folder if it is empty.
 
-To remove all your data, delete both folders by hand.
+To remove all your data, delete the app data folder by hand.
 
 ## Verify a download
 

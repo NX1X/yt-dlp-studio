@@ -34,12 +34,12 @@ _SECRET_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     # ``Bearer <token>`` / ``Basic <token>`` - the keyword is followed by
     # whitespace, not a ``:`` or ``=`` separator, so it needs its own rule.
     # Handled before the generic key=value pattern so the latter does not
-    # half-match and leave the token visible. The ``-`` is placed FIRST in
-    # the character class (where it is unambiguously literal regardless of
-    # neighbouring chars); putting it at the end as ``=-`` still made Sonar
+    # half-match and leave the token visible. The ``-`` is the last
+    # character of the class, so it is a literal. The class lists only
+    # lower-case letters because re.IGNORECASE also matches upper case.
     (
         re.compile(
-            r"(?P<keyword>\b(?:Bearer|Basic))\s+(?P<val>[A-Za-z0-9._+/=-]{8,})",
+            r"(?P<keyword>\b(?:Bearer|Basic))\s+(?P<val>[a-z0-9._+/=-]{8,})",
             re.IGNORECASE,
         ),
         rf"\g<keyword> {REDACTED}",

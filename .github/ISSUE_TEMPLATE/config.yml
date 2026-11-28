@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Discussions / Q&A
-    url: https://github.com/NX1X/yt-dlp-studio/discussions
-    about: Ask a question, share an idea, or get help from the community
+  - name: Questions and ideas
+    url: https://github.com/NX1X/yt-dlp-studio/issues
+    about: Search the existing issues first. GitHub Discussions is not enabled for this repository.
   - name: Security Vulnerability
     url: https://github.com/NX1X/yt-dlp-studio/security/advisories/new
     about: Privately report a security vulnerability (please do not file a public issue)

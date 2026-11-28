@@ -554,7 +554,7 @@ Development roadmap and future plans for YT-DLP Studio.
 
 ## Feature Requests
 
-Have a feature idea? Add it to `FUTURE_FEATURES.md`!
+Have a feature idea? Open a [GitHub issue](https://github.com/NX1X/yt-dlp-studio/issues).
 
 ---
 
@@ -575,7 +575,7 @@ Things we WON'T implement:
 
 ### How to Propose Features
 
-1. Check `FUTURE_FEATURES.md` first
+1. Check [ROADMAP.md](../ROADMAP.md) first
 2. Open GitHub issue (when repo is public)
 3. Discuss in community
 4. Create pull request
@@ -744,7 +744,7 @@ Things we WON'T implement:
 ## Questions and Feedback
 
 - Check `docs/` for more information
-- See `FUTURE_FEATURES.md` for feature ideas
+- See [ROADMAP.md](../ROADMAP.md) for feature ideas
 - Follow development progress in commits
 
 ---

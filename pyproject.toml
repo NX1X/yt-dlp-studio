@@ -78,7 +78,7 @@ dev = [
     "pytest-qt>=4.5.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.16.6,<0.17",
-    "black>=26.5.1",
+    "black>=26.10.1",
     "pre-commit>=4.6.2",
     "pip-tools>=7.6.2",
 ]
@@ -87,7 +87,7 @@ build = [
 ]
 docs = [
     "mkdocs>=1.6.1",
-    "mkdocs-material>=9.7.7",
+    "mkdocs-material>=9.8.1",
 ]
 
 # No `[project.scripts]` / `[project.gui-scripts]` entries are declared.

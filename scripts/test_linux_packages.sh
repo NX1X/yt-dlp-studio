@@ -28,16 +28,18 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 ok() { echo "ok: $*"; }
 
 one_file() {
-    # shellcheck disable=SC2206  # $1 is a glob on purpose
-    local matches=("${PKG_DIR}"/$1)
-    [[ ${#matches[@]} -eq 1 && -f "${matches[0]}" ]] || fail "expected one $1 in ${PKG_DIR}"
+    local pattern="$1"
+    # shellcheck disable=SC2206  # the pattern is a glob on purpose
+    local matches=("${PKG_DIR}"/${pattern})
+    [[ ${#matches[@]} -eq 1 && -f "${matches[0]}" ]] || fail "expected one ${pattern} in ${PKG_DIR}"
     echo "${matches[0]}"
 }
 
 same_payload() {
+    local file="$1"
     local got
-    got="$(sha256sum "$1" | cut -d' ' -f1)"
-    [[ "${got}" == "${EXPECTED_SHA}" ]] || fail "$1 differs from the built binary (${got})"
+    got="$(sha256sum "${file}" | cut -d' ' -f1)"
+    [[ "${got}" == "${EXPECTED_SHA}" ]] || fail "${file} differs from the built binary (${got})"
 }
 
 # Start a command, wait up to 30 s for the "started successfully" log line,

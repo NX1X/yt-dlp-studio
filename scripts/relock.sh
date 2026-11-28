@@ -33,7 +33,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-if [ $# -ge 1 ]; then
+if [[ $# -ge 1 ]]; then
   cutoff="$1T00:00:00Z"
 else
   cutoff="$(date -u -d '14 days ago' +%Y-%m-%dT00:00:00Z)"

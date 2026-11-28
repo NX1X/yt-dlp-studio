@@ -161,8 +161,7 @@ def _download_verified_zip(url: str, expected_sha256: str, target_dir: Path) -> 
     actual = hasher.hexdigest()
     if not hmac.compare_digest(actual, expected_sha256):
         logger.warning(
-            f"Deno download failed the SHA-256 check (expected {expected_sha256}, got {actual}). "
-            "The file was deleted."
+            f"Deno download failed the SHA-256 check (expected {expected_sha256}, got {actual}). The file was deleted."
         )
         _remove_quietly(tmp_name)
         return None

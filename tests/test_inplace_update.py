@@ -264,7 +264,8 @@ def test_mismatch_leaves_no_file_under_the_real_name(tmp_path):
     c._session = _Session(_Resp([PAYLOAD], GH))
     out = tmp_path / "a.exe"
     assert c.download_update(GH, str(out), expected_digest="0" * 64).error == "verify_failed"
-    assert not out.exists() and not (tmp_path / "a.exe.part").exists()
+    assert not out.exists()
+    assert not (tmp_path / "a.exe.part").exists()
 
 
 def test_oversized_download_is_aborted(tmp_path):
@@ -273,7 +274,8 @@ def test_oversized_download_is_aborted(tmp_path):
     c._session = _Session(_Resp([b"x" * (2 * 1024 * 1024)], GH, length=10))
     out = tmp_path / "a.exe"
     assert c.download_update(GH, str(out), expected_digest=PAYLOAD_DIGEST).success is False
-    assert not out.exists() and not (tmp_path / "a.exe.part").exists()
+    assert not out.exists()
+    assert not (tmp_path / "a.exe.part").exists()
 
 
 # ---------- the started process does not inherit stale PyInstaller state ----------
