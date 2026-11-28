@@ -41,17 +41,32 @@ DEFAULT_MAX_CONCURRENT_DOWNLOADS = 1  # v1.0 only supports single download
 # quality options (defined once to avoid a duplicated literal).
 _AUDIO_BEST = "bestaudio/best"
 
+
+def _height_capped(height: int) -> str:
+    """Format string for the best quality up to ``height`` pixels.
+
+    ``<=?`` also accepts a format that has no height (Facebook sd/hd,
+    Instagram progressive files), which the plain ``<=`` drops. The
+    ``vcodec!=?none`` filter keeps the second choice from taking an
+    audio-only format. If every format is taller than the cap, the last two
+    choices take the smallest one, so the download works instead of failing
+    with "Requested format is not available". Where heights are known, the
+    result is the same as the old ``bestvideo[height<=N]+bestaudio`` choice.
+    """
+    return f"bestvideo[height<=?{height}]+bestaudio/best[height<=?{height}][vcodec!=?none]/worstvideo+bestaudio/worst"
+
+
 # Quality Options for v1.5.0 - Enhanced with 2K, 4K, 8K and multiple audio quality options
 QUALITY_OPTIONS = {
     # Video Quality Options
     "Best Quality": "bestvideo+bestaudio/best",
-    "8K (4320p)": "bestvideo[height<=4320]+bestaudio/best[height<=4320]",
-    "4K (2160p)": "bestvideo[height<=2160]+bestaudio/best[height<=2160]",
-    "2K (1440p)": "bestvideo[height<=1440]+bestaudio/best[height<=1440]",
-    "1080p (Full HD)": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
-    "720p (HD)": "bestvideo[height<=720]+bestaudio/best[height<=720]",
-    "480p (SD)": "bestvideo[height<=480]+bestaudio/best[height<=480]",
-    "360p": "bestvideo[height<=360]+bestaudio/best[height<=360]",
+    "8K (4320p)": _height_capped(4320),
+    "4K (2160p)": _height_capped(2160),
+    "2K (1440p)": _height_capped(1440),
+    "1080p (Full HD)": _height_capped(1080),
+    "720p (HD)": _height_capped(720),
+    "480p (SD)": _height_capped(480),
+    "360p": _height_capped(360),
     # Audio Quality Options
     "Audio 320kbps": _AUDIO_BEST,
     "Audio 256kbps": _AUDIO_BEST,

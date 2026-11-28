@@ -15,15 +15,19 @@ uses for the video and its ``.description`` file. So ``name.info.json`` gives
 Up to 0.4.1 the base kept ``.info`` (``name.info_metadata.txt``), so the
 description file was never found and never renamed.
 
+The JSON of each item comes from the paths that yt-dlp reports in the info
+dict, never from a look at the folder, so two downloads that run at once in
+one folder cannot take each other's files. A post with several videos is a
+playlist result, and each item gets its own set of files.
+
 A failure here is logged and never fails the download.
 """
 
 from __future__ import annotations
 
-import glob
 import json
 import os
-import time
+from collections.abc import Iterator
 from datetime import datetime
 from typing import IO, Any
 
@@ -32,18 +36,70 @@ from ..utils.logger import get_logger
 logger = get_logger()
 
 _RULE = "=" * 80
-# How recent an .info.json must be to belong to this download, in seconds.
-_METADATA_MAX_AGE = 60
-_COMMENTS_MAX_AGE = 120
 _INFO_JSON_SUFFIX = ".info.json"
 
 
-def write_side_files(output_dir: str, info_dict: dict[str, Any] | None, *, metadata: bool, comments: bool) -> None:
-    """Write the readable metadata and comments files that are switched on."""
-    if metadata and info_dict:
-        _safely(write_metadata_files, output_dir, message="Error post-processing metadata files")
-    if comments and info_dict:
-        _safely(write_comments_file, output_dir, not metadata, message="Error extracting comments to TXT")
+def iter_downloads(info_dict: dict[str, Any] | None) -> Iterator[dict[str, Any]]:
+    """Yield each ``requested_downloads`` item of a result, entries included.
+
+    A single video keeps ``requested_downloads`` at the top. A post with
+    several videos is a playlist result that keeps it in each entry (and an
+    entry may itself be a playlist).
+    """
+    if not isinstance(info_dict, dict):
+        return
+    for download in info_dict.get("requested_downloads") or []:
+        if isinstance(download, dict):
+            yield download
+    for entry in info_dict.get("entries") or []:
+        yield from iter_downloads(entry)
+
+
+def info_json_paths(info_dict: dict[str, Any] | None) -> list[str]:
+    """Return the info JSON paths of the downloads, in order, without repeats.
+
+    Uses ``infojson_filename``, which yt-dlp sets when it writes the file.
+    Without it, the path comes from the video file name (same base, extension
+    ``.info.json``). Only paths of files that exist are returned.
+    """
+    found: dict[str, None] = {}
+    for download in iter_downloads(info_dict):
+        path = download.get("infojson_filename")
+        if not path:
+            filepath = download.get("filepath")
+            path = os.path.splitext(filepath)[0] + _INFO_JSON_SUFFIX if filepath else None
+        if path and os.path.exists(path):
+            found[path] = None
+    return list(found)
+
+
+def write_side_files(
+    info_dict: dict[str, Any] | None,
+    *,
+    metadata: bool,
+    comments: bool,
+    post_json: str | None = None,
+) -> None:
+    """Write the readable metadata and comments files that are switched on.
+
+    Args:
+        info_dict: The result of ``extract_info``.
+        metadata: Write the metadata files.
+        comments: Write the comments files.
+        post_json: Path of the JSON that yt-dlp writes for the whole post
+            when the result is a playlist, or None. With metadata on, its
+            description is handled like an item's. With metadata off, the
+            file is removed.
+    """
+    if not info_dict or not (metadata or comments):
+        return
+    for json_file in info_json_paths(info_dict):
+        if metadata:
+            _safely(write_metadata_files, json_file, message="Error post-processing metadata files")
+        if comments:
+            _safely(write_comments_file, json_file, not metadata, message="Error extracting comments to TXT")
+    if post_json and os.path.exists(post_json):
+        _safely(_finish_post_json, post_json, metadata, message="Error post-processing the post JSON file")
 
 
 def _safely(func, *args, message: str) -> None:
@@ -53,11 +109,13 @@ def _safely(func, *args, message: str) -> None:
         logger.exception(message)
 
 
-def _newest_info_json(output_dir: str, max_age: float) -> str | None:
-    """Return the newest ``*.info.json`` changed in the last ``max_age`` seconds."""
-    json_files = glob.glob(os.path.join(output_dir, "*.info.json"))
-    recent = [f for f in json_files if time.time() - os.path.getmtime(f) < max_age]
-    return max(recent, key=os.path.getmtime) if recent else None
+def _finish_post_json(json_file: str, keep: bool) -> None:
+    """Tidy the JSON of a whole post: keep it with metadata, else remove it."""
+    if keep:
+        _rename_description(_base_of(json_file))
+        return
+    os.remove(json_file)
+    logger.info("✓ Cleaned up temporary JSON file of the post")
 
 
 def _base_of(json_file: str) -> str:
@@ -75,12 +133,8 @@ def _read_json(path: str) -> dict[str, Any]:
 # ---------- metadata ----------
 
 
-def write_metadata_files(output_dir: str) -> None:
+def write_metadata_files(json_file: str) -> None:
     """Write ``_metadata.txt``, rename the description, indent the JSON."""
-    json_file = _newest_info_json(output_dir, _METADATA_MAX_AGE)
-    if not json_file:
-        logger.warning("Could not find recently created JSON metadata file")
-        return
     base_filename = _base_of(json_file)
     logger.info(f"Post-processing metadata files for: {os.path.basename(base_filename)}")
 
@@ -91,17 +145,30 @@ def write_metadata_files(output_dir: str) -> None:
         _write_metadata_text(f, data)
     logger.info(f"✓ Created human-readable metadata: {os.path.basename(metadata_txt)}")
 
-    # Rename .description to .txt for better Windows compatibility.
-    desc_file = f"{base_filename}.description"
-    desc_txt_file = f"{base_filename}_description.txt"
-    if os.path.exists(desc_file):
-        os.replace(desc_file, desc_txt_file)
-        logger.info(f"✓ Renamed description file to: {os.path.basename(desc_txt_file)}")
+    _rename_description(base_filename)
 
     # Keep the JSON for technical users, but make it readable.
     with open(json_file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     logger.info("✓ Formatted JSON file with 2-space indentation")
+
+
+def _rename_description(base_filename: str) -> None:
+    """Rename ``.description`` to ``_description.txt``, or remove it if empty."""
+    desc_file = f"{base_filename}.description"
+    if not os.path.exists(desc_file):
+        return
+    with open(desc_file, encoding="utf-8", errors="replace") as f:
+        has_text = bool(f.read().strip())
+    if not has_text:
+        # yt-dlp writes an empty file for an empty description.
+        os.remove(desc_file)
+        logger.info("✓ Removed the empty description file")
+        return
+    # Rename .description to .txt for better Windows compatibility.
+    desc_txt_file = f"{base_filename}_description.txt"
+    os.replace(desc_file, desc_txt_file)
+    logger.info(f"✓ Renamed description file to: {os.path.basename(desc_txt_file)}")
 
 
 def _write_metadata_text(f: IO[str], data: dict[str, Any]) -> None:
@@ -182,42 +249,67 @@ def _write_categories_and_tags(f: IO[str], data: dict[str, Any]) -> None:
 # ---------- comments ----------
 
 
-def write_comments_file(output_dir: str, remove_json: bool) -> None:
+def write_comments_file(json_file: str, remove_json: bool) -> None:
     """Write ``<base> Comments.txt`` from the info JSON. Remove the JSON if asked."""
     logger.info("Post-processing comments to .txt file...")
-    # Give yt-dlp a moment to finish writing the JSON file.
-    time.sleep(1)
-
-    json_file = _newest_info_json(output_dir, _COMMENTS_MAX_AGE)
-    if not json_file:
-        logger.warning("Could not find recently created JSON file for comments")
-        return
     logger.info(f"Found JSON file: {os.path.basename(json_file)}")
     base_filename = _base_of(json_file)
 
     data = _read_json(json_file)
-    comments_list = data.get("comments", [])
+    comments_list = data.get("comments") or []
+    expected = _comment_total(data)
+    # X, Facebook and TikTok have no comment support in yt-dlp: the field is
+    # missing, although some of them know the count.
+    provided = data.get("comments") is not None
     logger.info(f"Found {len(comments_list)} comments in JSON file")
     if not comments_list:
-        logger.warning("⚠ No comments found in video (comments may be disabled)")
-        return
+        logger.warning(f"⚠ {_no_comments_reason(provided, expected)}")
+    else:
+        comments_txt = f"{base_filename} Comments.txt"
+        with open(comments_txt, "w", encoding="utf-8") as f:
+            _write_comments_header(f, data, len(comments_list), expected)
+            for i, comment in enumerate(comments_list, 1):
+                _write_comment(f, i, comment)
+        logger.info(f"✓ Comments saved to: {os.path.basename(comments_txt)} ({len(comments_list):,} comments)")
 
-    comments_txt = f"{base_filename} Comments.txt"
-    with open(comments_txt, "w", encoding="utf-8") as f:
-        f.write(f"{_RULE}\nVIDEO COMMENTS\n{_RULE}\n\n")
-        f.write(f"Video Title: {data.get('title', 'N/A')}\n")
-        f.write(f"Total Comments: {len(comments_list):,}\n")
-        f.write(f"{_RULE}\n\n")
-        for i, comment in enumerate(comments_list, 1):
-            _write_comment(f, i, comment)
-    logger.info(f"✓ Comments saved to: {os.path.basename(comments_txt)} ({len(comments_list):,} comments)")
-
+    # With comments only, the JSON is a temporary file. It goes also when
+    # there were no comments to write.
     if remove_json:
         try:
             os.remove(json_file)
             logger.info("✓ Cleaned up temporary JSON file")
         except OSError as cleanup_error:
             logger.debug(f"Could not remove temporary JSON file: {cleanup_error}")
+
+
+def _comment_total(data: dict[str, Any]) -> int | None:
+    """The number of comments the post has, or None if the site gave no count."""
+    value = data.get("comment_count")
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _no_comments_reason(provided: bool, expected: int | None) -> str:
+    """Log text for a post that gave no comments.
+
+    ``provided`` is False if the site gave no comments field at all.
+    """
+    if not provided:
+        return "This site does not provide comments for this post"
+    if not expected:
+        return "No comments found: the post has none, or comments are turned off"
+    return f"The site returned none of the {expected:,} comments of this post"
+
+
+def _write_comments_header(f: IO[str], data: dict[str, Any], count: int, expected: int | None) -> None:
+    f.write(f"{_RULE}\nVIDEO COMMENTS\n{_RULE}\n\n")
+    f.write(f"Video Title: {data.get('title', 'N/A')}\n")
+    if expected is not None and expected > count:
+        # Instagram without a login returns about a dozen of the comments.
+        f.write(f"Total Comments: {count:,} of {expected:,}\n")
+        f.write(f"Note: this file holds only the comments the site returned ({count:,} of {expected:,}).\n")
+    else:
+        f.write(f"Total Comments: {count:,}\n")
+    f.write(f"{_RULE}\n\n")
 
 
 def _comment_time(timestamp: Any) -> str:
@@ -232,7 +324,7 @@ def _comment_time(timestamp: Any) -> str:
 
 def _write_comment(f: IO[str], number: int, comment: dict[str, Any]) -> None:
     time_str = _comment_time(comment.get("timestamp", 0))
-    likes = comment.get("like_count", 0)
+    likes = comment.get("like_count") or 0
     f.write(f"[Comment #{number}]\n")
     f.write(f"Author: {comment.get('author', 'Unknown')}\n")
     if time_str:

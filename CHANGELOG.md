@@ -59,6 +59,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Posts with several videos are no longer shown as failed.** An Instagram carousel or an X post with two to four videos (a playlist result) wrote every file, but the app said "yt-dlp finished without writing a file". The app now collects the files from each item, and writes the metadata and comments files for each item.
+- **Metadata and comments files come from the paths yt-dlp reports,** not from the newest `.info.json` in the folder. Two downloads that run at once in one folder can no longer take each other's files.
+- **No `(2)` on the JSON of a whole post.** With "Skip duplicates" off, the JSON of a multi-video post was named `Post by ... (2).info.json` next to `Post by ... .info.json`. The plain name is now restored after each item.
+- **No stray `.info.json` with comments on and metadata off** on sites that give no comments (X, Facebook, TikTok).
+- **Clear comment messages.** If the site gives no comments at all (X, Facebook, TikTok), the log says so, instead of "comments may be disabled". If the site returns only some of them (Instagram without a login: 12 of 653), `Comments.txt` says "this file holds only the comments the site returned (12 of 653)".
+- **Quality presets work on videos without a height.** The height-capped presets (8K to 360p) failed with "Requested format is not available" on Facebook videos that only have sd and hd, and on a video whose smallest format is taller than the preset. They now accept formats without a height and, if every format is taller, take the smallest one. Where heights are known, the choice is the same as before.
+- **No `_NAp` in file names.** A format without a height (Facebook, TikTok, some Instagram videos) gave `Title_NAp.mp4`. The name is now `Title.mp4`. With a height it stays `Title_720p.mp4`.
+- **No empty `_description.txt`.** A post with an empty description no longer gets a 0-byte file.
+- **A photo post gets one clear message.** Instagram, X and Facebook photo posts showed yt-dlp errors that ask you to report a bug ("No video formats found!; please report this issue", "There is no video in this post", "Unsupported URL"). The app now says that the post has no video and that photo posts are planned for a later version, in English and Hebrew.
+- **Removed the `writeannotations` option and the word "annotations" in the metadata tooltip.** The bundled engine does nothing with it.
 - **A native crash leaves a trace.** A crash inside Qt or another native library never reached the crash handler, so it wrote no report and no log line. The app now writes the stack of every thread to `crashes/native-crash.log` when that happens.
 - **Hebrew text with a closing parenthesis after English text,** such as "(info.json)" or "(Ctrl+V)", no longer shows the parenthesis flipped on the wrong side.
 - **The .rpm installs the libraries Qt needs.** On a minimal Fedora the app failed to start with `libEGL.so.1` missing, because the package required only FFmpeg and glibc. It now requires libEGL, libGL, libxkbcommon, libdbus, libxcb-cursor, GLib and fontconfig by library name, so dnf and zypper install them. The Fedora CI test now installs only the .rpm to prove it.
