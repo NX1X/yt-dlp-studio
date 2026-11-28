@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Code cleanup for SonarCloud findings,** with no change in behavior: long functions split into helpers, duplicate regex ranges and string literals removed, `noqa` comments fixed, workflow errors sent to stderr.
 - **`pre-commit run --all-files` passes again.** Formatting fixes outside `src/` and `tests/`, the exec bit on the Linux install and uninstall scripts, and quoting in `release.yml`.
 - **ruff in the CI tools lock is 0.16.10** (was 0.15.13), the same 0.16 line as the pre-commit hook and `pyproject.toml`.
+- **The download code is split into small parts,** with no change in behavior. `YtDlpWrapper.download()` now takes one `DownloadOptions` value instead of 15 arguments. A pure function, `build_ydl_opts()`, builds the yt-dlp options from it. The readable metadata and comments files are written in `src/backend/side_files.py`. New characterization tests record the exact yt-dlp options and results for many inputs, and they passed on the old code before the change. This prepares the download options planned for 0.5.0.
 
 ### Removed
 
