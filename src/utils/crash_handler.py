@@ -26,7 +26,9 @@ Why a separate handler instead of relying on the logger:
 
 from __future__ import annotations
 
+import faulthandler
 import json
+import os
 import platform
 import sys
 import threading
@@ -233,9 +235,35 @@ def install_crash_handler() -> None:
 
     sys.excepthook = _sys_excepthook
     threading.excepthook = _threading_excepthook
+    _enable_native_crash_log()
 
     _installed = True
     logger.info(f"Crash handler installed. Reports will be written to {CRASH_DIR}")
+
+
+# A crash inside Qt or another native library (an access violation, for
+# example) never reaches sys.excepthook, so it left no report and no log line.
+# faulthandler writes the Python stack of every thread to this file instead.
+NATIVE_CRASH_LOG = "native-crash.log"
+_NATIVE_LOG_MAX_BYTES = 1024 * 1024
+_native_log_file = None  # kept open for the life of the process
+
+
+def _enable_native_crash_log() -> None:
+    """Send faulthandler's output for native crashes to crashes/native-crash.log."""
+    global _native_log_file
+    try:
+        CRASH_DIR.mkdir(parents=True, exist_ok=True)
+        path = CRASH_DIR / NATIVE_CRASH_LOG
+        if path.exists() and path.stat().st_size > _NATIVE_LOG_MAX_BYTES:
+            path.replace(path.with_suffix(".log.1"))
+        _native_log_file = open(path, "a", encoding="utf-8")  # noqa: SIM115 - must stay open
+        started = datetime.now(UTC).isoformat(timespec="seconds")
+        _native_log_file.write(f"--- session {started}, app {APP_VERSION}, pid {os.getpid()}\n")
+        _native_log_file.flush()
+        faulthandler.enable(file=_native_log_file, all_threads=True)
+    except Exception:
+        logger.exception("Could not enable the native crash log")
 
 
 def get_crash_dir() -> Path:

@@ -202,7 +202,7 @@ This section is closed by default. Click **Show Advanced Download Options** to o
 
 | Setting | What it does |
 |---------|--------------|
-| Use cookies from | Reads the cookies of a browser, so that private and age-restricted videos can be downloaded. Choices: None, Firefox. On Windows, also Chrome, Microsoft Edge and Brave. |
+| Use cookies from | Reads the cookies of a browser, so that private and age-restricted videos can be downloaded. Choices: None, Firefox. |
 | Browser profile | Optional. A profile name or folder. Leave it empty for the default profile. |
 | Proxy | A proxy for downloads and for video, subtitle and playlist info. Types: http, https, socks5 and socks5h. Form: `socks5://host:1080`. Leave it empty for no proxy. |
 | File name | How the app names files: **Title_Quality (default)**, **Uploader - Title**, **Date - Title** or **Custom template**. |
@@ -214,8 +214,7 @@ This section is closed by default. Click **Show Advanced Download Options** to o
 Notes:
 
 - **Cookies and privacy:** cookies stay on this computer. The app does not save them and does not write them to the log. The app removes them from a saved `.info.json` file.
-- **Cookies and Linux:** only Firefox is offered on Linux.
-- **Cookies and Chrome:** Chrome 127 and later encrypt cookies in a way that yt-dlp cannot read. The app shows a message. Use Firefox instead. See [Troubleshooting](TROUBLESHOOTING.md#chrome-cookies-do-not-work-on-windows).
+- **Why only Firefox:** Chrome, Edge and Brave encrypt their cookies in a way that yt-dlp cannot read on Windows. See [Troubleshooting](TROUBLESHOOTING.md#cookies-work-only-with-firefox).
 - **Proxy password:** if the proxy address has a user name and password, the app saves them in plain text in the settings file (`yt-dlp-studio_config.json`). The app masks them in the log. Do not share your settings file.
 - **File names:** if a file with the same name exists, the app adds a number, for example `(1)`. This works with every template.
 - **Codec preference:** to get the codec, a download can use a lower resolution, within the quality you chose.
@@ -300,7 +299,7 @@ If the video has no subtitles, the app tells you. If YouTube blocks the subtitle
 
 ### Download a private or age-restricted video
 
-1. Sign in to the site in Firefox. On Windows, you can use Edge or Brave. Chrome 127 and later does not work.
+1. Sign in to the site in Firefox.
 2. Close the browser completely.
 3. Open the **Settings** tab, then click **Show Advanced Download Options**.
 4. Set **Use cookies from** to the browser.

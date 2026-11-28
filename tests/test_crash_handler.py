@@ -275,3 +275,25 @@ def test_threading_excepthook_writes_report(isolated_crash_dir, monkeypatch):
         assert payload["exception_message"] == "thread boom"
     finally:
         monkeypatch.setattr(crash_handler, "_installed", False)
+
+
+def test_native_crash_log_is_enabled(tmp_path, monkeypatch):
+    """A native crash (not a Python exception) still leaves a trace in crashes/."""
+    import faulthandler
+
+    import src.utils.crash_handler as ch
+
+    monkeypatch.setattr(ch, "CRASH_DIR", tmp_path / "crashes")
+    monkeypatch.setattr(ch, "_native_log_file", None)
+    was_enabled = faulthandler.is_enabled()
+    try:
+        ch._enable_native_crash_log()
+        assert faulthandler.is_enabled()
+        text = (tmp_path / "crashes" / ch.NATIVE_CRASH_LOG).read_text(encoding="utf-8")
+        assert text.startswith("--- session ")
+    finally:
+        faulthandler.disable()
+        if ch._native_log_file:
+            ch._native_log_file.close()
+        if was_enabled:
+            faulthandler.enable()
