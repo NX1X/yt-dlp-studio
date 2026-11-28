@@ -9,8 +9,8 @@ body:
         Thanks for suggesting an improvement!
 
         Before submitting:
-          - Check [existing issues](https://github.com/NX1X/yt-dlp-studio/issues?q=is%3Aissue) and the [ROADMAP](https://github.com/NX1X/yt-dlp-studio/blob/main/ROADMAP.md) — your idea may already be planned.
-          - For broad/open-ended ideas, consider opening a [Discussion](https://github.com/NX1X/yt-dlp-studio/discussions) first.
+          - Check [existing issues](https://github.com/NX1X/yt-dlp-studio/issues?q=is%3Aissue) and the [ROADMAP](https://github.com/NX1X/yt-dlp-studio/blob/main/ROADMAP.md). Your idea may already be planned.
+          - For a broad or open-ended idea, describe the problem first. The details can follow in the comments.
 
   - type: checkboxes
     id: prerequisites

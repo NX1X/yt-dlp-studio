@@ -115,7 +115,8 @@ def probe_ffmpeg_version(timeout: float = FFMPEG_TIMEOUT_S) -> tuple[str, str | 
         path = find_ffmpeg()
         if path is None:
             return FFMPEG_NOT_FOUND, None
-        result = subprocess.run(  # noqa: S603 - resolved FFmpeg path, fixed argument list, no shell
+        # S603: resolved FFmpeg path and a fixed argument list (no shell).
+        result = subprocess.run(  # noqa: S603
             [path, "-version"],
             capture_output=True,
             text=True,

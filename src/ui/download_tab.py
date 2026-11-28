@@ -795,37 +795,6 @@ class DownloadTab(QWidget):
         # Clear URL input for next entry
         self.url_input.clear()
 
-    def _start_download(self, task: DownloadTask) -> None:
-        """
-        Start download in background worker.
-
-        Args:
-            task: DownloadTask to process
-        """
-        logger.info(f"Starting download: {task.url}")
-
-        # Reset UI and show preparing state (v1.9.0)
-        self.progress_widget.reset()
-        self.progress_widget.set_preparing_state()
-        self.log_widget.append_info(f"{tr('status_preparing')}: {task.url}")
-
-        # Disable download button
-        self.download_button.setEnabled(False)
-        self.download_button.setText(tr("button_downloading"))
-
-        # Create worker
-        self.current_worker = DownloadWorker(task)
-
-        # Connect signals
-        self.current_worker.progress_updated.connect(self._on_progress_updated)
-        self.current_worker.download_started.connect(self._on_download_started)
-        self.current_worker.download_completed.connect(self._on_download_completed)
-        self.current_worker.download_failed.connect(self._on_download_failed)
-        self.current_worker.log_message.connect(self.log_widget.append_log)
-
-        # Start worker
-        self.current_worker.start()
-
     def _on_progress_updated(self, progress_data: dict) -> None:
         """
         Handle progress update from worker.

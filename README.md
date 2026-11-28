@@ -189,9 +189,9 @@ They are in the app data folder:
 | Windows | `%APPDATA%\YT-DLP Studio` |
 | Linux | `~/.config/YT-DLP Studio` |
 
-The app data folder holds the settings (`yt-dlp-studio_config.json`), the log (`yt-dlp-studio.log`), the download history, the saved queue and crash reports (`crashes`). The Settings tab shows the paths to the log, crash reports and settings file.
+The app data folder holds the settings (`yt-dlp-studio_config.json`), the language choice (`language.json`), the log (`yt-dlp-studio.log`), the download history, the saved queue and crash reports (`crashes`). The Settings tab shows the paths to the log, crash reports and settings file.
 
-The language choice is stored in a different folder: `.yt-dlp-studio` in your home folder (for example `~/.yt-dlp-studio` on Linux).
+Versions up to 0.4.0 stored the language choice in `.yt-dlp-studio` in your home folder. The app moves that file into the app data folder on the next start, and deletes the old folder if it is empty.
 
 ### How do I uninstall? Do I lose my data?
 

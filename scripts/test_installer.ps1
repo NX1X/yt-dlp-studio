@@ -52,7 +52,7 @@ $Watchdog = Start-Job -ArgumentList $WatchdogSeconds, $WatchdogFile -ScriptBlock
 }
 
 function Step([string]$Name) {
-    Write-Host "[$(Get-Date -Format HH:mm:ss)] STEP $Name"
+    Write-Information -InformationAction Continue "[$(Get-Date -Format HH:mm:ss)] STEP $Name"
 }
 
 function Show-Watchdog {
@@ -61,7 +61,7 @@ function Show-Watchdog {
 
 function Fail([string]$Message) {
     Show-Watchdog
-    Write-Host "FAIL: $Message"
+    Write-Information -InformationAction Continue "FAIL: $Message"
     exit 1
 }
 
@@ -72,9 +72,9 @@ function Invoke-Bounded([string]$File, [string[]]$Arguments, [int]$Seconds, [str
     $proc = Start-Process -FilePath $File -ArgumentList $Arguments -PassThru
     $null = $proc.Handle  # cache the handle so ExitCode is available after the wait
     if (-not $proc.WaitForExit($Seconds * 1000)) {
-        Write-Host "----- $What did not finish within $Seconds s; running processes:"
-        Get-Process | Sort-Object CPU -Descending | Select-Object -First 25 Name, Id, CPU, StartTime | Format-Table | Out-String | Write-Host
-        if ($Log -and (Test-Path $Log)) { Write-Host "----- $Log (last 40 lines)"; Get-Content $Log | Select-Object -Last 40 }
+        Write-Information -InformationAction Continue "----- $What did not finish within $Seconds s; running processes:"
+        Get-Process | Sort-Object CPU -Descending | Select-Object -First 25 Name, Id, CPU, StartTime | Format-Table | Out-String | Write-Information -InformationAction Continue
+        if ($Log -and (Test-Path $Log)) { Write-Information -InformationAction Continue "----- $Log (last 40 lines)"; Get-Content $Log | Select-Object -Last 40 }
         Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
         Fail "$What did not finish within $Seconds s"
     }
@@ -83,7 +83,7 @@ function Invoke-Bounded([string]$File, [string[]]$Arguments, [int]$Seconds, [str
 
 function Assert([bool]$Condition, [string]$Message) {
     if (-not $Condition) { Fail $Message }
-    Write-Host "ok: $Message"
+    Write-Information -InformationAction Continue "ok: $Message"
 }
 
 function Install-App {
