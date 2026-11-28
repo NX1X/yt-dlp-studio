@@ -92,7 +92,8 @@ class TestSummaryAndTable:
 
     def test_size_is_rtl_safe(self, tab):
         text = tab.history_table.item(0, COL_SIZE).text()
-        assert text.startswith("\u2066") and text.endswith("\u2069")
+        assert text.startswith("\u2066")
+        assert text.endswith("\u2069")
 
     def test_empty_history(self, qtbot, tmp_path, monkeypatch):
         monkeypatch.setattr(hm_module, "APP_DATA_DIR", tmp_path / "empty")
@@ -149,8 +150,10 @@ class TestRowMenu:
     def test_actions_enabled_by_status(self, tab):
         done = self._menu(tab, "How Rainbows Form")
         failed = self._menu(tab, "Unboxing the Tiny Desk Synth")
-        assert done["open_file"].isEnabled() and not failed["open_file"].isEnabled()
-        assert failed["download_again"].isEnabled() and failed["copy_link"].isEnabled()
+        assert done["open_file"].isEnabled()
+        assert not failed["open_file"].isEnabled()
+        assert failed["download_again"].isEnabled()
+        assert failed["copy_link"].isEnabled()
 
     def test_copy_link(self, window, tab):
         self._menu(tab, "How Rainbows Form")["copy_link"].trigger()

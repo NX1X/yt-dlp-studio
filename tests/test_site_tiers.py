@@ -130,7 +130,9 @@ class TestClassifier:
         assert sorted(TESTED_SITES) == ["Facebook", "Instagram", "TikTok", "X", "YouTube"]
         for hosts in TESTED_SITES.values():
             for host in hosts:
-                assert host == host.lower() and "/" not in host and ":" not in host
+                assert host == host.lower()
+                assert "/" not in host
+                assert ":" not in host
 
 
 @pytest.fixture

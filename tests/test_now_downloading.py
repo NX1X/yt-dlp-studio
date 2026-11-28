@@ -231,12 +231,15 @@ class TestDisplayFormat:
             fmt.duration_text(65),
             fmt.percent_text(47.3),
         ):
-            assert text.startswith(fmt.LRI) and text.endswith(fmt.PDI)
+            assert text.startswith(fmt.LRI)
+            assert text.endswith(fmt.PDI)
         assert fmt.strip_isolates(fmt.speed_text(3_400_000)) == "3.24 MB/s"
         assert fmt.strip_isolates(fmt.percent_text(47.3)) == "47%"
 
     def test_empty_values(self):
-        assert fmt.speed_text(0) == "" and fmt.size_text(0) == "" and fmt.duration_text(0) == ""
+        assert fmt.speed_text(0) == ""
+        assert fmt.size_text(0) == ""
+        assert fmt.duration_text(0) == ""
         assert fmt.ltr("") == ""
 
     def test_duration_with_hours(self):

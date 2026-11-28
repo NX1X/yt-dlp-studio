@@ -117,12 +117,14 @@ class TestLayout:
     def test_subtitle_widgets_follow_checkbox(self, tab):
         assert not tab.subtitle_langs_input.isEnabled()
         tab.subtitles_checkbox.setChecked(True)
-        assert tab.subtitle_langs_input.isEnabled() and tab.select_subs_button.isEnabled()
+        assert tab.subtitle_langs_input.isEnabled()
+        assert tab.select_subs_button.isEnabled()
 
     def test_audio_mode_swaps_format_combo(self, tab):
         tab.download_type_combo.setCurrentIndex(tab.download_type_combo.findData("audio"))
         assert tab._is_audio_mode
-        assert tab.audio_format_combo.isVisibleTo(tab) and not tab.container_combo.isVisibleTo(tab)
+        assert tab.audio_format_combo.isVisibleTo(tab)
+        assert not tab.container_combo.isVisibleTo(tab)
         assert tab.quality_combo.currentData() == "Best Quality"
 
     def test_quality_from_config_by_key(self, qtbot, config_manager, queue_manager):
@@ -206,7 +208,8 @@ class TestDownloadAndAddToQueue:
         queue_manager.pause_queue()
         tab.url_input.setText(VIDEO)
         task = tab._on_download_clicked() or queue_manager.get_all_tasks()[0]
-        assert len(fake_worker) == 1 and fake_worker[0].task is task
+        assert len(fake_worker) == 1
+        assert fake_worker[0].task is task
         fake_worker[0].start.assert_called_once()
         assert queue_manager.is_paused  # the queue itself stays paused
         assert window.statusBar().currentMessage() == "Download started."
@@ -308,7 +311,8 @@ class TestDownloadAndAddToQueue:
             assert tab.submit(start_now=False) is None
         with patch.object(tab, "_ask_playlist_choice", return_value=PLAYLIST_WHOLE):
             task = tab.submit(start_now=False)
-        assert task is not None and task.url == PLAYLIST
+        assert task is not None
+        assert task.url == PLAYLIST
 
     def test_playlist_question_buttons(self, tab):
         """The question has named buttons and says YouTube with a capital Y."""
@@ -431,7 +435,9 @@ class TestActivityLog:
         queue_manager.task_completed.emit(0, "Me at the zoo.mp4")
         queue_manager.task_failed.emit(0, "boom")
         text = tab.log_widget.toPlainText()
-        assert "Me at the zoo" in text and "Me at the zoo.mp4" in text and "boom" in text
+        assert "Me at the zoo" in text
+        assert "Me at the zoo.mp4" in text
+        assert "boom" in text
 
     def test_subtitles_none_found_is_a_status_message(self, window, tab):
         with patch.object(QMessageBox, "information") as info:
@@ -517,7 +523,8 @@ class TestInfoPlaylistAndSubtitles:
         assert exec_.call_count == 2
         tab._on_info_worker_finished()
         tab._on_playlist_worker_finished()
-        assert tab.show_info_button.isEnabled() and tab.show_info_button.text() == "Info"
+        assert tab.show_info_button.isEnabled()
+        assert tab.show_info_button.text() == "Info"
 
     def test_playlist_fetched_opens_dialog(self, tab):
         info = MagicMock(title="List", video_count=3)

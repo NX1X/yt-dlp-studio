@@ -216,7 +216,8 @@ class TestRows:
         task = make_task(0, status=TaskStatus.DOWNLOADING, download_speed=3_400_000)
         add(queue_manager, task)
         text = queue_tab.queue_table.item(0, COL_SPEED).text()
-        assert text.startswith("\u2066") and text.endswith("\u2069")
+        assert text.startswith("\u2066")
+        assert text.endswith("\u2069")
 
     def test_table_paints(self, queue_tab, queue_manager):
         """The delegates paint every status without errors."""
@@ -252,12 +253,16 @@ class TestSelectionBar:
             make_task(2, status=TaskStatus.COMPLETED, filename="v.mp4"),
         )
         queue_tab.queue_table.selectRow(0)
-        assert queue_tab.cancel_button.isEnabled() and not queue_tab.retry_button.isEnabled()
-        assert not queue_tab.move_up_button.isEnabled() and queue_tab.move_down_button.isEnabled()
+        assert queue_tab.cancel_button.isEnabled()
+        assert not queue_tab.retry_button.isEnabled()
+        assert not queue_tab.move_up_button.isEnabled()
+        assert queue_tab.move_down_button.isEnabled()
         queue_tab.queue_table.selectRow(1)
-        assert queue_tab.retry_button.isEnabled() and not queue_tab.cancel_button.isEnabled()
+        assert queue_tab.retry_button.isEnabled()
+        assert not queue_tab.cancel_button.isEnabled()
         queue_tab.queue_table.selectRow(2)
-        assert queue_tab.open_file_button.isEnabled() and not queue_tab.move_down_button.isEnabled()
+        assert queue_tab.open_file_button.isEnabled()
+        assert not queue_tab.move_down_button.isEnabled()
 
     def test_move_buttons(self, queue_tab, queue_manager):
         add(queue_manager, *(make_task(i) for i in range(3)))
