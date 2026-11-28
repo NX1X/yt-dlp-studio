@@ -89,7 +89,8 @@ class TestExport:
         out = tmp_path / "missing.csv"
         i18n_export.main(["--out", str(out), "--translations", str(copy), "--only-missing"])
         rows = read_rows(out)[1:]
-        assert rows and all(row[3] == "missing" for row in rows)
+        assert rows
+        assert all(row[3] == "missing" for row in rows)
 
     def test_text_with_line_breaks_and_quotes_survives(self, exported, copy):
         data = values(copy)

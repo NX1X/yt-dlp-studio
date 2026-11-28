@@ -312,7 +312,8 @@ class TestSharedWidgets:
         widget = DownloadProgressWidget()
         qtbot.addWidget(widget)
         widget.update_progress(50, speed=1_500_000, total_bytes=10_000_000)
-        assert LRI in widget.speed_label.text() and PDI in widget.speed_label.text()
+        assert LRI in widget.speed_label.text()
+        assert PDI in widget.speed_label.text()
 
     def test_log_redraws_in_new_theme_colors(self, qtbot):
         log = LogWidget()

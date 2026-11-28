@@ -188,6 +188,20 @@ class DownloadHistory:
             self.entries = []
             return count
 
+    def remove_entry(self, entry: HistoryEntry) -> bool:
+        """
+        Remove one entry. The entry is found by identity, so an entry with
+        the same values is not removed.
+
+        Returns:
+            True if the entry was in the history
+        """
+        for index, candidate in enumerate(self.entries):
+            if candidate is entry:
+                del self.entries[index]
+                return True
+        return False
+
     def to_dict(self) -> dict:
         """
         Build the history file content (without the format version key).

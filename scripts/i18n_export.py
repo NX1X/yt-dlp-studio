@@ -86,7 +86,7 @@ def write_repo_files(translations_path: Path = TRANSLATIONS_PATH, out_dir: Path 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n", maxsplit=1)[0])
-    parser.add_argument("--lang", default="he", help="language code, for example he, es, ar (default: he)")
+    parser.add_argument("--lang", default="he", help="language code, for example he, es, fr (default: he)")
     parser.add_argument("--out", type=Path, default=None, help="CSV file to write (default: translations.csv)")
     parser.add_argument("--translations", type=Path, default=TRANSLATIONS_PATH, help="translations.py to read")
     parser.add_argument("--only-missing", action="store_true", help="only rows with status 'missing'")

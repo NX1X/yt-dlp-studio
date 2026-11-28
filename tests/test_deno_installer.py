@@ -291,7 +291,7 @@ def test_offline_download_failure_is_not_fatal(monkeypatch, linux_frozen, caplog
 
 
 def test_archive_without_binary_is_rejected(monkeypatch, linux_frozen):
-    payload = _make_zip(member="../evil")
+    payload = _make_zip(member="../escape")
     _pin_linux_hash(monkeypatch, payload)
     _use_fake_requests(monkeypatch, _FakeRequests(payload=payload))
 

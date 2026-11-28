@@ -11,7 +11,7 @@ The tab refreshes on its own when a download finishes.
 import os
 
 from PySide6.QtCore import QPoint, Qt, Signal
-from PySide6.QtGui import QAction, QGuiApplication
+from PySide6.QtGui import QAction, QGuiApplication, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -149,6 +149,10 @@ class HistoryTab(QWidget):
         self.history_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.history_table.customContextMenuRequested.connect(self._show_context_menu)
         self.history_table.cellDoubleClicked.connect(self._on_row_double_clicked)
+        # Delete removes the selected entry while the table has the focus.
+        self.delete_shortcut = QShortcut(QKeySequence(QKeySequence.Delete), self.history_table)
+        self.delete_shortcut.setContext(Qt.WidgetShortcut)
+        self.delete_shortcut.activated.connect(lambda: self._remove_entry(self._selected_entry()))
 
         self._history_empty_widget = self._empty_page("history_empty", "history_empty_hint")
         self._no_matches_widget = self._empty_page("history_no_matches", "history_no_matches_hint")
@@ -327,6 +331,8 @@ class HistoryTab(QWidget):
         add("copy_link", "menu_copy_link", self._copy_entry_link, entry is not None)
         menu.addSeparator()
         add("download_again", "menu_download_again", self._download_again, entry is not None)
+        menu.addSeparator()
+        add("remove", "menu_remove_from_history", self._remove_entry, entry is not None)
         return menu
 
     def _show_context_menu(self, pos: QPoint) -> None:
@@ -374,6 +380,14 @@ class HistoryTab(QWidget):
             return
         self.download_again_requested.emit(entry.url)
         show_status(self, tr("status_link_in_download_tab"))
+
+    def _remove_entry(self, entry) -> None:
+        """Remove one entry from the history (no question: it only forgets the row)."""
+        if entry is None:
+            return
+        if self.history_manager.remove_entry(entry):
+            self._load_history()
+            show_status(self, tr("status_history_entry_removed"))
 
     # ------------------------------------------------------------------
     # Export, clear, open folder

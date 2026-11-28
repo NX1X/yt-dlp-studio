@@ -251,7 +251,7 @@ If FFmpeg is missing, the FFmpeg line shows "Not found in PATH".
 | Where | Shortcut | Action |
 |-------|----------|--------|
 | Anywhere | `Ctrl+Q` | Quit |
-| Anywhere | `F1` | Open the online help (the README on GitHub) |
+| Anywhere | `F1` | Open the guide on the website, at the section of the open tab |
 | Dialogs | `Esc` | Close the dialog |
 | Download tab | `Ctrl+V` | Paste the link from the clipboard |
 | Download tab | `Enter` | Start the download (when the Link field has the focus) |

@@ -54,6 +54,12 @@ duplicate_download,Duplicate Download?,,missing
 duplicate_download_message,"This exact download (same URL, quality, and format) is already in the queue.
 
 Do you want to add it again?",,missing
+duplicate_batch_message,"{count} of these links are already in the queue with the same settings.
+
+Do you want to add them again? Choose No to skip them and add the other links.",,missing
+duplicate_batch_message_one,"1 of these links is already in the queue with the same settings.
+
+Do you want to add it again? Choose No to skip it and add the other links.",,missing
 batch_count,URLs: {count},,missing
 queue_empty,No downloads in queue,,missing
 queue_empty_hint,Go to the Download tab to add a video.,,missing
@@ -497,7 +503,7 @@ shortcuts_general,General,,missing
 shortcuts_download_tab,Download Tab,,missing
 shortcuts_queue_tab,Queue Tab,,missing
 shortcut_quit_app,Quit application,,missing
-shortcut_show_help,Open the online help,,missing
+shortcut_show_help,Open the guide for the current tab,,missing
 shortcut_close_dialogs,Close dialogs,,missing
 shortcut_paste_url,Paste URL from clipboard,,missing
 shortcut_start_download,Start download (when URL field is focused),,missing
@@ -555,6 +561,8 @@ button_add_videos_to_queue,Add to queue ({count}),,missing
 header_error_suggestions,Suggestions:,,missing
 header_error_technical_details,Technical details:,,missing
 button_copy_details,Copy details,,missing
+button_help,Help,,missing
+tooltip_help_guide,Open the guide in your browser,,missing
 text_copied,Copied,,missing
 label_link,Link,,missing
 placeholder_link,Paste a video or playlist link (YouTube and many other sites),,missing
@@ -673,6 +681,8 @@ history_no_matches_hint,Try another search word or status.,,missing
 tooltip_history_link,Link: {url},,missing
 tooltip_history_error,Error: {reason},,missing
 menu_download_again,Download again,,missing
+menu_remove_from_history,Remove from history,,missing
+status_history_entry_removed,Removed the entry from the history.,,missing
 button_open_downloads_folder,Open downloads folder,,missing
 button_clear_menu,Clear,,missing
 tooltip_clear_history,Remove entries from the history. Downloaded files stay on disk.,,missing

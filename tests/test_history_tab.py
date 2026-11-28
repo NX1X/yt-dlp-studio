@@ -92,7 +92,8 @@ class TestSummaryAndTable:
 
     def test_size_is_rtl_safe(self, tab):
         text = tab.history_table.item(0, COL_SIZE).text()
-        assert text.startswith("\u2066") and text.endswith("\u2069")
+        assert text.startswith("\u2066")
+        assert text.endswith("\u2069")
 
     def test_empty_history(self, qtbot, tmp_path, monkeypatch):
         monkeypatch.setattr(hm_module, "APP_DATA_DIR", tmp_path / "empty")
@@ -149,8 +150,10 @@ class TestRowMenu:
     def test_actions_enabled_by_status(self, tab):
         done = self._menu(tab, "How Rainbows Form")
         failed = self._menu(tab, "Unboxing the Tiny Desk Synth")
-        assert done["open_file"].isEnabled() and not failed["open_file"].isEnabled()
-        assert failed["download_again"].isEnabled() and failed["copy_link"].isEnabled()
+        assert done["open_file"].isEnabled()
+        assert not failed["open_file"].isEnabled()
+        assert failed["download_again"].isEnabled()
+        assert failed["copy_link"].isEnabled()
 
     def test_copy_link(self, window, tab):
         self._menu(tab, "How Rainbows Form")["copy_link"].trigger()
@@ -161,6 +164,30 @@ class TestRowMenu:
         with qtbot.waitSignal(tab.download_again_requested) as blocker:
             self._menu(tab, "Unboxing the Tiny Desk Synth")["download_again"].trigger()
         assert blocker.args == ["https://www.youtube.com/watch?v=h2"]
+
+    def test_remove_from_history_menu_item(self, window, tab, history_manager):
+        self._menu(tab, "How Rainbows Form")["remove"].trigger()
+        assert "How Rainbows Form" not in titles(tab)
+        assert len(history_manager.get_history()) == 3
+        assert window.statusBar().currentMessage() == "Removed the entry from the history."
+        assert strip_isolates(tab.stats_label.text()).startswith("3 downloads")
+
+    def test_remove_is_in_the_menu_text(self, tab):
+        row = titles(tab).index("How Rainbows Form")
+        texts = [a.text() for a in tab.build_context_menu(row).actions()]
+        assert "Remove from history" in texts
+
+    def test_delete_key_removes_the_selected_entry(self, tab):
+        row = titles(tab).index("Unboxing the Tiny Desk Synth")
+        tab.history_table.selectRow(row)
+        tab.delete_shortcut.activated.emit()
+        assert "Unboxing the Tiny Desk Synth" not in titles(tab)
+        assert len(titles(tab)) == 3
+
+    def test_delete_key_without_selection_does_nothing(self, tab):
+        tab.history_table.clearSelection()
+        tab.delete_shortcut.activated.emit()
+        assert len(titles(tab)) == 4
 
     def test_open_file_and_folder(self, tab, tmp_path):
         (tmp_path / "1.mp4").write_bytes(b"x")

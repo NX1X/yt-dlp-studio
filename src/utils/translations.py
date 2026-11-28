@@ -76,6 +76,8 @@ TRANSLATIONS = {
         "error_invalid_dir": "Invalid Directory",
         "duplicate_download": "Duplicate Download?",
         "duplicate_download_message": "This exact download (same URL, quality, and format) is already in the queue.\n\nDo you want to add it again?",
+        "duplicate_batch_message": "{count} of these links are already in the queue with the same settings.\n\nDo you want to add them again? Choose No to skip them and add the other links.",
+        "duplicate_batch_message_one": "1 of these links is already in the queue with the same settings.\n\nDo you want to add it again? Choose No to skip it and add the other links.",
         # Batch Input Dialog
         "batch_count": "URLs: {count}",
         # Queue Tab
@@ -523,7 +525,7 @@ TRANSLATIONS = {
         "shortcuts_download_tab": "Download Tab",
         "shortcuts_queue_tab": "Queue Tab",
         "shortcut_quit_app": "Quit application",
-        "shortcut_show_help": "Open the online help",
+        "shortcut_show_help": "Open the guide for the current tab",
         "shortcut_close_dialogs": "Close dialogs",
         "shortcut_paste_url": "Paste URL from clipboard",
         "shortcut_start_download": "Start download (when URL field is focused)",
@@ -586,6 +588,8 @@ TRANSLATIONS = {
         "header_error_suggestions": "Suggestions:",
         "header_error_technical_details": "Technical details:",
         "button_copy_details": "Copy details",
+        "button_help": "Help",
+        "tooltip_help_guide": "Open the guide in your browser",
         "text_copied": "Copied",
         # --- end UI overhaul A ---
         # --- UI overhaul B ---
@@ -702,6 +706,8 @@ TRANSLATIONS = {
         "tooltip_history_link": "Link: {url}",
         "tooltip_history_error": "Error: {reason}",
         "menu_download_again": "Download again",
+        "menu_remove_from_history": "Remove from history",
+        "status_history_entry_removed": "Removed the entry from the history.",
         "button_open_downloads_folder": "Open downloads folder",
         "button_clear_menu": "Clear",
         "tooltip_clear_history": "Remove entries from the history. Downloaded files stay on disk.",
@@ -914,6 +920,8 @@ TRANSLATIONS = {
         "error_invalid_dir": "תיקייה לא תקינה",
         "duplicate_download": "הורדה כפולה?",
         "duplicate_download_message": "הורדה זהה (אותו URL, איכות, ופורמט) כבר נמצאת בתור.\n\nהאם להוסיף שוב?",
+        "duplicate_batch_message": "{count} מהקישורים כבר נמצאים בתור עם אותן הגדרות.\n\nהאם להוסיף אותם שוב? בחר לא כדי לדלג עליהם ולהוסיף את שאר הקישורים.",
+        "duplicate_batch_message_one": "אחד מהקישורים כבר נמצא בתור עם אותן הגדרות.\n\nהאם להוסיף אותו שוב? בחר לא כדי לדלג עליו ולהוסיף את שאר הקישורים.",
         # Batch Input Dialog
         "batch_count": "כתובות URL: {count}",
         # Queue Tab
@@ -1352,7 +1360,7 @@ TRANSLATIONS = {
         "shortcuts_download_tab": "לשונית הורדה",
         "shortcuts_queue_tab": "לשונית תור",
         "shortcut_quit_app": "יציאה מהתוכנה",
-        "shortcut_show_help": "פתח את העזרה המקוונת",
+        "shortcut_show_help": "פתח את המדריך של הלשונית הנוכחית",
         "shortcut_close_dialogs": "סגור חלונות דו-שיח",
         "shortcut_paste_url": "הדבק URL מהלוח",
         "shortcut_start_download": "התחל הורדה (כאשר שדה URL ממוקד)",
@@ -1415,6 +1423,8 @@ TRANSLATIONS = {
         "header_error_suggestions": "הצעות:",
         "header_error_technical_details": "פרטים טכניים:",
         "button_copy_details": "העתק פרטים",
+        "button_help": "עזרה",
+        "tooltip_help_guide": "פתח את המדריך בדפדפן",
         "text_copied": "הועתק",
         # --- end UI overhaul A ---
         # --- UI overhaul B ---
@@ -1531,6 +1541,8 @@ TRANSLATIONS = {
         "tooltip_history_link": "קישור: {url}",
         "tooltip_history_error": "שגיאה: {reason}",
         "menu_download_again": "הורד שוב",
+        "menu_remove_from_history": "הסר מההיסטוריה",
+        "status_history_entry_removed": "הרשומה הוסרה מההיסטוריה.",
         "button_open_downloads_folder": "פתח את תיקיית ההורדות",
         "button_clear_menu": "נקה",
         "tooltip_clear_history": "הסר רשומות מההיסטוריה. הקבצים שהורדו נשארים בדיסק.",
@@ -1797,7 +1809,6 @@ def load_saved_language() -> str | None:
 LANGUAGE_INFO: dict[str, tuple[str, str, bool]] = {
     "en": ("English", "English", False),
     "he": ("עברית", "Hebrew", True),
-    "ar": ("العربية", "Arabic", True),
     "fa": ("فارسی", "Persian", True),
     "ur": ("اردو", "Urdu", True),
     "yi": ("ייִדיש", "Yiddish", True),
@@ -1833,7 +1844,7 @@ _LEGACY_DISPLAY_NAMES = {"en": "English / אנגלית", "he": "עברית / Heb
 
 
 def is_rtl_language(language_code: str) -> bool:
-    """True if the language is written right to left (Hebrew, Arabic, ...)."""
+    """True if the language is written right to left (Hebrew, Persian, ...)."""
     info = LANGUAGE_INFO.get(language_code) or LANGUAGE_INFO.get(language_code.split("-")[0])
     return bool(info and info[2])
 
@@ -1853,7 +1864,7 @@ class TranslationManager:
     """
     Manages translations and language switching.
 
-    Automatically detects system language and provides RTL support (Hebrew, Arabic, Persian, Urdu, Yiddish).
+    Automatically detects system language and provides RTL support (Hebrew, Persian, Urdu, Yiddish).
     """
 
     def __init__(self):
@@ -1926,7 +1937,7 @@ class TranslationManager:
         Check if current language is RTL (Right-to-Left).
 
         Returns:
-            True if the language is RTL (Hebrew, Arabic, Persian, Urdu, Yiddish), False otherwise
+            True if the language is RTL (Hebrew, Persian, Urdu, Yiddish), False otherwise
         """
         return is_rtl_language(self.current_language)
 

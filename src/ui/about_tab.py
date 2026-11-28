@@ -39,6 +39,7 @@ from ..utils.constants import APP_NAME, APP_VERSION
 from ..utils.logger import get_logger
 from ..utils.translations import get_translation_manager, tr
 from .display_format import ltr
+from .help_links import ANCHOR_TOP, make_help_button
 from .status_messages import show_status
 from .theme import get_theme_manager
 
@@ -241,6 +242,7 @@ class AboutTab(QWidget):
         website_button.setToolTip(WEBSITE_URL)
         website_button.clicked.connect(lambda: self._open_url(WEBSITE_URL))
         button_row.addWidget(website_button)
+        button_row.addWidget(make_help_button(ANCHOR_TOP))
         button_row.addStretch()
         v.addSpacing(4)
         v.addLayout(button_row)

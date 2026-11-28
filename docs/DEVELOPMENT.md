@@ -311,7 +311,7 @@ On a Linux machine without a display, use `xvfb-run --auto-servernum pytest test
 - A YouTube playlist
 - An invalid URL
 - A video that does not exist
-- One video each from the other tested sites: Instagram, TikTok, Facebook and X. Check them by hand before each release; the weekly CI check covers YouTube only. The site tiers are in `src/utils/site_tiers.py`.
+- One video each from the other tested sites: Instagram, Facebook and X. Check them by hand before each release; the weekly CI check covers YouTube and TikTok. Never run the TikTok check on your own machine: `scripts/check_extractors.py --site tiktok` refuses to run outside GitHub Actions. The site tiers are in `src/utils/site_tiers.py`.
 - Optional: a video from an experimental site (for example Vimeo). A failure here is not a release blocker.
 
 ## Debugging
@@ -374,6 +374,22 @@ The specs are in `packaging/`. CI builds the release files. To build locally:
 6. Test the executable, on a clean system if possible.
 
 The Windows EXE is about 200 MB (0.3.1). CI wraps it in the Inno Setup installer (`packaging/installer.iss`). It builds the Linux packages with `packaging/linux/build_packages.sh`.
+
+## Publish to winget
+
+The `winget` job in `.github/workflows/release.yml` runs after each release. It runs Microsoft's `wingetcreate` and opens an update PR for `NX1X.YTDLPStudio` in `microsoft/winget-pkgs`. The job skips with a notice, and the release still succeeds, when the token is missing or the package is not in winget yet.
+
+One-time setup for the maintainer:
+
+1. Wait until the new-package PR (microsoft/winget-pkgs#467730) is merged. Before that, `wingetcreate update` cannot work.
+2. Open GitHub, Settings, Developer settings, Personal access tokens, Tokens (classic).
+3. Create a classic token. Select only the `public_repo` scope. Set an expiry date and note it.
+4. Open the repository, Settings, Secrets and variables, Actions.
+5. Add a repository secret named `WINGET_TOKEN` with the token as value.
+
+`wingetcreate` forks `winget-pkgs` into the account that owns the token and opens the PR from that account. A winget moderator reviews the PR. The job gets no repository write access.
+
+To re-submit a version, run the Release workflow by hand (Actions, Release YT-DLP Studio, Run workflow). Enter the version in the `version` input, for example `0.5.0`.
 
 ## Update the vendored yt-dlp
 

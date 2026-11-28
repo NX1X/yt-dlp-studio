@@ -56,6 +56,16 @@ duplicate_download_message,"This exact download (same URL, quality, and format) 
 Do you want to add it again?","הורדה זהה (אותו URL, איכות, ופורמט) כבר נמצאת בתור.
 
 האם להוסיף שוב?",ok
+duplicate_batch_message,"{count} of these links are already in the queue with the same settings.
+
+Do you want to add them again? Choose No to skip them and add the other links.","{count} מהקישורים כבר נמצאים בתור עם אותן הגדרות.
+
+האם להוסיף אותם שוב? בחר לא כדי לדלג עליהם ולהוסיף את שאר הקישורים.",ok
+duplicate_batch_message_one,"1 of these links is already in the queue with the same settings.
+
+Do you want to add it again? Choose No to skip it and add the other links.","אחד מהקישורים כבר נמצא בתור עם אותן הגדרות.
+
+האם להוסיף אותו שוב? בחר לא כדי לדלג עליו ולהוסיף את שאר הקישורים.",ok
 batch_count,URLs: {count},כתובות URL: {count},ok
 queue_empty,No downloads in queue,אין הורדות בתור,ok
 queue_empty_hint,Go to the Download tab to add a video.,עבור ללשונית ההורדה כדי להוסיף סרטון.,ok
@@ -577,7 +587,7 @@ shortcuts_general,General,כללי,ok
 shortcuts_download_tab,Download Tab,לשונית הורדה,ok
 shortcuts_queue_tab,Queue Tab,לשונית תור,ok
 shortcut_quit_app,Quit application,יציאה מהתוכנה,ok
-shortcut_show_help,Open the online help,פתח את העזרה המקוונת,ok
+shortcut_show_help,Open the guide for the current tab,פתח את המדריך של הלשונית הנוכחית,ok
 shortcut_close_dialogs,Close dialogs,סגור חלונות דו-שיח,ok
 shortcut_paste_url,Paste URL from clipboard,הדבק URL מהלוח,ok
 shortcut_start_download,Start download (when URL field is focused),התחל הורדה (כאשר שדה URL ממוקד),ok
@@ -639,6 +649,8 @@ button_add_videos_to_queue,Add to queue ({count}),הוסף לתור ({count}),ok
 header_error_suggestions,Suggestions:,הצעות:,ok
 header_error_technical_details,Technical details:,פרטים טכניים:,ok
 button_copy_details,Copy details,העתק פרטים,ok
+button_help,Help,עזרה,ok
+tooltip_help_guide,Open the guide in your browser,פתח את המדריך בדפדפן,ok
 text_copied,Copied,הועתק,ok
 label_link,Link,קישור,ok
 placeholder_link,Paste a video or playlist link (YouTube and many other sites),הדבק קישור לסרטון או לפלייליסט (YouTube ואתרים רבים נוספים),ok
@@ -766,6 +778,8 @@ history_no_matches_hint,Try another search word or status.,נסה מילת חי�
 tooltip_history_link,Link: {url},קישור: {url},ok
 tooltip_history_error,Error: {reason},שגיאה: {reason},ok
 menu_download_again,Download again,הורד שוב,ok
+menu_remove_from_history,Remove from history,הסר מההיסטוריה,ok
+status_history_entry_removed,Removed the entry from the history.,הרשומה הוסרה מההיסטוריה.,ok
 button_open_downloads_folder,Open downloads folder,פתח את תיקיית ההורדות,ok
 button_clear_menu,Clear,נקה,ok
 tooltip_clear_history,Remove entries from the history. Downloaded files stay on disk.,הסר רשומות מההיסטוריה. הקבצים שהורדו נשארים בדיסק.,ok
