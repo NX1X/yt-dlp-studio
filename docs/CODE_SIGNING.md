@@ -170,9 +170,9 @@ short free trial, or scams. **Do not pursue.**
 ## Tracking
 
 The application step is tracked in [`ROADMAP.md`](../ROADMAP.md) under v1.0.0.
-The roadmap item is explicitly **non-blocking**. If SignPath approval is
-slow, ship v1.0.0 unsigned. Add signing in the first patch release after the
-credentials arrive.
+Signing is **required for v1.0.0** (maintainer decision, 2026-11-28). Apply
+as soon as the website has the code signing policy and privacy policy pages
+that the SignPath terms require, so approval arrives before 1.0.0.
 
 When signing lands, update [`SECURITY.md`](../SECURITY.md). Mention the
 Authenticode signature next to the existing build provenance verification.
