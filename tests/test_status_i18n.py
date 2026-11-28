@@ -102,7 +102,7 @@ class TestQueueTabStatus:
         task.status = status
         queue_manager.queue_updated.emit()
 
-        cell = tab.queue_table.item(0, 3).text()
+        cell = tab.queue_table.item(0, 1).text()
         assert cell == TRANSLATIONS["he"][TASK_STATUS_KEYS[status]]
         assert task.status is status  # the model value is unchanged
 
@@ -112,7 +112,7 @@ class TestQueueTabStatus:
         queue_manager.pause_queue()
         queue_manager.add_task(make_task())
 
-        assert tab.queue_table.item(0, 3).text() == "Pending"
+        assert tab.queue_table.item(0, 1).text() == "Pending"
 
 
 class TestStoredValuesStayEnglish:
@@ -183,7 +183,7 @@ class TestHistoryTabStatus:
         tab = HistoryTab(history_manager)
         qtbot.addWidget(tab)
 
-        assert tab.history_table.item(0, 3).text() == TRANSLATIONS["he"]["status_failed"]
+        assert tab.history_table.item(0, 2).text() == TRANSLATIONS["he"]["status_failed"]
         assert tab.history_table.item(0, 1).text() == VIDEO_TITLE
 
 

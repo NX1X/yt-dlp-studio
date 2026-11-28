@@ -537,7 +537,7 @@ QTextBrowser a {{
     color: {colors["link"]};
 }}
 
-"""
+""" + _ui_overhaul_b_qss(colors)
 
     @staticmethod
     def animate_button_click(button: QPushButton):
@@ -671,3 +671,87 @@ def get_theme_manager() -> ThemeManager:
     if _theme_manager is None:
         _theme_manager = ThemeManager()
     return _theme_manager
+
+
+# --- UI overhaul B ---
+# Rules for the Download, Queue and History tabs (collapsible sections, the
+# "Now downloading" panel, inline errors, link buttons, slim progress bars).
+# New tokens from the theme refresh are used when they exist, with the old
+# tokens as the fallback.
+def _ui_overhaul_b_qss(colors: dict) -> str:
+    """Stylesheet rules of the Download, Queue and History tab overhaul."""
+    link = colors.get("link", colors["accent_primary"])
+    running = colors.get("status_running", colors["accent_primary"])
+    return f"""
+/* --- UI overhaul B --- */
+QScrollArea#downloadScroll, QWidget#downloadScrollContent {{
+    background: transparent;
+    border: none;
+}}
+
+QToolButton#collapsibleHeader {{
+    background: transparent;
+    border: none;
+    color: {colors["text_primary"]};
+    font-weight: 600;
+    padding: 4px 2px;
+}}
+
+QToolButton#collapsibleHeader:hover {{
+    color: {link};
+}}
+
+QToolButton#collapsibleHeader:focus {{
+    color: {link};
+    text-decoration: underline;
+}}
+
+QLabel#inlineError {{
+    color: {colors["error"]};
+    font-size: 9pt;
+}}
+
+QLineEdit[invalid="true"] {{
+    border-color: {colors["error"]};
+}}
+
+QPushButton[buttonStyle="link"] {{
+    background: transparent;
+    border: none;
+    color: {link};
+    padding: 2px 4px;
+    min-height: 0px;
+    text-decoration: none;
+}}
+
+QPushButton[buttonStyle="link"]:hover, QPushButton[buttonStyle="link"]:focus {{
+    background: transparent;
+    text-decoration: underline;
+}}
+
+QProgressBar#rowProgress {{
+    min-height: 8px;
+    max-height: 8px;
+    border-radius: 4px;
+    background-color: {colors["bg_tertiary"]};
+}}
+
+QProgressBar#rowProgress::chunk {{
+    background-color: {running};
+    border-radius: 4px;
+}}
+
+QWidget#nowDownloadingRow, QWidget#queueTopBar, QWidget#selectionBar, QWidget#siteTierRow,
+QWidget#collapsibleSection, QWidget#collapsibleContent, QWidget#moreOptions, QWidget#activityLogBody {{
+    background: transparent;
+}}
+
+QLabel#queueCounters, QLabel#historySummary {{
+    color: {colors["text_secondary"]};
+}}
+
+QLabel#emptyTitle {{
+    font-size: 12pt;
+    font-weight: 600;
+}}
+"""
