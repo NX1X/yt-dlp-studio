@@ -66,6 +66,7 @@ _(no entries yet)_
 
 ### Fixed
 
+- **The About tab spells NXTools correctly** (it said "NXtools").
 - **Posts with several videos are no longer shown as failed.** An Instagram carousel or an X post with two to four videos (a playlist result) wrote every file, but the app said "yt-dlp finished without writing a file". The app now collects the files from each item, and writes the metadata and comments files for each item.
 - **Metadata and comments files come from the paths yt-dlp reports,** not from the newest `.info.json` in the folder. Two downloads that run at once in one folder can no longer take each other's files.
 - **No `(2)` on the JSON of a whole post.** With "Skip duplicates" off, the JSON of a multi-video post was named `Post by ... (2).info.json` next to `Post by ... .info.json`. The plain name is now restored after each item.
