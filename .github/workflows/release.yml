@@ -111,7 +111,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # windows-latest is Windows Server 2025 today and keeps the required
+        # check name "Tests (windows-latest)" (repo ruleset). windows-2022 adds
+        # the older Windows Server image. These are Windows Server runner
+        # images, not Windows 10 or 11.
+        os: [ubuntu-latest, windows-latest, windows-2022]
     steps:
     - name: Harden runner
       # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
