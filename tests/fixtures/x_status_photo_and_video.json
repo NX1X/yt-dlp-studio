@@ -1,0 +1,146 @@
+{
+ "full_text": "asa and yoru https://t.co/E56Aq1ENLG",
+ "created_at": "Thu Oct 06 07:30:42 +0000 2022",
+ "favorite_count": 70357,
+ "retweet_count": 12725,
+ "reply_count": 61,
+ "user_id_str": "1116041653033283584",
+ "possibly_sensitive": false,
+ "card": {},
+ "user": {
+  "name": "carrot",
+  "screen_name": "carrotsprout_",
+  "id_str": null
+ },
+ "entities": {
+  "hashtags": [],
+  "urls": []
+ },
+ "extended_entities": {
+  "media": [
+   {
+    "id_str": "1577924276455628800",
+    "media_url_https": "https://pbs.twimg.com/media/FeXpxOyaYAA9L88.jpg",
+    "original_info": {
+     "focus_rects": [
+      {
+       "h": 1008,
+       "w": 1800,
+       "x": 0,
+       "y": 992
+      },
+      {
+       "h": 1800,
+       "w": 1800,
+       "x": 0,
+       "y": 200
+      },
+      {
+       "h": 2000,
+       "w": 1754,
+       "x": 46,
+       "y": 0
+      },
+      {
+       "h": 2000,
+       "w": 1000,
+       "x": 450,
+       "y": 0
+      },
+      {
+       "h": 2000,
+       "w": 1800,
+       "x": 0,
+       "y": 0
+      }
+     ],
+     "height": 2000,
+     "width": 1800
+    },
+    "sizes": {
+     "large": {
+      "h": 2000,
+      "resize": "fit",
+      "w": 1800
+     },
+     "medium": {
+      "h": 1200,
+      "resize": "fit",
+      "w": 1080
+     },
+     "small": {
+      "h": 680,
+      "resize": "fit",
+      "w": 612
+     },
+     "thumb": {
+      "h": 150,
+      "resize": "crop",
+      "w": 150
+     }
+    },
+    "type": "photo"
+   },
+   {
+    "id_str": "1577924276447248386",
+    "media_url_https": "https://pbs.twimg.com/ext_tw_video_thumb/1577924276447248386/pu/img/aPQ86K5jJkERyVCk.jpg",
+    "original_info": {
+     "focus_rects": [],
+     "height": 1280,
+     "width": 1152
+    },
+    "sizes": {
+     "large": {
+      "h": 1280,
+      "resize": "fit",
+      "w": 1152
+     },
+     "medium": {
+      "h": 1200,
+      "resize": "fit",
+      "w": 1080
+     },
+     "small": {
+      "h": 680,
+      "resize": "fit",
+      "w": 612
+     },
+     "thumb": {
+      "h": 150,
+      "resize": "crop",
+      "w": 150
+     }
+    },
+    "type": "video",
+    "video_info": {
+     "aspect_ratio": [
+      9,
+      10
+     ],
+     "duration_millis": 2466,
+     "variants": [
+      {
+       "content_type": "application/x-mpegURL",
+       "url": "https://video.twimg.com/ext_tw_video/1577924276447248386/pu/pl/VtUNCxZTwyfjkERn.m3u8?tag=12"
+      },
+      {
+       "bitrate": 632000,
+       "content_type": "video/mp4",
+       "url": "https://video.twimg.com/ext_tw_video/1577924276447248386/pu/vid/320x354/DcUwxNAGLK-3zoZW.mp4?tag=12"
+      },
+      {
+       "bitrate": 950000,
+       "content_type": "video/mp4",
+       "url": "https://video.twimg.com/ext_tw_video/1577924276447248386/pu/vid/480x532/YMbsTwIzVs5crz05.mp4?tag=12"
+      },
+      {
+       "bitrate": 2176000,
+       "content_type": "video/mp4",
+       "url": "https://video.twimg.com/ext_tw_video/1577924276447248386/pu/vid/720x800/kNsjUvJ5knrSx5WM.mp4?tag=12"
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

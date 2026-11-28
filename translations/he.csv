@@ -129,7 +129,8 @@ cookies_error_generic,Could not read the cookies from {browser}. The log file ha
 cookies_hint_sign_in,"This video needs a signed-in account (for example a private or age-restricted video). Sign in to the site in your browser. Then, in Settings > Advanced Download Options, set ""Use cookies from"" to that browser.","הסרטון הזה דורש חשבון מחובר (לדוגמה סרטון פרטי או סרטון עם הגבלת גיל). התחבר לאתר בדפדפן שלך. אחר כך, בהגדרות > אפשרויות הורדה מתקדמות, קבע את 'השתמש בעוגיות מ' לדפדפן הזה.",ok
 cookies_hint_signed_in_browser,"The site still asks you to sign in. Make sure that you are signed in to the site in {browser}, with the profile set in Settings, then try again.","האתר עדיין מבקש להתחבר. ודא שאתה מחובר לאתר ב-{browser}, עם הפרופיל שהוגדר בהגדרות, ואז נסה שוב.",ok
 proxy_error_connect,Could not connect through the proxy. Check the proxy address in Settings > Advanced Download Options.,לא ניתן להתחבר דרך הפרוקסי. בדוק את כתובת הפרוקסי בהגדרות > אפשרויות הורדה מתקדמות.,ok
-error_no_video_in_post,This post has no video. Downloading photo posts is planned for a later version.,בפוסט הזה אין סרטון. הורדת פוסטים של תמונות מתוכננת לגרסה עתידית.,ok
+error_no_video_in_post,This post has no video. Photo posts from Facebook are not supported.,בפוסט הזה אין סרטון. פוסטים של תמונות מפייסבוק אינם נתמכים.,ok
+error_no_media_in_post,This post has no photo or video that can be downloaded.,בפוסט הזה אין תמונה או סרטון שאפשר להוריד.,ok
 about_description,"is a user-friendly graphical interface for yt-dlp, making it easy to download videos from YouTube.",הוא ממשק גרפי ידידותי למשתמש עבור yt-dlp שמקל על הורדת סרטונים מ-YouTube.,ok
 group_about_details,Details,פרטים,ok
 group_about_developer,About the Developer,אודות המפתח,ok

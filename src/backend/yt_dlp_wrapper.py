@@ -15,10 +15,12 @@ from typing import Any
 
 from ..models.video_info import VideoInfo
 from ..utils.logger import get_logger
+from ..utils.photo_posts import image_item_update, is_image_item, needs_twitter_photos, supports_photo_posts
 from ..utils.translations import tr
 from .download_options import DownloadOptions, build_ydl_opts, mask_proxy_url, redact_ydl_opts
 from .download_preferences import DownloadPreferences, explain_download_error, get_download_preferences
 from .side_files import iter_downloads, write_side_files
+from .twitter_photos import make_twitter_photo_ie
 
 logger = get_logger()
 
@@ -48,6 +50,7 @@ if _engine_path is not None and str(_engine_path) not in sys.path:
 try:
     from yt_dlp import YoutubeDL
     from yt_dlp import version as ytdlp_version
+    from yt_dlp.postprocessor import FFmpegEmbedSubtitlePP, FFmpegExtractAudioPP, FFmpegMetadataPP
     from yt_dlp.postprocessor.common import PostProcessor
     from yt_dlp.postprocessor.ffmpeg import ACODECS
     from yt_dlp.utils import replace_extension
@@ -77,6 +80,14 @@ _QUIET_WARNING_MARKERS = (
     "no impersonate target is available",
 )
 
+# On sites that download photos, a photo item has no formats by design (see
+# utils/photo_posts.py), and yt-dlp warns about it for each item. The text is
+# still kept as the reason if nothing at all was downloaded.
+_PHOTO_SITE_QUIET_MARKERS = (
+    "No video formats found",
+    "Requested format is not available",
+)
+
 # Secrets and the log: yt-dlp writes request headers (cookies included) and
 # its debug lines (for example the path of a browser's cookie database) only
 # when "verbose" or "print_traffic" is set. The app sets neither. Its own
@@ -92,8 +103,10 @@ class _YtDlpLogBridge:
     The last error is kept so a failed download can show the real reason.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, photo_site: bool = False) -> None:
         self.last_error: str | None = None
+        self.last_warning: str | None = None
+        self._quiet_markers = _QUIET_WARNING_MARKERS + (_PHOTO_SITE_QUIET_MARKERS if photo_site else ())
 
     def debug(self, msg: str) -> None:
         # yt-dlp sends both debug and ordinary progress lines here; keep them
@@ -104,7 +117,8 @@ class _YtDlpLogBridge:
         logger.debug(msg)
 
     def warning(self, msg: str) -> None:
-        if any(marker in msg for marker in _QUIET_WARNING_MARKERS):
+        self.last_warning = msg
+        if any(marker in msg for marker in self._quiet_markers):
             logger.debug(f"yt-dlp: {msg}")
             return
         logger.warning(f"yt-dlp: {msg}")
@@ -254,17 +268,30 @@ class _DuplicateNumberingPP(PostProcessor):
     subtitles and the post-processors all use the chosen name.
     """
 
-    def __init__(self, downloader: Any, template: str, audio_format: str | None, reserved: list[str]):
+    def __init__(
+        self,
+        downloader: Any,
+        template: str,
+        audio_format: str | None,
+        reserved: list[str],
+        image_template: str | None = None,
+    ):
         super().__init__(downloader)
         self._template = template
         self._audio_format = audio_format
         self._reserved = reserved
+        # Template for a photo item (a photo has no quality, and audio
+        # extraction does not apply to it).
+        self._image_template = image_template
 
     def run(self, info: dict[str, Any]) -> tuple[list[str], dict[str, Any]]:
         ydl = self._downloader
-        template = self._template
+        is_image = is_image_item(info)
+        base = self._image_template if is_image and self._image_template else self._template
+        audio_format = None if is_image else self._audio_format
+        template = base
         try:
-            choice = _reserve_output_template(ydl, info, self._template, self._audio_format)
+            choice = _reserve_output_template(ydl, info, base, audio_format)
         except Exception:
             # Fall back to the plain name. nooverwrites makes yt-dlp skip an
             # existing file instead of replacing it.
@@ -273,9 +300,31 @@ class _DuplicateNumberingPP(PostProcessor):
         if choice:
             template, final_path = choice
             self._reserved.append(_output_key(final_path))
-            if template != self._template:
+            if template != base:
                 logger.info(f"✓ File exists, saving as: {os.path.basename(final_path)}")
         ydl.params["outtmpl"]["default"] = template
+        return [], info
+
+
+class _ImageItemPP(PostProcessor):
+    """Turn a photo item into a plain download of its largest image.
+
+    Registered at yt-dlp's ``video`` stage, before the numbering. An item
+    with no formats but with thumbnails gets the image as its file URL, so
+    yt-dlp's downloader fetches it (proxy, cookies and headers apply). Other
+    items pass unchanged. The file name template of a photo has no quality.
+    """
+
+    def __init__(self, downloader: Any, image_template: str):
+        super().__init__(downloader)
+        self._image_template = image_template
+
+    def run(self, info: dict[str, Any]) -> tuple[list[str], dict[str, Any]]:
+        update = image_item_update(info)
+        if update:
+            info.update(update)
+            self._downloader.params["outtmpl"]["default"] = self._image_template
+            logger.info(f"✓ Photo item {info.get('id')}: downloading the image ({update.get('ext')})")
         return [], info
 
 
@@ -405,10 +454,61 @@ def _log_enabled_options(options: DownloadOptions, ydl_opts: dict[str, Any]) -> 
     logger.info(f"✓ Total postprocessors: {len(ydl_opts.get('postprocessors', []))}")
 
 
+def _register_photo_extractor(ydl: Any, url: str) -> None:
+    """Make yt-dlp read the photos of an X post (see ``twitter_photos.py``).
+
+    The subclass has the key of the engine's X extractor, so it takes its
+    place in the extractor list. Instagram needs nothing: its extractor
+    already lists the photo of each item as thumbnails.
+    """
+    if not needs_twitter_photos(url):
+        return
+    try:
+        ydl.add_info_extractor(make_twitter_photo_ie()())
+    except Exception:
+        # Without it, an X post with a video still downloads.
+        logger.exception("Could not enable photo posts for X")
+
+
+# Post-processors that make no sense for a photo: they work on audio, video
+# and subtitles.
+_VIDEO_ONLY_PPS = (FFmpegMetadataPP, FFmpegEmbedSubtitlePP, FFmpegExtractAudioPP)
+
+
+def _skip_video_pps_for_images(ydl: Any) -> None:
+    """Make the video-only post-processors pass a photo item unchanged.
+
+    The post-processors are one set for the whole download, and a post can
+    mix videos and photos, so each one checks the item it gets. Uses yt-dlp's
+    list of post-processors (``_pps``); if the engine changes it, the photo
+    items just go through them (ffmpeg then reports a warning, no failure).
+    """
+    groups = getattr(ydl, "_pps", None)
+    if not isinstance(groups, dict):
+        logger.warning("Could not find the yt-dlp post-processor list; photos keep video-only steps")
+        return
+    for pp in groups.get("post_process") or []:
+        if not isinstance(pp, _VIDEO_ONLY_PPS):
+            continue
+
+        def run(info: dict[str, Any], _run: Any = pp.run) -> tuple[list[str], dict[str, Any]]:
+            if is_image_item(info):
+                return [], info
+            return _run(info)
+
+        pp.run = run
+
+
 def _configure_ydl(ydl: Any, options: DownloadOptions, reserved_outputs: list[str]) -> None:
-    """Add the duplicate-numbering and cookie hooks; make subtitle failures non-fatal."""
+    """Add the photo, duplicate-numbering and cookie hooks; make subtitle failures non-fatal."""
     if options.cookies_browser and options.writes_info_json:
         ydl.add_post_processor(_StripInfoJsonCookiesPP(ydl), when="before_dl")
+
+    photos = supports_photo_posts(options.url)
+    if photos:
+        _register_photo_extractor(ydl, options.url)
+        ydl.add_post_processor(_ImageItemPP(ydl, options.image_output_template), when="video")
+        _skip_video_pps_for_images(ydl)
 
     if options.auto_number_duplicates:
         numbering_pp = _DuplicateNumberingPP(
@@ -416,8 +516,12 @@ def _configure_ydl(ydl: Any, options: DownloadOptions, reserved_outputs: list[st
             options.output_template,
             options.extract_audio_format,
             reserved_outputs,
+            image_template=options.image_output_template if photos else None,
         )
         ydl.add_post_processor(numbering_pp, when="video")
+    if options.auto_number_duplicates or photos:
+        # Put the plain template back after each item: a photo item sets its
+        # own, and the next item may be a video.
         restore_pp = _RestoreTemplatePP(
             ydl,
             options.output_template,
@@ -442,16 +546,22 @@ def _post_json_path(ydl: Any, info_dict: dict[str, Any] | None) -> str | None:
         return None
 
 
-def _require_output_files(info_dict: dict | None, log_bridge: _YtDlpLogBridge) -> list[str]:
+def _require_output_files(
+    info_dict: dict | None, log_bridge: _YtDlpLogBridge, *, use_warning: bool = False
+) -> list[str]:
     """Return the written files, or raise if there are none.
 
     Success is never reported without a file on disk (see
     ``_existing_output_files``). Raising routes this through the normal
     failure path, so the UI shows the error.
+
+    ``use_warning`` is for sites that download photos: there yt-dlp reports a
+    post without video as a warning (not an error), and that text is the
+    reason when nothing was downloaded.
     """
     output_files = _existing_output_files(info_dict)
     if not output_files:
-        reason = log_bridge.last_error or "no error was reported"
+        reason = log_bridge.last_error or (use_warning and log_bridge.last_warning) or "no error was reported"
         raise RuntimeError(f"yt-dlp finished without writing a file: {reason}")
     return output_files
 
@@ -719,9 +829,13 @@ class YtDlpWrapper:
 
         # Same proxy and browser cookies as the download itself.
         ydl_opts.update(self._network_opts())
+        # A photo post has no formats; look it up instead of failing.
+        if supports_photo_posts(url):
+            ydl_opts["ignore_no_formats_error"] = True
 
         try:
             with YoutubeDL(ydl_opts) as ydl:
+                _register_photo_extractor(ydl, url)
                 info_dict = ydl.extract_info(url, download=False)
 
                 if info_dict is None:
@@ -897,7 +1011,7 @@ class YtDlpWrapper:
         ydl_opts = self._prepare_ydl_opts(options)
 
         # Added after the options were logged: the bridge is an object, not config.
-        log_bridge = _YtDlpLogBridge()
+        log_bridge = _YtDlpLogBridge(photo_site=supports_photo_posts(options.url))
         ydl_opts["logger"] = log_bridge
 
         # Output paths this download reserved for auto-numbering; released
@@ -970,7 +1084,7 @@ class YtDlpWrapper:
                 logger.info("Download was cancelled")
                 return False
 
-            output_files = _require_output_files(info_dict, log_bridge)
+            output_files = _require_output_files(info_dict, log_bridge, use_warning=supports_photo_posts(options.url))
             write_side_files(
                 info_dict,
                 metadata=options.download_metadata,

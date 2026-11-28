@@ -197,7 +197,8 @@ TRANSLATIONS = {
         "proxy_error_connect": (
             "Could not connect through the proxy. Check the proxy address in Settings > Advanced Download Options."
         ),
-        "error_no_video_in_post": ("This post has no video. Downloading photo posts is planned for a later version."),
+        "error_no_video_in_post": ("This post has no video. Photo posts from Facebook are not supported."),
+        "error_no_media_in_post": ("This post has no photo or video that can be downloaded."),
         # About tab - sections and labels
         "about_description": "is a user-friendly graphical interface for yt-dlp, making it easy to download videos from YouTube.",
         "group_about_details": "Details",
@@ -1031,7 +1032,8 @@ TRANSLATIONS = {
             "האתר עדיין מבקש להתחבר. ודא שאתה מחובר לאתר ב-{browser}, עם הפרופיל שהוגדר בהגדרות, ואז נסה שוב."
         ),
         "proxy_error_connect": ("לא ניתן להתחבר דרך הפרוקסי. בדוק את כתובת הפרוקסי בהגדרות > אפשרויות הורדה מתקדמות."),
-        "error_no_video_in_post": ("בפוסט הזה אין סרטון. הורדת פוסטים של תמונות מתוכננת לגרסה עתידית."),
+        "error_no_video_in_post": ("בפוסט הזה אין סרטון. פוסטים של תמונות מפייסבוק אינם נתמכים."),
+        "error_no_media_in_post": ("בפוסט הזה אין תמונה או סרטון שאפשר להוריד."),
         # About tab - sections and labels
         "about_description": "הוא ממשק גרפי ידידותי למשתמש עבור yt-dlp שמקל על הורדת סרטונים מ-YouTube.",
         "group_about_details": "פרטים",

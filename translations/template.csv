@@ -123,7 +123,8 @@ cookies_error_generic,Could not read the cookies from {browser}. The log file ha
 cookies_hint_sign_in,"This video needs a signed-in account (for example a private or age-restricted video). Sign in to the site in your browser. Then, in Settings > Advanced Download Options, set ""Use cookies from"" to that browser.",,missing
 cookies_hint_signed_in_browser,"The site still asks you to sign in. Make sure that you are signed in to the site in {browser}, with the profile set in Settings, then try again.",,missing
 proxy_error_connect,Could not connect through the proxy. Check the proxy address in Settings > Advanced Download Options.,,missing
-error_no_video_in_post,This post has no video. Downloading photo posts is planned for a later version.,,missing
+error_no_video_in_post,This post has no video. Photo posts from Facebook are not supported.,,missing
+error_no_media_in_post,This post has no photo or video that can be downloaded.,,missing
 about_description,"is a user-friendly graphical interface for yt-dlp, making it easy to download videos from YouTube.",,missing
 group_about_details,Details,,missing
 group_about_developer,About the Developer,,missing

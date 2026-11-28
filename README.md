@@ -43,6 +43,7 @@ Sites are in two tiers. The Download tab shows the tier next to the URL field: "
 | **Experimental** | Every other site that yt-dlp supports (more than 1000) | Not tested by YT-DLP Studio |
 
 - **How the checks work:** YouTube and TikTok are covered by the automatic weekly check in CI (one video each, and one playlist for YouTube). Instagram, Facebook and X are checked by hand before each release. TikTok may block the CI runner, and then the check is inconclusive. A site can change at any time, so a tested site can still break between releases.
+- **Photo posts:** photos of Instagram and X posts (one photo, a carousel, or a post that mixes photos and videos) download as image files. Facebook photo posts are not supported, and a TikTok photo slideshow gives only its audio.
 - **Experimental sites:** the app does not block them. The download may work, partly work or fail.
 - **How the app finds the tier:** it compares the host name of the URL with a fixed list. Only exact host names count, so a look-alike host such as `youtube.com.example.net` is experimental, not YouTube.
 - **Tested host names:**
@@ -63,6 +64,7 @@ To ask for a site, [open a feature request](https://github.com/NX1X/yt-dlp-studi
 - **Queue:** add many URLs and run up to 3 downloads at the same time. The queue is kept when you restart the app.
 - **Batch input:** paste a list of URLs or import them from a file.
 - **Video info preview:** see the title, thumbnail, duration and other details before you download.
+- **Photo posts:** Instagram and X photos (single, carousel or mixed with videos) download as image files.
 - **Extras:** subtitles, thumbnails, comments and metadata (JSON).
 - **Speed limit:** set a maximum download speed in KB/s.
 - **Notifications:** a desktop notification when a download completes or fails, and a sound on success.

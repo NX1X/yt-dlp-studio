@@ -63,6 +63,7 @@ yt-dlp-studio/
 │   │   ├── download_options.py  # DownloadOptions and the mapping to yt-dlp options
 │   │   ├── download_preferences.py  # Advanced settings: checks, current value, error texts
 │   │   ├── side_files.py        # Readable metadata and comments files
+│   │   ├── twitter_photos.py    # X extractor subclass that adds the photos of a post
 │   │   ├── download_worker.py   # QThread for one download
 │   │   ├── queue_manager.py     # Queue, concurrency, retries, queue file
 │   │   ├── history_manager.py   # Download history file
@@ -190,6 +191,8 @@ Key methods:
 - `download(options)`: downloads a video. `options` is a `DownloadOptions` value (see below).
 - `get_available_subtitles(url)`: lists subtitle languages.
 - `_progress_hook(data)`: receives the yt-dlp progress.
+
+**Photo posts:** an item with no formats but with thumbnails is a photo (Instagram gives every photo of a carousel this way, `twitter_photos.py` gives X photos the same shape). `_ImageItemPP` (at the `video` stage) turns it into a plain download of the largest image, so yt-dlp's downloader and its proxy, cookie and header handling do the work. The item gets `format_id` `photo`; `_skip_video_pps_for_images` and the side files read that mark. The helpers are pure and live in `src/utils/photo_posts.py`. Only Instagram and X get this (`supports_photo_posts`): for them `ignore_no_formats_error` is on, and the X extractor subclass replaces the engine's one in the `YoutubeDL` instance. The X subclass depends on the private `_extract_status` of the engine; `tests/test_photo_posts.py` runs it on recorded status files in `tests/fixtures/`, so an engine update that changes the shape fails the test.
 
 **Download options:** `src/backend/download_options.py` holds `DownloadOptions`, a frozen dataclass with one typed field per user choice. `build_ydl_opts()` turns it into the `YoutubeDL` options dict. It is a pure function (no file system, network or logging), so `tests/test_download_options.py` tests it directly. `DownloadWorker` fills `DownloadOptions` from the `DownloadTask` in `download_options_for()`. To add a download option:
 
