@@ -5,11 +5,11 @@ Website: https://nx1xlab.dev/nxtools
 
 ---
 
-## Current Version: 0.5.0 (Public Beta)
+## Current Version: 1.0.0 (Stable)
 
-> The project is in **public beta**. The core feature set is functional but UI bugs, polish items, and additional UI options remain. We will reach **v1.0.0** when the feature set is stable and beta exit criteria are met (see below).
+> The project is **stable** since 1.0.0 (2026-11-28) and in maintenance mode: dependency and engine updates, security fixes and site fixes. New features come only by explicit decision.
 >
-> Latest released: **0.5.0** (2026-11-28): a reworked interface, Firefox cookies, proxy, file name templates, format options, site tiers, versioned data files, full Hebrew and two crash fixes. Next: **0.6.0** (photo posts, then feature freeze), then **1.0.0**. Still open from 0.4.x: UI tests.
+> Latest released: **1.0.0** (2026-11-28): photo posts from Instagram and X, Help links from the app to the website guide, Qt 6.12 through PySide6-Essentials, faster CI, and the 0.5.0 leftovers. 1.0.0 is not code-signed (see "After 1.0"). The winget package waits for Microsoft's review.
 >
 > Earlier private development history (up through internal version 0.9.2) is archived in the private `docs-internal/OLD_CHANGELOG.md`. The reasoning behind the version reset to 0.1.0 lives in the private `docs-internal/VERSIONING.md`.
 
@@ -167,27 +167,26 @@ Add the basics users expect before 1.0.
 - ✅ **Site tiers**: "Tested" for the sites checked every release (YouTube, Instagram, TikTok, Facebook, X), and "Experimental" for the other 1000+ yt-dlp sites, clearly labelled as untested.
 - ✅ **Versioned config and history files**, with migration of older files. v1.0 promises these formats stay compatible, so they need a version field first.
 
-### v0.6.0 - Photos, then feature freeze
-Items stay open (not done) until their pull request is merged.
-- ⬜ **Photo posts (Instagram, X):** Instagram photos and carousels through yt-dlp (the images are already in its info), and X photos through a small extractor extension. Facebook photo posts get a clear message. TikTok slideshows need new extractor code. A second engine (gallery-dl) is not used: its GPL-2.0-only license cannot be combined with this Apache-2.0 app in one EXE.
-- ⬜ **Qt 6.12** with the smaller `PySide6-Essentials` package.
-- ⬜ **F1 and Help links to the website guide:** F1 opens the guide section of the current tab. Help links are in the About tab, the Advanced Download Options and the download error dialog.
-- ⬜ **Faster CI.**
-- ⬜ **Leftovers from 0.5.0:** the Download tab remembers which sections are open, "Remove from history" for one entry, one duplicate question for batch links, and SonarCloud findings.
-- ⬜ After 0.6.0: **feature freeze** until 1.0.0.
+### v0.6.0 - Photos, then feature freeze  *(not released on its own: shipped in 1.0.0)*
+- ✅ **Photo posts (Instagram, X):** Instagram photos and carousels through yt-dlp (the images are already in its info), and X photos through a small extractor extension. Facebook photo posts get a clear message. TikTok slideshows need new extractor code. A second engine (gallery-dl) is not used: its GPL-2.0-only license cannot be combined with this Apache-2.0 app in one EXE.
+- ✅ **Qt 6.12** with the smaller `PySide6-Essentials` package.
+- ✅ **F1 and Help links to the website guide:** F1 opens the guide section of the current tab. Help links are in the About tab, the Advanced Download Options and the download error dialog.
+- ✅ **Faster CI.**
+- ✅ **Leftovers from 0.5.0:** the Download tab remembers which sections are open, "Remove from history" for one entry, one duplicate question for batch links, and SonarCloud findings.
+- ✅ **Feature freeze** for 1.0.0.
 
-### v1.0.0 - Stable Release / Beta Exit
+### v1.0.0 - Stable Release  *(released 2026-11-28)*
 The first non-beta release. Reached when:
-- ⬜ Every 0.3.0 to 0.6.0 item has shipped, or was moved to "After 1.0" by decision
-- ⬜ No known critical UI bugs
-- ⬜ Feature set frozen (no breaking changes planned for short term)
-- ⬜ Config and history file formats stable (backwards-compatibility commitment begins here)
-- ⬜ Tested clean on Windows 11 by hand (a manual checklist). Windows 10 should work but is not tested. CI runs the tests on `windows-2025` (Windows Server 2025) and `windows-2022`. These are Windows Server images, not Windows 10 or 11, so CI does not replace the hand test.
-- ⬜ Documentation complete: [user guide](docs/USER_GUIDE.md), [troubleshooting](docs/TROUBLESHOOTING.md) and [install guide](docs/INSTALLATION_GUIDE.md) are written (in review); final check against the finished UI is open
+- ✅ Every 0.3.0 to 0.6.0 item has shipped, or was moved to "After 1.0" by decision
+- ✅ No known critical UI bugs
+- ✅ Feature set frozen (no breaking changes planned for short term)
+- ✅ Config and history file formats stable (backwards-compatibility commitment begins here)
+- ✅ Tested clean on Windows 11 by hand (a manual checklist). Windows 10 should work but is not tested. CI runs the tests on `windows-2025` (Windows Server 2025) and `windows-2022`. These are Windows Server images, not Windows 10 or 11, so CI does not replace the hand test.
+- ✅ Documentation complete: [user guide](docs/USER_GUIDE.md), [troubleshooting](docs/TROUBLESHOOTING.md) and [install guide](docs/INSTALLATION_GUIDE.md) are written and the website guide (studio.nx1xlab.dev/guide.html) matches the finished UI
 - ✅ The repository is public, so users can download releases and the in-app updater can find them
-- ⬜ **winget:** the package `NX1X.YTDLPStudio` is in review (`microsoft/winget-pkgs` pull request #467730, waiting for a Microsoft moderator). It is part of 1.0.0 as soon as Microsoft accepts it. After that, `release.yml` opens a winget update pull request for each release.
+- ⏳ **winget:** the package `NX1X.YTDLPStudio` is in review (`microsoft/winget-pkgs` pull request #467730, waiting for a Microsoft moderator). It is part of 1.0.0 as soon as Microsoft accepts it. After that, `release.yml` opens a winget update pull request for each release.
 - Windows release signing is **not** part of 1.0.0. The maintainer decided on 2026-11-28 to release 1.0.0 without it, and the SignPath Foundation declined the application on the same day.
-- ⬜ Optional, independent of the other 1.0.0 items: release artifacts for Linux and Windows are Sigstore-signed (cosign + keyless OIDC) so any
+- ⬜ Optional, moved after 1.0.0: release artifacts for Linux and Windows are Sigstore-signed (cosign + keyless OIDC) so any
   user - Linux, macOS, or Windows - can cryptographically verify the
   download independent of Authenticode/SmartScreen. SLSA build provenance
   attestations are already published on every release (see
@@ -197,6 +196,9 @@ The first non-beta release. Reached when:
   `.sig` + `.crt` next to each release asset. Implementation notes,
   key-management decisions (keyless vs. managed), and end-user verification
   instructions live in the private `docs-internal/SIGSTORE_SIGNING.md`.
+
+
+After 1.0.0 the project is in **maintenance mode**: dependency and engine updates, security fixes, site fixes and the weekly extractor check. New features come only by explicit decision.
 
 ### After 1.0 (not scheduled)
 Kept as ideas. None of these block 1.0.
@@ -279,12 +281,12 @@ We welcome contributions to YT-DLP Studio! If you have ideas for new features or
 
 ## Version History
 
-Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.5.0** (2026-11-28). Next: **0.6.0**, then **1.0.0** (without code signing). Earlier private development history (internal 0.1.0 to 0.9.2) is archived in the private `docs-internal/OLD_CHANGELOG.md`.
+Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **1.0.0** (2026-11-28), the first stable release, without code signing. Earlier private development history (internal 0.1.0 to 0.9.2) is archived in the private `docs-internal/OLD_CHANGELOG.md`.
 
 ---
 
 **Last Updated:** 2026-11-28
-**Current Version:** 0.5.0 (Public Beta)
+**Current Version:** 1.0.0 (Stable)
 **Status:** Active Development
 
 For more information, visit: https://nx1xlab.dev/nxtools

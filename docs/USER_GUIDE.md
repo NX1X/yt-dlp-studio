@@ -19,7 +19,7 @@ This guide names tabs, buttons and settings by their label in the English interf
 ## Before you start
 
 - **Platforms:** Tested on Windows 11. Windows 10 should work but is not tested. Linux builds are also available.
-- **Supported sites:** the app is in public beta. Next to the Link field, the app shows "Tested site" or "Experimental site: may not work".
+- **Supported sites:** next to the Link field, the app shows "Tested site" or "Experimental site: may not work".
   - Tested sites: YouTube, Instagram, TikTok, Facebook and X.
   - Experimental sites: every other site that yt-dlp supports. A download can work, partly work or fail. The app does not block it.
 - **FFmpeg:** the Windows builds include FFmpeg. On Linux, the .deb and .rpm packages install it. For the AppImage and the .tar.gz archive, install FFmpeg yourself.

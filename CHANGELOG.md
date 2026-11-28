@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no entries yet)_
+
+---
+
+## [1.0.0] - 2026-11-28
+
 ### Added
 
 - **Photo posts from Instagram and X.** A post with photos only, a carousel with photos and the photos of a mixed post now download as image files, next to the videos of the same post. The app saves the largest size of each photo (Instagram: up to 1080 pixels wide; X: the original). The file is named `Title [id].jpg` (a file name template that you chose is kept), and a copy gets ` (1)` as for videos. Metadata, description and comments files work for each photo, and the metadata file says "IMAGE METADATA" without video fields. No setting is needed. Photos skip the steps that only fit video: audio extraction, tag embedding and subtitle embedding. Facebook photo posts are still not supported, and a TikTok photo slideshow still gives only its audio. There is no second download engine: the photo goes through yt-dlp, so the proxy and cookie settings apply. For X, a small extractor in `src/backend/twitter_photos.py` adds the photos that the engine drops. It reads the engine's private `_extract_status`, and a fixture test on two recorded posts fails if an engine update changes that.
