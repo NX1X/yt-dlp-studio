@@ -38,7 +38,7 @@ concurrency:
 jobs:
   check:
     name: Check YouTube extraction
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -126,7 +126,7 @@ jobs:
       always() &&
       github.event_name != 'pull_request' &&
       (needs.check.result == 'success' || needs.check.result == 'failure')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       issues: write       # create the label, open, comment on and close the issue

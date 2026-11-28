@@ -14,7 +14,7 @@ permissions:
 jobs:
   lint:
     name: Lint & Format Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
     - name: Harden runner
@@ -69,11 +69,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # windows-latest is Windows Server 2025 today and keeps the required
-        # check name "Tests (windows-latest)" (repo ruleset). windows-2022 adds
-        # the older Windows Server image. These are Windows Server runner
-        # images, not Windows 10 or 11.
-        os: [ubuntu-latest, windows-latest, windows-2022]
+        # Runner labels are pinned (no "-latest"). The job names, "Tests
+        # (ubuntu-24.04)" and "Tests (windows-2025)", are the required checks
+        # in the repo ruleset. windows-2022 adds the older Windows Server
+        # image. These are Windows Server runner images, not Windows 10 or 11.
+        os: [ubuntu-24.04, windows-2025, windows-2022]
     steps:
     - name: Harden runner
       # See lint job for rationale. This job runs on both ubuntu and windows
@@ -160,7 +160,7 @@ jobs:
   build-windows:
     name: Build Windows Executable
     needs: [lint, test]
-    runs-on: windows-latest
+    runs-on: windows-2025
     timeout-minutes: 45
     # Run on direct pushes to main/dev AND on every pull request, so
     # PyInstaller-only regressions (missing hidden imports, broken bundle
@@ -396,14 +396,16 @@ jobs:
   build-linux:
     name: Build Linux Executable
     needs: [lint, test]
-    # Pinned to ubuntu-22.04 (glibc 2.35), NOT ubuntu-latest. A PyInstaller
-    # binary only runs on a glibc at least as new as the build host's, so the
-    # build-host glibc IS the compatibility floor for the shipped binary.
-    # ubuntu-latest is 24.04 (glibc 2.39), which would refuse to start on most
-    # distributions older than ~2024. 22.04's 2.35 covers Ubuntu 22.04+,
-    # Debian 12+, Fedora 36+, Mint 21+, and most 2022-and-later distros.
+    # Built in an ubuntu:22.04 container (glibc 2.35) on an ubuntu-24.04
+    # runner. A PyInstaller binary only runs on a glibc at least as new as the
+    # build host's, so the build-host glibc IS the compatibility floor for the
+    # shipped binary. The runner image is 24.04 (glibc 2.39), which would
+    # refuse to start on most distributions older than ~2024. 22.04's 2.35
+    # covers Ubuntu 22.04+, Debian 12+, Fedora 36+, Mint 21+, and most
+    # 2022-and-later distros. The container keeps that floor without the
+    # ubuntu-22.04 runner label, which GitHub retires on 2027-04-17.
     # Keep this in lockstep with the build-linux job in release.yml.
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     # Same rationale as build-windows: catch PyInstaller-only regressions
     # (missing hidden imports, broken bundle paths, vendored-engine path math
@@ -416,26 +418,37 @@ jobs:
       github.ref == 'refs/heads/dev'
     permissions:
       contents: read
+    env:
+      # Build image, pinned by tag AND digest (multi-arch index). Bump both
+      # together; read the digest from the registry with
+      # `docker buildx imagetools inspect ubuntu:22.04`. Same value as in
+      # release.yml.
+      UBUNTU_IMAGE: ubuntu:22.04@sha256:b000e69a50ff940390233025e7a337fb8469b509e2334fa4d018ac30f3e18cdb
     steps:
     - name: Harden runner
-      # See lint job for rationale. Linux runner uses apt (EGL/dbus libs for
-      # the PySide6 offscreen import), so disable-sudo MUST be false. Mirrors
-      # the test job's Linux allowlist plus PyInstaller wheel fetches.
+      # See lint job for rationale. The build runs in a `docker run` step, not
+      # a job container, because harden-runner does not run inside job
+      # containers (same as test-fedora-rpm). The host needs no sudo. Allowed:
+      # the baseline, the Docker Hub registry and its layer CDN (image pull),
+      # and the Ubuntu archive for apt inside the container. uv,
+      # python-build-standalone and the AppImage tools come from github.com
+      # release assets; wheels from PyPI.
       uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: block
-        disable-sudo: false                # Linux leg runs `sudo apt-get`
+        disable-sudo: true                 # docker needs no sudo here
         allowed-endpoints: >
           api.github.com:443
-          azure.archive.ubuntu.com:80
+          archive.ubuntu.com:80
+          auth.docker.io:443
           codeload.github.com:443
-          esm.ubuntu.com:443
           files.pythonhosted.org:443
           github.com:443
           objects.githubusercontent.com:443
-          packages.microsoft.com:443
+          production.cloudflare.docker.com:443
           pypi.org:443
           raw.githubusercontent.com:443
+          registry-1.docker.io:443
           release-assets.githubusercontent.com:443
           results-receiver.actions.githubusercontent.com:443
           security.ubuntu.com:80
@@ -446,92 +459,22 @@ jobs:
       with:
         persist-credentials: false   # no job here pushes via git
 
-    - name: Set up Python
-      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-      with:
-        python-version: '3.14.10'
-
-    - name: Install system dependencies
-      # rpm, rpm2cpio and cpio build and inspect the .rpm package.
+    - name: Build and test in an Ubuntu 22.04 container
+      # Runs scripts/ci_build_linux.sh as root in the pinned image: apt
+      # packages, Python (uv, python-build-standalone), hash-locked
+      # dependencies, PyInstaller build, bundle check, headless smoke test,
+      # AppImage, .deb and .rpm, and the package test. The script hands the
+      # files back to the runner user at the end. release.yml runs the same
+      # script.
       run: |
-        sudo apt-get update
-        sudo apt-get install -y libegl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0 libglib2.0-0 libgl1 libfontconfig1 rpm rpm2cpio cpio
-
-    - name: Install dependencies
-      # PyInstaller comes from its own hash-locked file (see
-      # requirements/build-tools.in). The spec puts the project root on
-      # pathex, so the project itself is never pip-installed to build.
-      run: |
-        python -m pip install --require-hashes -r requirements/pip.txt --only-binary :all:
-        python -m pip install --require-hashes -r requirements/lock.txt --only-binary :all:
-        python -m pip install --require-hashes -r requirements/build-tools.txt --only-binary :all:
-
-    - name: Sync version metadata
-      run: python scripts/sync_version.py
-
-    - name: Build executable
-      run: pyinstaller packaging/build_linux.spec
-      env:
-        QT_QPA_PLATFORM: offscreen
-
-    - name: Check bundle contents
-      # Opens the built executable and fails if a critical file is missing
-      # (yt-dlp-ejs solver scripts, the vendored engine) or banned
-      # content (curl_cffi) got in. v0.1.3 shipped without the solver
-      # scripts and every YouTube download failed; this check catches that.
-      run: python scripts/check_bundle.py dist/yt-dlp-studio
-
-    - name: Verify build
-      run: |
-        if [ ! -f "dist/yt-dlp-studio" ]; then
-          echo "Build failed: dist/yt-dlp-studio not found!"
-          exit 1
-        fi
-        chmod +x dist/yt-dlp-studio
-        ls -lh dist/yt-dlp-studio
-
-    - name: Smoke-test the binary (headless launch)
-      # Runtime-test the frozen binary, not just that it built: launch it under
-      # the offscreen Qt platform, wait for it to reach the "started
-      # successfully" milestone (logged after the main window is shown), then
-      # stop it. The Linux app starts a Deno download on a background thread;
-      # startup does not wait for it, so this needs no network to pass.
-      # Catches missing hidden imports / broken bundle paths
-      # / Qt plugin gaps that only surface at run time.
-      env:
-        QT_QPA_PLATFORM: offscreen
-      run: |
-        ./dist/yt-dlp-studio > smoke.log 2>&1 &
-        APP_PID=$!
-        ok=0
-        for _ in $(seq 1 30); do
-          if grep -q "started successfully" smoke.log 2>/dev/null; then ok=1; break; fi
-          if ! kill -0 "$APP_PID" 2>/dev/null; then break; fi
-          sleep 1
-        done
-        kill "$APP_PID" 2>/dev/null || true
-        wait "$APP_PID" 2>/dev/null || true
-        echo "----- smoke.log -----"
-        cat smoke.log || true
-        if [ "$ok" -ne 1 ]; then
-          echo "Smoke test FAILED: app did not reach 'started successfully'."
-          exit 1
-        fi
-        echo "Smoke test passed: the frozen binary launched and initialized."
-
-    - name: Build Linux packages
-      # AppImage, .deb and .rpm, all wrapping the binary above. The script
-      # downloads appimagetool and the AppImage runtime and checks them by
-      # SHA-256 before use.
-      run: |
-        version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' src/__init__.py)
-        test -n "$version"
-        bash packaging/linux/build_packages.sh "$version" dist/yt-dlp-studio dist/packages
-
-    - name: Test Linux packages
-      # Launches the AppImage, installs the .deb with apt, launches it, purges
-      # it (user data must survive) and launches the extracted .rpm payload.
-      run: bash scripts/test_linux_packages.sh dist/yt-dlp-studio dist/packages
+        docker pull "$UBUNTU_IMAGE"
+        docker run --rm \
+          -e HOST_UID="$(id -u)" \
+          -e HOST_GID="$(id -g)" \
+          -v "$PWD:/work" \
+          -w /work \
+          "$UBUNTU_IMAGE" \
+          bash scripts/ci_build_linux.sh
 
     - name: Upload artifact
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -558,7 +501,7 @@ jobs:
     # removes it again (see scripts/test_fedora_rpm.sh). Fedora runs in a
     # `docker run` step, not as a job container, because harden-runner does
     # not run inside job containers.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     if: >
       github.event_name == 'pull_request' ||
