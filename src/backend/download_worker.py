@@ -6,6 +6,7 @@ Uses Qt's QThread for safe GUI updates via signals.
 """
 
 import os
+import re
 import time
 from typing import Any
 
@@ -60,6 +61,24 @@ def download_options_for(task: DownloadTask, preferences: DownloadPreferences | 
         audio_codec=prefs.audio_codec,
         custom_format=prefs.custom_format,
     )
+
+
+_YTDLP_PREFIX = re.compile(r"^\[[^\]]+\]\s*[^:\s]+:\s*")
+
+
+def short_ytdlp_reason(error: str | None) -> str | None:
+    """
+    The readable part of a yt-dlp error, or None.
+
+    "yt-dlp finished without writing a file: ERROR: [youtube] abc: The
+    uploader has not made this video available in your country" gives "The
+    uploader has not made this video available in your country".
+    """
+    if not error or "ERROR:" not in error:
+        return None  # no reason from yt-dlp: keep the plain "Download failed"
+    text = error.rsplit("ERROR:", 1)[-1].strip()
+    text = _YTDLP_PREFIX.sub("", text).strip()
+    return text or None
 
 
 class DownloadWorker(QThread):
@@ -166,7 +185,10 @@ class DownloadWorker(QThread):
                 self._handle_success()
             else:
                 # A clear reason for cookie, sign-in and proxy failures.
-                self._handle_failure(self.wrapper.user_error or "Download failed")
+                # Otherwise yt-dlp's own reason, shortened (for example "The
+                # uploader has not made this video available in your country").
+                reason = self.wrapper.user_error or short_ytdlp_reason(self.wrapper.last_error)
+                self._handle_failure(reason or "Download failed")
 
         except Exception as e:
             error_msg = f"Unexpected error: {str(e)}"

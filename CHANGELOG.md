@@ -66,6 +66,8 @@ _(no entries yet)_
 
 ### Fixed
 
+- **Section arrows no longer touch the title.** "More options", "Activity log" and the playlist "Subtitles" header used Qt's drawn arrow, which the bold title ran into at Windows display scaling. The arrow is now a character with fixed space before the title, and it sits at the start of the line in Hebrew too.
+- **A failed download shows yt-dlp's reason** (for example "The uploader has not made this video available in your country") instead of only "Download failed".
 - **The About tab spells NXTools correctly** (it said "NXtools").
 - **Posts with several videos are no longer shown as failed.** An Instagram carousel or an X post with two to four videos (a playlist result) wrote every file, but the app said "yt-dlp finished without writing a file". The app now collects the files from each item, and writes the metadata and comments files for each item.
 - **Metadata and comments files come from the paths yt-dlp reports,** not from the newest `.info.json` in the folder. Two downloads that run at once in one folder can no longer take each other's files.
