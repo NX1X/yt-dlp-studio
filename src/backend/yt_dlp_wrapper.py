@@ -15,6 +15,8 @@ from typing import Any
 
 from ..models.video_info import VideoInfo
 from ..utils.logger import get_logger
+from .download_options import DownloadOptions, build_ydl_opts
+from .side_files import write_side_files
 
 logger = get_logger()
 
@@ -268,6 +270,85 @@ class _DuplicateNumberingPP(PostProcessor):
         return [], info
 
 
+# ---------- download flow helpers ----------
+
+
+def _audio_quality_label(audio_quality: str) -> str:
+    return "Best (VBR)" if audio_quality == "0" else f"{audio_quality}kbps"
+
+
+def _log_download_start(options: DownloadOptions) -> None:
+    """Log the banner with the main settings of a download."""
+    logger.info("=" * 80)
+    logger.info("STARTING DOWNLOAD")
+    logger.info("=" * 80)
+    logger.info(f"URL: {options.url}")
+    logger.info(f"Output Directory: {options.output_dir}")
+    logger.info(f"Format String: {options.format_string}")
+    logger.info(f"Audio Only: {options.audio_only}")
+    logger.info(f"Audio Quality: {_audio_quality_label(options.audio_quality)}")
+    logger.info(f"Audio Format: {options.audio_format}")
+    logger.info(f"Video Container: {options.video_container}")
+    logger.info(f"Download Thumbnail: {options.download_thumbnail}")
+    logger.info(f"Download Subtitles: {options.download_subtitles}")
+    logger.info(f"Subtitle Languages: {options.subtitle_languages}")
+    logger.info(f"Speed Limit: {options.speed_limit}KB/s")
+    logger.info("=" * 80)
+
+
+def _log_enabled_options(options: DownloadOptions, ydl_opts: dict[str, Any]) -> None:
+    """Log one line for each option that is switched on."""
+    o = options
+    if o.auto_number_duplicates:
+        logger.info("✓ Auto-numbering duplicates enabled")
+    else:
+        logger.info("✓ Skip duplicates enabled (won't overwrite)")
+    lines = [
+        ("merge_output_format" in ydl_opts, f"Video container format set: {o.video_container}"),
+        ("ratelimit" in ydl_opts, f"Speed limit applied: {o.speed_limit}KB/s"),
+        (o.download_thumbnail, "Thumbnail download enabled (converted to JPG)"),
+        (o.download_subtitles, f"Subtitle download enabled: {ydl_opts.get('subtitleslangs')} (2s spacing)"),
+        (o.download_metadata, "Metadata download enabled (JSON, description, annotations, comments)"),
+        (o.download_comments, "Comments download enabled (will be saved as .txt file)"),
+        ("sleep_interval_requests" in ydl_opts, "Inter-request spacing: 1s (subtitles + comments/metadata combo)"),
+        (o.audio_only, f"Audio extraction enabled ({o.audio_format.upper()}, {_audio_quality_label(o.audio_quality)})"),
+    ]
+    for enabled, text in lines:
+        if enabled:
+            logger.info(f"✓ {text}")
+    logger.info(f"✓ Total postprocessors: {len(ydl_opts.get('postprocessors', []))}")
+
+
+def _configure_ydl(ydl: Any, options: DownloadOptions, reserved_outputs: list[str]) -> None:
+    """Add the duplicate-numbering hook and make subtitle failures non-fatal."""
+    if options.auto_number_duplicates:
+        numbering_pp = _DuplicateNumberingPP(
+            ydl,
+            options.output_template,
+            options.extract_audio_format,
+            reserved_outputs,
+        )
+        ydl.add_post_processor(numbering_pp, when="video")
+
+    # A YouTube 429 on subtitles must not abort the video download.
+    if options.download_subtitles:
+        _make_subtitles_non_fatal(ydl)
+
+
+def _require_output_files(info_dict: dict | None, log_bridge: _YtDlpLogBridge) -> list[str]:
+    """Return the written files, or raise if there are none.
+
+    Success is never reported without a file on disk (see
+    ``_existing_output_files``). Raising routes this through the normal
+    failure path, so the UI shows the error.
+    """
+    output_files = _existing_output_files(info_dict)
+    if not output_files:
+        reason = log_bridge.last_error or "no error was reported"
+        raise RuntimeError(f"yt-dlp finished without writing a file: {reason}")
+    return output_files
+
+
 class YtDlpWrapper:
     """
     Wrapper for yt-dlp functionality.
@@ -391,6 +472,18 @@ class YtDlpWrapper:
         cls._deno_cache = None
         cls._deno_cache_checked = False
 
+    @staticmethod
+    def _bundled_deno(deno_binary: str) -> str | None:
+        """Return the Deno copy in the PyInstaller folder (``sys._MEIPASS``), or None."""
+        bundle_dir = getattr(sys, "_MEIPASS", None)
+        if not bundle_dir:
+            return None
+        deno_path = os.path.join(bundle_dir, deno_binary)
+        if not os.path.exists(deno_path):
+            return None
+        logger.debug(f"Found Deno in bundle: {deno_path}")
+        return deno_path
+
     def _get_deno_location(self) -> str | None:
         """
         Find Deno executable location (cached after first lookup).
@@ -426,12 +519,7 @@ class YtDlpWrapper:
 
         # Method 1: Check if running from PyInstaller bundle
         if frozen:
-            bundle_dir = getattr(sys, "_MEIPASS", None)
-            if bundle_dir:
-                deno_path = os.path.join(bundle_dir, deno_binary)
-                if os.path.exists(deno_path):
-                    logger.debug(f"Found Deno in bundle: {deno_path}")
-                    result = deno_path
+            result = YtDlpWrapper._bundled_deno(deno_binary)
 
         # Method 2: Check project-local deno/ folder (source runs)
         if result is None and not frozen:
@@ -641,92 +729,63 @@ class YtDlpWrapper:
 
         return language_names.get(lang_code, lang_code.upper())
 
-    def download(
-        self,
-        url: str,
-        output_dir: str,
-        format_string: str,
-        audio_only: bool = False,
-        audio_quality: str = "192",
-        download_thumbnail: bool = True,
-        download_subtitles: bool = False,
-        subtitle_languages: str = "en",
-        speed_limit: int = 0,
-        video_container: str | None = None,
-        audio_format: str = "mp3",
-        selected_subtitles: list | None = None,
-        download_metadata: bool = False,
-        download_comments: bool = False,
-        auto_number_duplicates: bool = True,
-    ) -> bool:
+    def download(self, options: DownloadOptions) -> bool:
         """
-        Download video from URL with advanced options.
+        Download one video with the given options.
 
         Args:
-            url: Video URL
-            output_dir: Directory to save the file
-            format_string: yt-dlp format string (e.g., "best", "bestvideo+bestaudio")
-            audio_only: If True, extract audio only as MP3
-            audio_quality: Audio quality in kbps (e.g., "128", "192", "256", "320")
-            download_thumbnail: If True, download and convert thumbnail to JPG
-            download_subtitles: If True, download subtitles
-            subtitle_languages: Comma-separated language codes (e.g., "en,es,he")
-            speed_limit: Download speed limit in KB/s (0 = unlimited)
-            video_container: Video container format (e.g., "mp4", "mkv", "webm", None for auto)
-            audio_format: Audio format for extraction (e.g., "mp3", "m4a", "opus", "flac", "wav", "vorbis")
-            selected_subtitles: List of specific subtitle languages (overrides subtitle_languages if provided)
-            download_metadata: If True, download metadata (description, comments, etc.) as separate files
-            download_comments: If True, download comments to a separate .txt file (v2.0.0)
-            auto_number_duplicates: If True and the final file already exists, save the new
-                one as "name (1).ext", "name (2).ext" and so on. If False, skip the
-                download of an existing file (never overwrite).
+            options: The user's choices for this download.
 
         Returns:
-            True if download successful, False otherwise. On success,
-            ``last_output_files`` and ``last_title`` hold the result.
+            True if the download wrote at least one file, False otherwise.
+            On success, ``last_output_files`` and ``last_title`` hold the
+            result. On failure, ``last_error`` holds the reason (it stays
+            None after a cancel).
 
         Example:
             >>> wrapper = YtDlpWrapper(progress_callback=my_callback)
             >>> success = wrapper.download(
-            ...     "https://youtube.com/watch?v=...",
-            ...     "/downloads",
-            ...     "bestvideo+bestaudio/best",
-            ...     audio_only=False,
-            ...     audio_quality="192",
-            ...     download_thumbnail=True,
-            ...     download_subtitles=True,
-            ...     selected_subtitles=["en", "es"],
-            ...     speed_limit=1024,
-            ...     video_container="mp4",
-            ...     audio_format="mp3",
-            ...     download_metadata=True,
-            ...     auto_number_duplicates=True
+            ...     DownloadOptions(
+            ...         "https://youtube.com/watch?v=...",
+            ...         "/downloads",
+            ...         "bestvideo+bestaudio/best",
+            ...         download_subtitles=True,
+            ...         selected_subtitles=["en", "es"],
+            ...         video_container="mp4",
+            ...     )
             ... )
         """
-        logger.info("=" * 80)
-        logger.info("STARTING DOWNLOAD")
-        logger.info("=" * 80)
-        logger.info(f"URL: {url}")
-        logger.info(f"Output Directory: {output_dir}")
-        logger.info(f"Format String: {format_string}")
-        logger.info(f"Audio Only: {audio_only}")
-        audio_quality_label = "Best (VBR)" if audio_quality == "0" else f"{audio_quality}kbps"
-        logger.info(f"Audio Quality: {audio_quality_label}")
-        logger.info(f"Audio Format: {audio_format}")
-        logger.info(f"Video Container: {video_container}")
-        logger.info(f"Download Thumbnail: {download_thumbnail}")
-        logger.info(f"Download Subtitles: {download_subtitles}")
-        logger.info(f"Subtitle Languages: {subtitle_languages}")
-        logger.info(f"Speed Limit: {speed_limit}KB/s")
-        logger.info("=" * 80)
+        _log_download_start(options)
+        self._reset_result()
+        ydl_opts = self._prepare_ydl_opts(options)
 
+        # Added after the options were logged: the bridge is an object, not config.
+        log_bridge = _YtDlpLogBridge()
+        ydl_opts["logger"] = log_bridge
+
+        # Output paths this download reserved for auto-numbering; released
+        # in the finally block below.
+        reserved_outputs: list[str] = []
+        try:
+            return self._run_download(options, ydl_opts, log_bridge, reserved_outputs)
+        except Exception as e:
+            self._record_failure(e)
+            return False
+        finally:
+            # The file exists now (or the download failed), so the
+            # reservation is no longer needed.
+            _release_outputs(reserved_outputs)
+
+    def _reset_result(self) -> None:
+        """Clear the cancel flag and the result of the previous download."""
         self._download_cancelled = False
         self._last_error = None
         self._last_error_type = None
         self._last_output_files = []
         self._last_title = None
 
-        # Detect FFmpeg location (for PyInstaller bundled exe)
+    def _prepare_ydl_opts(self, options: DownloadOptions) -> dict[str, Any]:
+        """Find FFmpeg and Deno, build the yt-dlp options and log them."""
         logger.info("\n[STEP 1/5] Detecting FFmpeg location...")
         ffmpeg_location = self._get_ffmpeg_location()
         if ffmpeg_location:
@@ -734,461 +793,78 @@ class YtDlpWrapper:
         else:
             logger.warning("⚠ FFmpeg not found - some downloads may fail")
 
-        # Build yt-dlp options
         logger.info("\n[STEP 2/5] Building yt-dlp options...")
+        logger.info(f"✓ Filename template: {options.filename_template}")
+        ydl_opts = build_ydl_opts(
+            options,
+            progress_hooks=[self._progress_hook],
+            ffmpeg_location=ffmpeg_location,
+            deno_path=self._get_deno_location(),
+        )
+        logger.info("\n[STEP 3/5] Enabled options and postprocessors:")
+        _log_enabled_options(options, ydl_opts)
 
-        # Smart filename template with quality
-        if audio_only:
-            filename_template = "%(title)s_%(quality)s.%(ext)s"
-        else:
-            filename_template = "%(title)s_%(height)sp.%(ext)s"
-
-        output_template = os.path.join(output_dir, filename_template)
-        ydl_opts = {
-            "format": format_string if not audio_only else "bestaudio",  # Force audio-only for audio downloads
-            "outtmpl": output_template,
-            "progress_hooks": [self._progress_hook],
-            "quiet": False,
-            "no_warnings": False,
-            "windowsfilenames": True,  # Use Windows-safe filenames (removes invalid characters)
-            # IMPORTANT: yt-dlp's "only_download" does NOT silence subtitle errors.
-            # YoutubeDL._write_subtitles raises DownloadError unless ignoreerrors is
-            # literally True, which would also mask real video download errors. We
-            # keep "only_download" here and instead wrap _write_subtitles below so
-            # that a subtitle HTTP 429 cannot abort the video download itself.
-            "ignoreerrors": "only_download",
-            "noplaylist": True,  # Never download a full playlist - always download the single video
-        }
-
-        # Handle duplicate files. Never overwrite: with auto-numbering on,
-        # _DuplicateNumberingPP picks a free name before the download starts
-        # (see _reserve_output_template); with it off, yt-dlp skips a file
-        # that already exists. nooverwrites also lets yt-dlp reuse finished
-        # intermediate files of an interrupted attempt.
-        ydl_opts["nooverwrites"] = True
-        if auto_number_duplicates:
-            logger.info("✓ Auto-numbering duplicates enabled")
-        else:
-            logger.info("✓ Skip duplicates enabled (won't overwrite)")
-
-        logger.info("✓ Base options created")
-        logger.info(f"✓ Filename template: {filename_template}")
-
-        # Set FFmpeg location if found
-        if ffmpeg_location:
-            ydl_opts["ffmpeg_location"] = ffmpeg_location
-
-        # Set Deno JS runtime path if found (for YouTube JS challenge solving)
-        deno_path = self._get_deno_location()
-        if deno_path:
-            ydl_opts["js_runtimes"] = {"deno": {"path": deno_path}}
-
-        # Set video container format if specified (only for video downloads - not audio-only)
-        if video_container is not None and not audio_only:
-            ydl_opts["merge_output_format"] = video_container
-            logger.info(f"✓ Video container format set: {video_container}")
-
-        # Speed limit (convert KB/s to bytes/s)
-        if speed_limit > 0:
-            ydl_opts["ratelimit"] = speed_limit * 1024
-            logger.info(f"✓ Speed limit applied: {speed_limit}KB/s")
-
-        # Thumbnail download
-        if download_thumbnail:
-            ydl_opts["writethumbnail"] = True
-            logger.info("✓ Thumbnail download enabled")
-
-        # Subtitle download
-        if download_subtitles:
-            ydl_opts["writesubtitles"] = True
-            ydl_opts["writeautomaticsub"] = True  # Fallback to auto-generated
-
-            # Use selected_subtitles if provided, otherwise use subtitle_languages
-            if selected_subtitles:
-                langs = selected_subtitles
-                logger.info(f"✓ Using selected subtitles: {langs}")
-            else:
-                langs = [lang.strip() for lang in subtitle_languages.split(",") if lang.strip()]
-                logger.info(f"✓ Using manual subtitle languages: {langs}")
-
-            ydl_opts["subtitleslangs"] = langs
-            ydl_opts["subtitlesformat"] = "srt"
-            # YouTube rate-limits subtitle requests aggressively. Sleeping ~2s
-            # between subtitle downloads avoids the HTTP 429 cascade that would
-            # otherwise abort the video download.
-            ydl_opts["sleep_interval_subtitles"] = 2
-            logger.info(f"✓ Subtitle download enabled: {len(langs)} languages (2s spacing)")
-
-        # Metadata download (v2.0.0)
-        if download_metadata:
-            ydl_opts["writeinfojson"] = True  # Save video metadata as JSON
-            ydl_opts["clean_infojson"] = False  # Keep all fields in JSON
-            ydl_opts["writedescription"] = True  # Save video description as separate file
-            ydl_opts["writeannotations"] = True  # Save annotations if available
-            ydl_opts["getcomments"] = True  # Download comments (can be slow for popular videos)
-
-            # Add postprocessor to format JSON with proper indentation
-            if "postprocessors" not in ydl_opts:
-                ydl_opts["postprocessors"] = []
-
-            ydl_opts["postprocessors"].insert(0, {"key": "FFmpegMetadata", "add_infojson": "if_exists"})
-
-            logger.info("✓ Metadata download enabled (JSON, description, annotations, comments)")
-        else:
-            logger.info("Metadata download: disabled")
-
-        # Comments download (v2.0.0 - separate from metadata)
-        if download_comments:
-            ydl_opts["getcomments"] = True  # Fetch comments from video
-            ydl_opts["writeinfojson"] = True  # Need JSON to extract comments
-            logger.info("✓ Comments download enabled (will be saved as .txt file)")
-        else:
-            logger.info("Comments download: disabled")
-
-        # When subtitles AND comments are both enabled, the comment phase
-        # burns through YouTube's per-IP rate-limit budget BEFORE the
-        # subtitle HTTP request goes out, so the subtitle download gets
-        # 429'd. Adding a 1s gap between
-        # every API request pre-empts that 429 cascade. It costs ~10-30s
-        # extra during the comment phase but lets subtitles actually land.
-        # Single-flag scenarios do not need this (no rate-limit pressure).
-        if download_subtitles and (download_comments or download_metadata):
-            ydl_opts["sleep_interval_requests"] = 1
-            logger.info("✓ Inter-request spacing: 1s (subtitles + comments/metadata combo)")
-
-        # Build postprocessors list
-        logger.info("\n[STEP 3/5] Configuring postprocessors...")
-        postprocessors = []
-
-        # Audio extraction
-        if audio_only:
-            postprocessors.append(
-                {
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": audio_format,
-                    "preferredquality": audio_quality,
-                    "nopostoverwrites": False,  # Always convert, even if already in target format
-                }
-            )
-            # Force post-processing to always run
-            ydl_opts["keepvideo"] = False  # Remove video after extracting audio
-            quality_display = "Best (VBR)" if audio_quality == "0" else f"{audio_quality}kbps"
-            logger.info(f"✓ Audio extraction enabled ({audio_format.upper()}, {quality_display})")
-            logger.info(f"✓ Forcing conversion to {audio_format} format")
-
-        # Thumbnail converter
-        if download_thumbnail:
-            postprocessors.append(
-                {
-                    "key": "FFmpegThumbnailsConvertor",
-                    "format": "jpg",
-                }
-            )
-            logger.info("✓ Thumbnail converter enabled (JPG)")
-
-        # Subtitle embedder (only if not audio-only)
-        if download_subtitles and not audio_only:
-            postprocessors.append(
-                {
-                    "key": "FFmpegEmbedSubtitle",
-                }
-            )
-            logger.info("✓ Subtitle embedder enabled")
-
-        if postprocessors:
-            ydl_opts["postprocessors"] = postprocessors
-            logger.info(f"✓ Total postprocessors: {len(postprocessors)}")
-        else:
-            logger.info("✓ No postprocessors required")
-
-        # Log complete ydl_opts (excluding progress_hooks for readability)
         logger.info("\n[STEP 4/5] Final yt-dlp configuration:")
         ydl_opts_log = {k: v for k, v in ydl_opts.items() if k != "progress_hooks"}
         logger.info(json.dumps(ydl_opts_log, indent=2, default=str))
+        return ydl_opts
 
-        # Added after the dump above: the bridge is an object, not config.
-        log_bridge = _YtDlpLogBridge()
-        ydl_opts["logger"] = log_bridge
+    def _run_download(
+        self,
+        options: DownloadOptions,
+        ydl_opts: dict[str, Any],
+        log_bridge: _YtDlpLogBridge,
+        reserved_outputs: list[str],
+    ) -> bool:
+        """Run yt-dlp and record the result. Raises on a failed download."""
+        logger.info("\n[STEP 5/5] Initializing yt-dlp and starting download...")
+        with YoutubeDL(ydl_opts) as ydl:
+            if self._download_cancelled:
+                logger.info("Download cancelled before starting")
+                return False
 
-        # Output paths this download reserved for auto-numbering; released
-        # in the finally block below.
-        reserved_outputs: list[str] = []
+            _configure_ydl(ydl, options, reserved_outputs)
+            logger.info("✓ yt-dlp initialized successfully")
+            logger.info(f"✓ Starting download from: {options.url}")
 
-        try:
-            logger.info("\n[STEP 5/5] Initializing yt-dlp and starting download...")
-            with YoutubeDL(ydl_opts) as ydl:
-                # Check if cancelled before starting
-                if self._download_cancelled:
-                    logger.info("Download cancelled before starting")
-                    return False
+            info_dict = ydl.extract_info(options.url, download=True)
 
-                if auto_number_duplicates:
-                    numbering_pp = _DuplicateNumberingPP(
-                        ydl,
-                        output_template,
-                        audio_format if audio_only else None,
-                        reserved_outputs,
-                    )
-                    ydl.add_post_processor(numbering_pp, when="video")
+            if self._download_cancelled:
+                logger.info("Download was cancelled")
+                return False
 
-                # Make subtitle write failures non-fatal so a YouTube 429 on
-                # subtitles cannot abort the video download.
-                if download_subtitles:
-                    _make_subtitles_non_fatal(ydl)
+            output_files = _require_output_files(info_dict, log_bridge)
+            write_side_files(
+                options.output_dir,
+                info_dict,
+                metadata=options.download_metadata,
+                comments=options.download_comments,
+            )
+            self._record_success(output_files, info_dict)
+            return True
 
-                logger.info("✓ yt-dlp initialized successfully")
-                logger.info(f"✓ Starting download from: {url}")
+    def _record_success(self, output_files: list[str], info_dict: dict[str, Any]) -> None:
+        """Store the result of a finished download."""
+        logger.info("\n" + "=" * 80)
+        logger.info("✓✓✓ DOWNLOAD COMPLETED SUCCESSFULLY ✓✓✓")
+        logger.info("=" * 80)
+        # Set only on success, so a failure never leaves stale paths.
+        self._last_output_files = output_files
+        title = info_dict.get("title")
+        self._last_title = title if isinstance(title, str) and title else None
 
-                # Download the video
-                info_dict = ydl.extract_info(url, download=True)
+    def _record_failure(self, error: Exception) -> None:
+        """Store the error for the UI and log it with its traceback."""
+        self._last_error = str(error)
+        self._last_error_type = type(error).__name__
 
-                # Check if cancelled during download
-                if self._download_cancelled:
-                    logger.info("Download was cancelled")
-                    return False
-
-                # Never report success without a file on disk (see
-                # _existing_output_files). Raising routes this through the
-                # normal failure path so the UI shows the error.
-                output_files = _existing_output_files(info_dict)
-                if not output_files:
-                    reason = log_bridge.last_error or "no error was reported"
-                    raise RuntimeError(f"yt-dlp finished without writing a file: {reason}")
-
-                # Post-process metadata files to make them user-friendly
-                if download_metadata and info_dict:
-                    try:
-                        import glob
-                        import time
-                        from datetime import datetime
-
-                        # Search for recently created metadata files (within last 60 seconds)
-                        pattern = os.path.join(output_dir, "*.info.json")
-                        json_files = glob.glob(pattern)
-                        recent_files = [f for f in json_files if time.time() - os.path.getmtime(f) < 60]
-
-                        if recent_files:
-                            json_file = max(recent_files, key=os.path.getmtime)
-                            base_filename = os.path.splitext(json_file)[0]
-
-                            logger.info(f"Post-processing metadata files for: {os.path.basename(base_filename)}")
-
-                            # 1. Read JSON data
-                            with open(json_file, encoding="utf-8") as f:
-                                data = json.load(f)
-
-                            # 2. Create human-readable metadata.txt file
-                            metadata_txt = f"{base_filename}_metadata.txt"
-                            with open(metadata_txt, "w", encoding="utf-8") as f:
-                                f.write("=" * 80 + "\n")
-                                f.write("VIDEO METADATA\n")
-                                f.write("=" * 80 + "\n\n")
-
-                                # Essential information
-                                f.write("[ESSENTIAL INFORMATION]\n")
-                                f.write(f"Title: {data.get('title', 'N/A')}\n")
-                                f.write(f"Uploader: {data.get('uploader', 'N/A')}\n")
-                                f.write(f"Channel: {data.get('channel', 'N/A')}\n")
-                                f.write(f"Channel ID: {data.get('channel_id', 'N/A')}\n")
-                                f.write(f"Video ID: {data.get('id', 'N/A')}\n")
-                                f.write(f"URL: {data.get('webpage_url', 'N/A')}\n\n")
-
-                                # Upload date
-                                upload_date = data.get("upload_date", "")
-                                if upload_date and len(upload_date) == 8:
-                                    try:
-                                        date_obj = datetime.strptime(upload_date, "%Y%m%d")
-                                        formatted_date = date_obj.strftime("%B %d, %Y")
-                                        f.write(f"[UPLOAD DATE]\n{formatted_date}\n\n")
-                                    except Exception:
-                                        f.write(f"[UPLOAD DATE]\n{upload_date}\n\n")
-
-                                # Duration
-                                duration = data.get("duration", 0)
-                                if duration:
-                                    minutes, seconds = divmod(int(duration), 60)
-                                    hours, minutes = divmod(minutes, 60)
-                                    if hours > 0:
-                                        duration_str = f"{hours}h {minutes}m {seconds}s"
-                                    else:
-                                        duration_str = f"{minutes}m {seconds}s"
-                                    f.write(f"[DURATION]\n{duration_str}\n\n")
-
-                                # Statistics
-                                f.write("[STATISTICS]\n")
-                                views = data.get("view_count", 0)
-                                likes = data.get("like_count", 0)
-                                comments = data.get("comment_count", 0)
-                                if views:
-                                    f.write(f"Views: {views:,}\n")
-                                if likes:
-                                    f.write(f"Likes: {likes:,}\n")
-                                if comments:
-                                    f.write(f"Comments: {comments:,}\n")
-                                f.write("\n")
-
-                                # Video quality
-                                f.write("[VIDEO QUALITY]\n")
-                                f.write(f"Resolution: {data.get('width', 'N/A')}x{data.get('height', 'N/A')}\n")
-                                f.write(f"FPS: {data.get('fps', 'N/A')}\n")
-                                f.write(f"Format: {data.get('format', 'N/A')}\n")
-                                f.write(f"Video Codec: {data.get('vcodec', 'N/A')}\n")
-                                f.write(f"Audio Codec: {data.get('acodec', 'N/A')}\n\n")
-
-                                # Categories and tags
-                                categories = data.get("categories", [])
-                                if categories:
-                                    f.write("[CATEGORIES]\n")
-                                    f.write(", ".join(categories) + "\n\n")
-
-                                tags = data.get("tags", [])
-                                if tags:
-                                    f.write("[TAGS]\n")
-                                    # Write tags in rows of 3-4 for readability
-                                    for i in range(0, len(tags), 4):
-                                        f.write(", ".join(tags[i : i + 4]) + "\n")
-                                    f.write("\n")
-
-                                # Thumbnail URL
-                                thumbnail = data.get("thumbnail", "")
-                                if thumbnail:
-                                    f.write(f"[THUMBNAIL URL]\n{thumbnail}\n\n")
-
-                                f.write("=" * 80 + "\n")
-                                f.write("End of Metadata\n")
-                                f.write("=" * 80 + "\n")
-
-                            logger.info(f"✓ Created human-readable metadata: {os.path.basename(metadata_txt)}")
-
-                            # 3. Rename .description file to .txt for better Windows compatibility
-                            desc_file = f"{base_filename}.description"
-                            desc_txt_file = f"{base_filename}_description.txt"
-                            if os.path.exists(desc_file):
-                                os.rename(desc_file, desc_txt_file)
-                                logger.info(f"✓ Renamed description file to: {os.path.basename(desc_txt_file)}")
-
-                            # 4. Format JSON file with proper indentation (keep for technical users)
-                            with open(json_file, "w", encoding="utf-8") as f:
-                                json.dump(data, f, indent=2, ensure_ascii=False)
-                            logger.info("✓ Formatted JSON file with 2-space indentation")
-
-                        else:
-                            logger.warning("Could not find recently created JSON metadata file")
-
-                    except Exception:
-                        logger.exception("Error post-processing metadata files")
-
-                # Post-process comments to TXT file (v2.0.0)
-                if download_comments and info_dict:
-                    try:
-                        import glob
-                        import time
-
-                        logger.info("Post-processing comments to .txt file...")
-
-                        # Wait a moment for yt-dlp to finish writing the JSON file
-                        time.sleep(1)
-
-                        # Search for recently created JSON files (within last 120 seconds to be safe)
-                        pattern = os.path.join(output_dir, "*.info.json")
-                        json_files = glob.glob(pattern)
-                        recent_files = [f for f in json_files if time.time() - os.path.getmtime(f) < 120]
-
-                        if recent_files:
-                            json_file = max(recent_files, key=os.path.getmtime)
-                            logger.info(f"Found JSON file: {os.path.basename(json_file)}")
-                            base_filename = os.path.splitext(json_file)[0]
-
-                            # Read JSON data to extract comments
-                            with open(json_file, encoding="utf-8") as f:
-                                data = json.load(f)
-
-                            comments_list = data.get("comments", [])
-                            logger.info(f"Found {len(comments_list)} comments in JSON file")
-
-                            if comments_list:
-                                # Add "Comments" to the filename (v3.0.0)
-                                comments_txt = f"{base_filename} Comments.txt"
-                                with open(comments_txt, "w", encoding="utf-8") as f:
-                                    f.write("=" * 80 + "\n")
-                                    f.write("VIDEO COMMENTS\n")
-                                    f.write("=" * 80 + "\n\n")
-                                    f.write(f"Video Title: {data.get('title', 'N/A')}\n")
-                                    f.write(f"Total Comments: {len(comments_list):,}\n")
-                                    f.write("=" * 80 + "\n\n")
-
-                                    for i, comment in enumerate(comments_list, 1):
-                                        author = comment.get("author", "Unknown")
-                                        text = comment.get("text", "")
-                                        likes = comment.get("like_count", 0)
-                                        timestamp = comment.get("timestamp", 0)
-
-                                        # Format timestamp if available
-                                        time_str = ""
-                                        if timestamp:
-                                            try:
-                                                from datetime import datetime
-
-                                                dt = datetime.fromtimestamp(timestamp)
-                                                time_str = dt.strftime("%Y-%m-%d %H:%M:%S")
-                                            except Exception:
-                                                time_str = str(timestamp)
-
-                                        f.write(f"[Comment #{i}]\n")
-                                        f.write(f"Author: {author}\n")
-                                        if time_str:
-                                            f.write(f"Date: {time_str}\n")
-                                        if likes > 0:
-                                            f.write(f"Likes: {likes:,}\n")
-                                        f.write(f"\n{text}\n")
-                                        f.write("-" * 80 + "\n\n")
-
-                                comments_name = os.path.basename(comments_txt)
-                                logger.info(f"✓ Comments saved to: {comments_name} ({len(comments_list):,} comments)")
-
-                                # If not downloading full metadata, delete the JSON file
-                                if not download_metadata:
-                                    try:
-                                        os.remove(json_file)
-                                        logger.info("✓ Cleaned up temporary JSON file")
-                                    except OSError as cleanup_error:
-                                        logger.debug(f"Could not remove temporary JSON file: {cleanup_error}")
-                            else:
-                                logger.warning("⚠ No comments found in video (comments may be disabled)")
-                        else:
-                            logger.warning("Could not find recently created JSON file for comments")
-
-                    except Exception:
-                        logger.exception("Error extracting comments to TXT")
-
-                logger.info("\n" + "=" * 80)
-                logger.info("✓✓✓ DOWNLOAD COMPLETED SUCCESSFULLY ✓✓✓")
-                logger.info("=" * 80)
-                # Set only on success, so a failure never leaves stale paths.
-                self._last_output_files = output_files
-                title = info_dict.get("title")
-                self._last_title = title if isinstance(title, str) and title else None
-                return True
-
-        except Exception as e:
-            # Store the error for the UI to display.
-            self._last_error = str(e)
-            self._last_error_type = type(e).__name__
-
-            # logger.exception() records the error type, message, and full
-            # traceback in one entry; the banner lines keep it easy to spot.
-            logger.error("\n" + "=" * 80)
-            logger.error("✗✗✗ DOWNLOAD FAILED ✗✗✗")
-            logger.error("=" * 80)
-            logger.exception("Download failed")
-            logger.error("=" * 80)
-
-            return False
-
-        finally:
-            # The file exists now (or the download failed), so the
-            # reservation is no longer needed.
-            _release_outputs(reserved_outputs)
+        # logger.exception() records the error type, message, and full
+        # traceback in one entry; the banner lines keep it easy to spot.
+        logger.error("\n" + "=" * 80)
+        logger.error("✗✗✗ DOWNLOAD FAILED ✗✗✗")
+        logger.error("=" * 80)
+        logger.exception("Download failed")
+        logger.error("=" * 80)
 
     def cancel_download(self) -> None:
         """

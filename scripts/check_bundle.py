@@ -70,6 +70,27 @@ def _normalise(name: str) -> str:
     return name.replace("\\", "/")
 
 
+def _pyz_modules(archive: CArchiveReader) -> set[str]:
+    """Return the module names in every PYZ archive embedded in the bundle."""
+    modules: set[str] = set()
+    for name in archive.toc:
+        if _normalise(name).endswith(".pyz"):
+            modules |= set(archive.open_embedded_archive(name).toc)
+    return modules
+
+
+def _engine_version_failure(archive: CArchiveReader, toc_names: dict[str, str]) -> str | None:
+    """Return a failure message if the bundled engine is not the version the app reports."""
+    version_key = toc_names.get("yt_dlp_engine/yt_dlp/version.py")
+    version_src = archive.extract(version_key) if version_key else b""
+    bundled = re.search(rb"__version__\s*=\s*'([^']+)'", version_src or b"")
+    constants = (ROOT / "src" / "utils" / "constants.py").read_text(encoding="utf-8")
+    expected = re.search(r'YTDLP_VERSION\s*=\s*"([^"]+)"', constants)
+    if bundled and expected and bundled.group(1).decode() != expected.group(1):
+        return f"bundled yt-dlp {bundled.group(1).decode()} != YTDLP_VERSION {expected.group(1)}"
+    return None
+
+
 def check(exe: Path) -> list[str]:
     """Return a list of failure messages (empty means the bundle is good)."""
     failures: list[str] = []
@@ -86,10 +107,7 @@ def check(exe: Path) -> list[str]:
         if name not in files:
             failures.append(f"missing file: {name}")
 
-    pyz_names = [n for n in archive.toc if _normalise(n).endswith(".pyz")]
-    modules: set[str] = set()
-    for pyz in pyz_names:
-        modules |= set(archive.open_embedded_archive(pyz).toc)
+    modules = _pyz_modules(archive)
     if not modules:
         failures.append("no embedded PYZ archive found")
     for mod in REQUIRED_MODULES:
@@ -103,14 +121,9 @@ def check(exe: Path) -> list[str]:
         if FORBIDDEN.search(name):
             failures.append(f"forbidden content: {name}")
 
-    # The bundled engine must be the version the app reports.
-    version_key = toc_names.get("yt_dlp_engine/yt_dlp/version.py")
-    version_src = archive.extract(version_key) if version_key else b""
-    bundled = re.search(rb"__version__\s*=\s*'([^']+)'", version_src or b"")
-    constants = (ROOT / "src" / "utils" / "constants.py").read_text(encoding="utf-8")
-    expected = re.search(r'YTDLP_VERSION\s*=\s*"([^"]+)"', constants)
-    if bundled and expected and bundled.group(1).decode() != expected.group(1):
-        failures.append(f"bundled yt-dlp {bundled.group(1).decode()} != YTDLP_VERSION {expected.group(1)}")
+    version_failure = _engine_version_failure(archive, toc_names)
+    if version_failure:
+        failures.append(version_failure)
 
     print(f"{exe}: {len(files)} files, {len(modules)} modules checked")
     return failures

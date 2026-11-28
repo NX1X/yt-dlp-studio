@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
+from src.backend.download_options import DownloadOptions
 from src.backend.yt_dlp_wrapper import YtDlpWrapper
 
 
@@ -321,7 +322,7 @@ def _run_download_with_capture(monkeypatch, **kwargs):
     defaults.update(kwargs)
 
     wrapper = mod.YtDlpWrapper()
-    wrapper.download(**defaults)
+    wrapper.download(DownloadOptions(**defaults))
     return _CapturingYDL.captured
 
 
@@ -397,10 +398,12 @@ def _run_download_returning(monkeypatch, tmp_path, info, error=None):
     monkeypatch.setattr(mod, "YoutubeDL", _FakeYDL)
     wrapper = mod.YtDlpWrapper()
     ok = wrapper.download(
-        url="https://example.com/video",
-        output_dir=str(tmp_path),
-        format_string="best",
-        download_thumbnail=False,
+        DownloadOptions(
+            url="https://example.com/video",
+            output_dir=str(tmp_path),
+            format_string="best",
+            download_thumbnail=False,
+        )
     )
     return ok, wrapper
 
@@ -512,11 +515,11 @@ def test_result_is_reset_on_each_download(monkeypatch, tmp_path):
     wrapper = mod.YtDlpWrapper()
     kwargs = {"url": "https://example.com/v", "output_dir": str(tmp_path), "format_string": "best"}
 
-    assert wrapper.download(**kwargs) is True
+    assert wrapper.download(DownloadOptions(**kwargs)) is True
     assert wrapper.last_title == "First"
     assert wrapper.last_error is None
 
-    assert wrapper.download(**kwargs) is False
+    assert wrapper.download(DownloadOptions(**kwargs)) is False
     assert wrapper.last_output_files == []
     assert wrapper.last_title is None
     assert wrapper.last_error

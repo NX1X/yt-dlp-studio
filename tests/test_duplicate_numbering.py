@@ -14,6 +14,7 @@ import threading
 import pytest
 
 from src.backend import yt_dlp_wrapper as mod
+from src.backend.download_options import DownloadOptions
 
 VIDEO_INFO = {"id": "abc123", "title": "My Video", "ext": "mp4", "height": 720}
 AUDIO_INFO = {"id": "abc123", "title": "My Song", "ext": "webm", "quality": "medium"}
@@ -68,7 +69,7 @@ def _download(tmp_path, info=VIDEO_INFO, **kwargs):
     }
     params.update(kwargs)
     wrapper = mod.YtDlpWrapper()
-    ok = wrapper.download(**params)
+    ok = wrapper.download(DownloadOptions(**params))
     assert ok is True, wrapper.last_error
     (path,) = wrapper.last_output_files
     return path
@@ -166,25 +167,26 @@ def test_check_uses_sanitized_name(tmp_path):
     second = _download(tmp_path, info=info)
     stem, ext = os.path.splitext(first)
     assert second == f"{stem} (1){ext}"
-    assert "100%" in first and "$HOME" in first
+    assert "100%" in first
+    assert "$HOME" in first
     for bad in ':?"<>':
         assert bad not in os.path.basename(first)
 
 
-def test_numbered_path_is_reported(tmp_path):
+def test_numbered_path_is_reported(tmp_path, monkeypatch):
     (tmp_path / "My Video_720p.mp4").write_text("old")
-    _FakeDownloadYDL.fake_info = VIDEO_INFO
+    monkeypatch.setattr(_FakeDownloadYDL, "fake_info", VIDEO_INFO)
     wrapper = mod.YtDlpWrapper()
-    assert wrapper.download("https://example.com/v", str(tmp_path), "best", download_thumbnail=False)
+    assert wrapper.download(DownloadOptions("https://example.com/v", str(tmp_path), "best", download_thumbnail=False))
     assert wrapper.last_output_files == [str(tmp_path / "My Video_720p (1).mp4")]
 
 
 # ---------- concurrent downloads (queue workers) ----------
 
 
-def test_concurrent_identical_downloads_get_different_names(tmp_path):
+def test_concurrent_identical_downloads_get_different_names(tmp_path, monkeypatch):
     """Both downloads choose a name before either file exists on disk."""
-    _FakeDownloadYDL.barrier = threading.Barrier(2)
+    monkeypatch.setattr(_FakeDownloadYDL, "barrier", threading.Barrier(2))
     results: list[str] = []
     errors: list[BaseException] = []
 
@@ -225,6 +227,9 @@ def test_reservation_released_after_failed_download(tmp_path, monkeypatch):
 
     monkeypatch.setattr(_FakeDownloadYDL, "extract_info", boom)
     wrapper = mod.YtDlpWrapper()
-    assert wrapper.download("https://example.com/v", str(tmp_path), "best", download_thumbnail=False) is False
+    assert (
+        wrapper.download(DownloadOptions("https://example.com/v", str(tmp_path), "best", download_thumbnail=False))
+        is False
+    )
     assert wrapper.last_output_files == []
     # The autouse fixture asserts that no reservation is left behind.
