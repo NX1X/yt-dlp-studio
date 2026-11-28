@@ -9,13 +9,34 @@ source text, so the rest of the file keeps its exact formatting.
 from __future__ import annotations
 
 import ast
+import os
 import string
+import tempfile
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 TRANSLATIONS_PATH = ROOT / "src" / "utils" / "translations.py"
+
+
+def checked_csv_path(path: Path) -> Path:
+    """
+    Resolve a CSV path from the command line and refuse anything else.
+
+    Only a ``.csv`` file inside this repository or the system temp folder
+    (used by the tests) is accepted, so a mistyped or crafted argument
+    cannot read or overwrite another file.
+    """
+    resolved = Path(os.path.realpath(path))
+    allowed = (Path(os.path.realpath(ROOT)), Path(os.path.realpath(tempfile.gettempdir())))
+    if resolved.suffix.lower() != ".csv":
+        raise ValueError(f"Not a .csv file: {path}")
+    if not any(resolved.is_relative_to(base) for base in allowed):
+        raise ValueError(f"The CSV file must be inside the repository: {path}")
+    return resolved
+
+
 LANGUAGES = ("en", "he")
 
 

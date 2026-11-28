@@ -28,6 +28,7 @@ from _i18n_tools import (
     ROOT,
     TRANSLATIONS_PATH,
     apply_edits,
+    checked_csv_path,
     placeholders,
     python_literal,
     read_translations,
@@ -40,7 +41,7 @@ class ImportProblem(Exception):
 
 def read_csv(path: Path) -> dict[str, dict[str, str]]:
     """Rows as ``{key: {"en": ..., "he": ...}}``. Line breaks are stored as \\n."""
-    with path.open(encoding="utf-8-sig", newline="") as handle:
+    with checked_csv_path(path).open(encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         missing = {"key", "en", "he"} - set(reader.fieldnames or [])
         if missing:
@@ -108,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         changes = plan_changes(args.csv, args.translations, args.update_en)
-    except ImportProblem as error:
+    except (ImportProblem, ValueError) as error:
         print(error, file=sys.stderr)
         return 1
 

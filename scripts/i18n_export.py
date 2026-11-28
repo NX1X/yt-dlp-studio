@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _i18n_tools import ROOT, TRANSLATIONS_PATH, read_translations  # noqa: E402
+from _i18n_tools import ROOT, TRANSLATIONS_PATH, checked_csv_path, read_translations  # noqa: E402
 
 COLUMNS = ("key", "en", "he", "status")
 
@@ -48,7 +48,7 @@ def build_rows(translations_path: Path = TRANSLATIONS_PATH, only_missing: bool =
 
 def write_csv(rows: list[list[str]], out: Path) -> None:
     # utf-8-sig writes the byte order mark that spreadsheets need for Hebrew.
-    with out.open("w", encoding="utf-8-sig", newline="") as handle:
+    with checked_csv_path(out).open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.writer(handle)
         writer.writerow(COLUMNS)
         writer.writerows(rows)
@@ -62,7 +62,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     rows = build_rows(args.translations, args.only_missing)
-    write_csv(rows, args.out)
+    try:
+        write_csv(rows, args.out)
+    except ValueError as error:
+        print(error, file=sys.stderr)
+        return 1
     missing = sum(1 for row in rows if row[3] == "missing")
     print(f"Wrote {len(rows)} rows to {args.out} ({missing} with status 'missing').")
     return 0
