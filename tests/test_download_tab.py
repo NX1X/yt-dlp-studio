@@ -283,6 +283,23 @@ class TestDownloadAndAddToQueue:
         assert tab._playlist_start_now is start_now
         assert queue_manager.get_all_tasks() == []
 
+    def test_second_playlist_click_does_not_start_a_second_fetch(self, tab, queue_manager):
+        """Two Download clicks on a playlist crashed the app (a running QThread was replaced)."""
+        tab.url_input.setText(PLAYLIST)
+        running = MagicMock()
+        running.isRunning.return_value = True
+        tab.playlist_worker = running
+        with (
+            patch.object(tab, "_ask_playlist_choice") as ask,
+            patch.object(tab, "_fetch_playlist_info") as fetch,
+        ):
+            assert tab.submit(start_now=True) is None
+        ask.assert_not_called()
+        fetch.assert_not_called()
+        assert tab.playlist_worker is running
+        assert tab.running_threads() == 1
+        tab.playlist_worker = None
+
     def test_playlist_whole_and_cancel(self, tab, queue_manager):
         queue_manager.pause_queue()
         tab.url_input.setText(PLAYLIST)
