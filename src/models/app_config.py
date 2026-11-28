@@ -27,6 +27,7 @@ class AppConfig:
         last_update_check: ISO timestamp of the last successful update check
         notifications_enabled: Show desktop notifications for download events
         close_to_tray: Hide the window to the system tray on close, instead of quitting
+        theme: UI theme, "dark" (default) or "light"
         cookies_browser: Browser to read cookies from for downloads ("" = none)
         cookies_profile: Browser profile name or folder ("" = default profile)
         proxy_url: Proxy for downloads and info look-ups ("" = no proxy).
@@ -52,6 +53,8 @@ class AppConfig:
     last_update_check: str = ""
     notifications_enabled: bool = True
     close_to_tray: bool = False
+    # UI theme, "dark" or "light". Unknown values start in dark (see ThemeMode.from_value).
+    theme: str = "dark"
     # Advanced download options (0.5.0)
     cookies_browser: str = ""
     cookies_profile: str = ""
