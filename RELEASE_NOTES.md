@@ -121,7 +121,7 @@ Requires Python 3.11+. On Linux, install FFmpeg first (`sudo apt install ffmpeg`
 
 ## System Requirements
 
-- **OS:** Windows 10/11 (64-bit), or 64-bit Linux with glibc 2.35+ (Ubuntu 22.04+, Debian 12+, Fedora 36+, Mint 21+, Arch, and most 2022-and-later distributions)
+- **OS:** Windows (64-bit; tested on Windows 11, Windows 10 should work but is not tested), or 64-bit Linux with glibc 2.35+ (Ubuntu 22.04+, Debian 12+, Fedora 36+, Mint 21+, Arch, and most 2022-and-later distributions)
 - **RAM:** 512 MB minimum, 2 GB recommended
 - **Disk:** 200 MB for the app + space for downloads
 - **Internet:** Required for downloads

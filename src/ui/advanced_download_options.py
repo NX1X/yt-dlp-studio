@@ -84,7 +84,7 @@ class AdvancedDownloadOptions(QWidget):
     def _add_row(self, form: QFormLayout, label_key: str, field: QWidget, tooltip_key: str) -> None:
         label = QLabel(tr(label_key))
         label.setBuddy(field)  # screen readers announce the label with the field
-        field.setAccessibleName(tr(label_key).rstrip(":"))
+        field.setAccessibleName(tr(label_key).rstrip(":\u200f"))  # also the RLM that tr() adds in Hebrew
         field.setToolTip(tr(tooltip_key))
         form.addRow(label, field)
 

@@ -188,10 +188,16 @@ class TestSiteTierLabel:
         english.set_language("he")
         label = SiteTierLabel()
         label.update_for_url("https://youtu.be/abc")
-        assert label.text() == TRANSLATIONS["he"]["site_tier_tested"]
+        # tr() adds an RLM after a final ")", ":" or "." in Hebrew.
+        from src.utils.translations import _end_rtl_paren
+
+        def shown(key: str) -> str:
+            return _end_rtl_paren(key, TRANSLATIONS["he"][key])
+
+        assert label.text() == shown("site_tier_tested")
         label.update_for_url("https://vimeo.com/1")
-        assert label.text() == TRANSLATIONS["he"]["site_tier_experimental"]
-        assert label.toolTip() == TRANSLATIONS["he"]["tooltip_site_tier_experimental"]
+        assert label.text() == shown("site_tier_experimental")
+        assert label.toolTip() == shown("tooltip_site_tier_experimental")
 
     def test_follows_line_edit(self, qapp, english):
         from PySide6.QtWidgets import QLineEdit
@@ -222,7 +228,7 @@ class TestTranslationsAndTheme:
 
     @pytest.mark.parametrize(
         ("mode", "tested", "experimental"),
-        [(ThemeMode.DARK, "#4ec9b0", "#dcdcaa"), (ThemeMode.LIGHT, "#10b981", "#f59e0b")],
+        [(ThemeMode.DARK, "#4ec9b0", "#dcdcaa"), (ThemeMode.LIGHT, "#047857", "#b45309")],
     )
     def test_theme_colors(self, mode, tested, experimental):
         qss = ModernTheme.get_stylesheet(mode)

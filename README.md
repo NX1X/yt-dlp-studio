@@ -69,7 +69,7 @@ To ask for a site, [open a feature request](https://github.com/NX1X/yt-dlp-studi
 - **Interface:** dark and light themes, English and Hebrew (right-to-left), drag and drop, keyboard shortcuts.
 - **Updates:** check for a new release from inside the app. The app checks the SHA-256 of a downloaded update against the digest that GitHub publishes. It never starts an update that it could not verify.
 
-The [Getting Started guide](docs/GETTING_STARTED.md) explains each feature.
+The [Getting Started guide](docs/GETTING_STARTED.md) is a short quick start. The [User Guide](docs/USER_GUIDE.md) explains each feature.
 
 ## Download and install
 
@@ -77,7 +77,7 @@ Download every file from the [Releases page](https://github.com/NX1X/yt-dlp-stud
 
 ### System requirements
 
-- **Windows:** Windows 10 or 11, 64-bit.
+- **Windows:** 64-bit. Tested on Windows 11. Windows 10 should work but is not tested.
 - **Linux:** 64-bit (x86_64) with glibc 2.35 or later. This includes Ubuntu 22.04+, Debian 12+, Fedora 36+, Linux Mint 21+, Arch and most distributions from 2022 and later.
 - **Run from source:** Python 3.11 or later, on Windows or Linux.
 
@@ -247,7 +247,7 @@ The video may be private, removed or geo-restricted. Check your internet connect
 
 ### Does it work on macOS?
 
-No. YT-DLP Studio supports Windows 10/11 and Linux. macOS support is possible later.
+No. YT-DLP Studio supports Windows and Linux. Windows releases are tested on Windows 11. Windows 10 should work but is not tested. macOS support is possible later.
 
 ### Why are the Windows downloads so large?
 
@@ -265,7 +265,9 @@ Yes. YT-DLP Studio is free and open source under the [Apache License 2.0](LICENS
 
 ## Documentation
 
-- [Getting Started](docs/GETTING_STARTED.md): how to use the app, keyboard shortcuts, playlists.
+- [Getting Started](docs/GETTING_STARTED.md): a short quick start: install, first download, where files go.
+- [User Guide](docs/USER_GUIDE.md): every tab and setting, and common tasks.
+- [Troubleshooting](docs/TROUBLESHOOTING.md): fixes for common problems, and how to report an issue.
 - [Installation Guide](docs/INSTALLATION_GUIDE.md): all install options, run from source, uninstall.
 - [Development Guide](docs/DEVELOPMENT.md): set up a development environment, test and build.
 - [Architecture](docs/ARCHITECTURE.md): code structure and design.

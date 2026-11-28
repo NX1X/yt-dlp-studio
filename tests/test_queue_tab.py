@@ -1,584 +1,457 @@
 """
-Tests for QueueTab UI.
+Tests for the Queue tab.
 
-Tests queue display, controls, and user interactions.
-Requires pytest-qt for Qt widget testing.
+Covers the top bar (Start, Pause, Stop all, counters), the table columns
+and the progress cells, the selection bar, the right-click menu, the
+keyboard (Delete asks first for running or waiting tasks, no Space
+shortcut) and the Clear finished menu. Requires pytest-qt.
 """
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication, QKeySequence, QShortcut
+from PySide6.QtWidgets import QMessageBox, QPushButton
 
 from src.backend.queue_manager import QueueManager
 from src.models.download_task import DownloadTask, TaskStatus
-from src.ui.queue_tab import QueueTab
-from src.utils.translations import get_translation_manager
+from src.ui.display_format import strip_isolates
+from src.ui.queue_tab import COL_ETA, COL_SIZE, COL_SPEED, COL_STATUS, COL_TITLE, QueueTab
+from src.ui.table_delegates import PROGRESS_ROLE, STATUS_KIND_ROLE
+from src.utils.translations import get_translation_manager, tr
 
 
 @pytest.fixture(autouse=True)
 def force_english_ui():
-    """Pin the UI language to English for every test in this module.
-
-    QueueTab builds its column headers and statistics labels from ``tr()`` at
-    construction time, and the translation manager is a process-wide singleton.
-    Other modules (e.g. test_translations.py) flip it to Hebrew, and the CI
-    runner's own locale can make ``_detect_system_language()`` return "he".
-    Either one leaves QueueTab rendering Hebrew text, which intermittently broke
-    the English-text assertions below - the "locale-sensitive flake" that forced
-    this file to be excluded from CI. Forcing "en" on the singleton before each
-    test makes the suite deterministic regardless of locale or test order.
-
-    We call ``set_language`` on the existing manager rather than nulling and
-    rebuilding it, so we don't re-run system-locale detection (and its
-    deprecation warning) 38 times per run.
-    """
+    """Pin the UI language to English, so text checks do not depend on the locale or test order."""
+    get_translation_manager().set_language("en")
+    yield
     get_translation_manager().set_language("en")
 
 
 @pytest.fixture
 def queue_manager():
-    """Create a queue manager for testing."""
-    return QueueManager(max_concurrent=3)
+    """A paused in-memory queue: nothing starts a real download."""
+    manager = QueueManager(max_concurrent=3)
+    manager.pause_queue()
+    return manager
 
 
 @pytest.fixture
-def queue_tab(qtbot, queue_manager, force_english_ui):
-    """Create a queue tab for testing.
-
-    Depends on ``force_english_ui`` so the language is pinned to English
-    *before* the widget (and its translated labels) is constructed.
-    """
+def queue_tab(qtbot, queue_manager):
     tab = QueueTab(queue_manager)
     qtbot.addWidget(tab)
     return tab
 
 
-@pytest.fixture
-def sample_task():
-    """Create a sample download task."""
-    return DownloadTask(url="https://www.youtube.com/watch?v=test", output_directory="/tmp/downloads", quality="1080p")
+def make_task(i: int = 0, **fields) -> DownloadTask:
+    task = DownloadTask(
+        url=f"https://www.youtube.com/watch?v=test{i}", output_directory="/tmp/downloads", quality="1080p"
+    )
+    for name, value in fields.items():
+        setattr(task, name, value)
+    return task
 
 
-@pytest.fixture
-def multiple_tasks():
-    """Create multiple sample tasks."""
-    return [
-        DownloadTask(url=f"https://www.youtube.com/watch?v=test{i}", output_directory="/tmp/downloads", quality="1080p")
-        for i in range(5)
-    ]
+def add(queue_manager, *tasks):
+    for task in tasks:
+        queue_manager.add_task(task)
+    queue_manager.queue_updated.emit()
 
 
-class TestQueueTabInitialization:
-    """Test queue tab initialization."""
-
-    def test_initialization(self, queue_tab):
-        """Test that queue tab initializes properly."""
-        assert queue_tab.queue_manager is not None
-        assert queue_tab.queue_table is not None
-        assert queue_tab.queue_table.columnCount() == 8
-
-    def test_ui_elements_exist(self, queue_tab):
-        """Test that all UI elements are created."""
-        # Statistics labels
-        assert queue_tab.total_label is not None
-        assert queue_tab.pending_label is not None
-        assert queue_tab.active_label is not None
-        assert queue_tab.completed_label is not None
-        assert queue_tab.failed_label is not None
-
-        # Control buttons
-        assert queue_tab.start_button is not None
-        assert queue_tab.pause_button is not None
-        assert queue_tab.stop_button is not None
-
-        # Task management buttons
-        assert queue_tab.move_up_button is not None
-        assert queue_tab.move_down_button is not None
-        assert queue_tab.remove_button is not None
-
-        # Clear buttons
-        assert queue_tab.clear_completed_button is not None
-        assert queue_tab.clear_failed_button is not None
-
-    def test_table_headers(self, queue_tab):
-        """Test that table headers are set correctly."""
-        expected_headers = ["Video Name", "URL", "Quality", "Status", "Progress", "Speed", "Output", "Actions"]
-        for col in range(8):
-            header_text = queue_tab.queue_table.horizontalHeaderItem(col).text()
-            assert header_text == expected_headers[col]
+def menu_actions(menu) -> dict:
+    return {action.objectName(): action for action in menu.actions() if action.objectName()}
 
 
-class TestQueueTabDisplay:
-    """Test queue display functionality."""
+class TestLayout:
+    def test_columns(self, queue_tab):
+        headers = [queue_tab.queue_table.horizontalHeaderItem(c).text() for c in range(5)]
+        assert headers == ["Title", "Status", "Size", "Speed", "Time left"]
 
-    def test_empty_queue_display(self, queue_tab):
-        """Test display with empty queue."""
-        assert queue_tab.queue_table.rowCount() == 0
-        assert "Total: 0" in queue_tab.total_label.text()
+    def test_no_buttons_in_cells(self, queue_tab, queue_manager):
+        add(queue_manager, make_task(0), make_task(1, status=TaskStatus.ERROR))
+        for row in range(queue_tab.queue_table.rowCount()):
+            for column in range(queue_tab.queue_table.columnCount()):
+                assert queue_tab.queue_table.cellWidget(row, column) is None
 
-    def test_display_single_task(self, queue_tab, queue_manager, sample_task):
-        """Test displaying a single task."""
+    def test_only_one_primary_button(self, queue_tab):
+        primary = [b for b in queue_tab.findChildren(QPushButton) if b.property("buttonStyle") == "primary"]
+        assert primary == [queue_tab.start_button]
+
+    def test_empty_state(self, queue_tab, queue_manager):
+        assert queue_tab._queue_stack.currentIndex() == 1
+        assert queue_tab.counters_label.text() == "The queue is empty, queue paused"
+        add(queue_manager, make_task())
+        assert queue_tab._queue_stack.currentIndex() == 0
+
+    def test_go_to_download_link(self, qtbot, queue_tab):
+        with qtbot.waitSignal(queue_tab.go_to_download_requested):
+            queue_tab.go_to_download_button.click()
+
+
+class TestCountersAndControls:
+    def test_counters_on_one_line(self, queue_tab, queue_manager):
+        add(
+            queue_manager,
+            make_task(0, status=TaskStatus.DOWNLOADING),
+            make_task(1),
+            make_task(2),
+            make_task(3, status=TaskStatus.ERROR),
+            make_task(4, status=TaskStatus.COMPLETED),
+        )
+        assert queue_tab.counters_label.text() == "1 downloading, 2 waiting, 1 failed, 1 done, queue paused"
+
+    def test_start_pause_enabled_by_state(self, queue_tab, queue_manager):
+        assert queue_tab.start_button.isEnabled()
+        assert not queue_tab.pause_button.isEnabled()
         with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
+            queue_tab.start_button.click()
+        assert not queue_manager.is_paused
+        assert not queue_tab.start_button.isEnabled()
+        assert queue_tab.pause_button.isEnabled()
+        queue_tab.pause_button.click()
+        assert queue_manager.is_paused
+        assert queue_tab.start_button.isEnabled()
 
-        # Queue should update automatically via signal
-        assert queue_tab.queue_table.rowCount() == 1
-        assert "Total: 1" in queue_tab.total_label.text()
-
-    def test_display_multiple_tasks(self, queue_tab, queue_manager, multiple_tasks):
-        """Test displaying multiple tasks."""
+    def test_paused_signal_updates_controls(self, queue_tab, queue_manager):
         with patch.object(queue_manager, "_try_start_next"):
-            for task in multiple_tasks:
-                queue_manager.add_task(task)
+            queue_manager.resume_queue()  # from elsewhere, not the tab
+        assert queue_tab.pause_button.isEnabled()
+        assert "queue paused" not in queue_tab.counters_label.text()
 
-        assert queue_tab.queue_table.rowCount() == 5
-        assert "Total: 5" in queue_tab.total_label.text()
+    def test_start_resumes_and_starts(self, queue_tab, queue_manager):
+        with patch.object(queue_manager, "resume_queue") as resume, patch.object(queue_manager, "start_queue") as start:
+            queue_tab.start_button.click()
+        resume.assert_called_once()
+        start.assert_called_once()
 
-    def test_url_truncation(self, queue_tab):
-        """Test that long URLs are truncated."""
-        long_url = "https://www.example.com/very/long/path/" + ("x" * 100)
-        truncated = queue_tab._truncate_url(long_url, max_length=60)
-        assert len(truncated) <= 60
-        assert truncated.endswith("...")
+    def test_stop_all_disabled_without_running_downloads(self, queue_tab, queue_manager):
+        add(queue_manager, make_task())
+        assert not queue_tab.stop_button.isEnabled()
 
-    def test_short_url_not_truncated(self, queue_tab):
-        """Test that short URLs are not truncated."""
-        short_url = "https://example.com/video"
-        result = queue_tab._truncate_url(short_url, max_length=60)
-        assert result == short_url
-
-
-class TestQueueTabStatistics:
-    """Test statistics display."""
-
-    def test_statistics_update(self, queue_tab, queue_manager, multiple_tasks):
-        """Test that statistics update correctly."""
+    def test_stop_all_asks_then_pauses_and_cancels(self, queue_tab, queue_manager):
         with patch.object(queue_manager, "_try_start_next"):
-            # Add tasks with different statuses
-            multiple_tasks[0].status = TaskStatus.PENDING
-            queue_manager.add_task(multiple_tasks[0])
-
-            multiple_tasks[1].status = TaskStatus.DOWNLOADING
-            queue_manager.add_task(multiple_tasks[1])
-
-            multiple_tasks[2].status = TaskStatus.COMPLETED
-            queue_manager.add_task(multiple_tasks[2])
-
-            multiple_tasks[3].status = TaskStatus.ERROR
-            queue_manager.add_task(multiple_tasks[3])
-
-        # Check statistics labels
-        assert "Total: 4" in queue_tab.total_label.text()
-        assert "Pending: 1" in queue_tab.pending_label.text()
-        assert "Active: 1" in queue_tab.active_label.text()
-        assert "Completed: 1" in queue_tab.completed_label.text()
-        assert "Failed: 1" in queue_tab.failed_label.text()
-
-    def test_statistics_empty_queue(self, queue_tab):
-        """Test statistics with empty queue."""
-        assert "Total: 0" in queue_tab.total_label.text()
-        assert "Pending: 0" in queue_tab.pending_label.text()
-        assert "Active: 0" in queue_tab.active_label.text()
-
-
-class TestQueueTabStatusColors:
-    """Test status color coding."""
-
-    def test_status_color_pending(self, queue_tab):
-        """Test color for pending status."""
-        color = queue_tab._get_status_color(TaskStatus.PENDING)
-        assert color is not None
-
-    def test_status_color_downloading(self, queue_tab):
-        """Test color for downloading status."""
-        color = queue_tab._get_status_color(TaskStatus.DOWNLOADING)
-        assert color is not None
-
-    def test_status_color_completed(self, queue_tab):
-        """Test color for completed status."""
-        color = queue_tab._get_status_color(TaskStatus.COMPLETED)
-        assert color is not None
-
-    def test_status_color_error(self, queue_tab):
-        """Test color for error status."""
-        color = queue_tab._get_status_color(TaskStatus.ERROR)
-        assert color is not None
-
-
-class TestQueueTabControls:
-    """Test queue control buttons."""
-
-    def test_start_button_click(self, qtbot, queue_tab, queue_manager):
-        """Test clicking start queue button."""
+            queue_manager.resume_queue()
+        add(queue_manager, make_task(0, status=TaskStatus.DOWNLOADING))
         with (
-            patch.object(queue_manager, "resume_queue") as mock_resume,
-            patch.object(queue_manager, "start_queue") as mock_start,
+            patch.object(QMessageBox, "question", return_value=QMessageBox.Yes) as question,
+            patch.object(queue_manager, "stop_all") as stop,
         ):
-            qtbot.mouseClick(queue_tab.start_button, Qt.LeftButton)
-            mock_resume.assert_called_once()
-            mock_start.assert_called_once()
+            queue_tab.stop_button.click()
+        question.assert_called_once()
+        stop.assert_called_once()
+        assert queue_manager.is_paused
 
-    def test_pause_button_click(self, qtbot, queue_tab, queue_manager):
-        """Test clicking pause queue button."""
-        with patch.object(queue_manager, "pause_queue") as mock_pause:
-            qtbot.mouseClick(queue_tab.pause_button, Qt.LeftButton)
-            mock_pause.assert_called_once()
+    def test_stop_all_no_keeps_running(self, queue_tab, queue_manager):
+        add(queue_manager, make_task(0, status=TaskStatus.DOWNLOADING))
+        with (
+            patch.object(QMessageBox, "question", return_value=QMessageBox.No),
+            patch.object(queue_manager, "stop_all") as stop,
+        ):
+            queue_tab.stop_button.click()
+        stop.assert_not_called()
 
-    def test_stop_button_click(self, qtbot, queue_tab, queue_manager):
-        """Test clicking stop all button."""
-        with patch.object(queue_manager, "stop_all") as mock_stop:
-            qtbot.mouseClick(queue_tab.stop_button, Qt.LeftButton)
-            mock_stop.assert_called_once()
-
-
-class TestQueueTabTaskManagement:
-    """Test task management operations."""
-
-    def test_move_up_button(self, qtbot, queue_tab, queue_manager, multiple_tasks):
-        """Test moving task up."""
-        with patch.object(queue_manager, "_try_start_next"):
-            for task in multiple_tasks:
-                queue_manager.add_task(task)
-
-        # Select row 2
-        queue_tab.queue_table.selectRow(2)
-
-        with patch.object(queue_manager, "move_task_up", return_value=True) as mock_move:
-            qtbot.mouseClick(queue_tab.move_up_button, Qt.LeftButton)
-            mock_move.assert_called_once_with(2)
-
-    def test_move_down_button(self, qtbot, queue_tab, queue_manager, multiple_tasks):
-        """Test moving task down."""
-        with patch.object(queue_manager, "_try_start_next"):
-            for task in multiple_tasks:
-                queue_manager.add_task(task)
-
-        # Select row 2
-        queue_tab.queue_table.selectRow(2)
-
-        with patch.object(queue_manager, "move_task_down", return_value=True) as mock_move:
-            qtbot.mouseClick(queue_tab.move_down_button, Qt.LeftButton)
-            mock_move.assert_called_once_with(2)
-
-    def test_remove_button(self, qtbot, queue_tab, queue_manager, multiple_tasks):
-        """Test removing task."""
-        with patch.object(queue_manager, "_try_start_next"):
-            for task in multiple_tasks:
-                queue_manager.add_task(task)
-
-        # Select row 1
-        queue_tab.queue_table.selectRow(1)
-
-        with patch.object(queue_manager, "remove_task") as mock_remove:
-            qtbot.mouseClick(queue_tab.remove_button, Qt.LeftButton)
-            mock_remove.assert_called_once_with(1)
-
-    def test_move_up_no_selection(self, qtbot, queue_tab, queue_manager):
-        """Test move up with no selection."""
-        with patch.object(queue_manager, "move_task_up") as mock_move:
-            qtbot.mouseClick(queue_tab.move_up_button, Qt.LeftButton)
-            # Should not call move_task_up when nothing selected
-            mock_move.assert_not_called()
-
-    def test_remove_no_selection(self, qtbot, queue_tab, queue_manager):
-        """Test remove with no selection."""
-        with patch.object(queue_manager, "remove_task") as mock_remove:
-            qtbot.mouseClick(queue_tab.remove_button, Qt.LeftButton)
-            # Should not call remove_task when nothing selected
-            mock_remove.assert_not_called()
+    def test_tooltips_explain_pause_and_stop(self, queue_tab):
+        assert "finish" in queue_tab.pause_button.toolTip()
+        assert "pause the queue" in queue_tab.stop_button.toolTip()
 
 
-class TestQueueTabClearOperations:
-    """Test clear operations."""
+class TestRows:
+    def test_title_or_link(self, queue_tab, queue_manager):
+        add(queue_manager, make_task(0, title="My Video"), make_task(1))
+        assert queue_tab.queue_table.item(0, COL_TITLE).text() == "My Video"
+        assert (
+            strip_isolates(queue_tab.queue_table.item(1, COL_TITLE).text()) == "https://www.youtube.com/watch?v=test1"
+        )
 
-    def test_clear_completed_button(self, qtbot, queue_tab, queue_manager):
-        """Test clicking clear completed button."""
-        with patch.object(queue_manager, "clear_completed", return_value=3) as mock_clear:
-            qtbot.mouseClick(queue_tab.clear_completed_button, Qt.LeftButton)
-            mock_clear.assert_called_once()
+    def test_tooltip_has_link_folder_and_quality(self, queue_tab, queue_manager):
+        add(queue_manager, make_task(0, title="My Video", quality="1080p (Full HD)"))
+        tooltip = strip_isolates(queue_tab.queue_table.item(0, COL_TITLE).toolTip())
+        assert "Link: https://www.youtube.com/watch?v=test0" in tooltip
+        assert "Folder: /tmp/downloads" in tooltip
+        assert "Quality: 1080p (Full HD)" in tooltip
 
-    def test_clear_failed_button(self, qtbot, queue_tab, queue_manager):
-        """Test clicking clear failed button."""
-        with patch.object(queue_manager, "clear_failed", return_value=2) as mock_clear:
-            qtbot.mouseClick(queue_tab.clear_failed_button, Qt.LeftButton)
-            mock_clear.assert_called_once()
+    def test_status_kinds(self, queue_tab, queue_manager):
+        add(
+            queue_manager,
+            make_task(0),
+            make_task(1, status=TaskStatus.DOWNLOADING),
+            make_task(2, status=TaskStatus.COMPLETED),
+            make_task(3, status=TaskStatus.ERROR),
+            make_task(4, status=TaskStatus.CANCELLED),
+        )
+        kinds = [queue_tab.queue_table.item(r, COL_STATUS).data(STATUS_KIND_ROLE) for r in range(5)]
+        assert kinds == ["waiting", "running", "done", "failed", "cancelled"]
 
-
-class TestQueueTabRetry:
-    """Test the retry controls."""
-
-    def test_retry_all_button_text(self, queue_tab):
-        assert queue_tab.retry_failed_button.text() == "Retry All Failed"
-        assert queue_tab.retry_failed_button.toolTip() == "Retry every failed download in the queue"
-
-    def test_retry_all_button_disabled_without_failed_tasks(self, queue_tab, queue_manager, sample_task):
-        assert queue_tab.retry_failed_button.isEnabled() is False
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
-        assert queue_tab.retry_failed_button.isEnabled() is False
-
-    def test_retry_all_button_enabled_with_failed_task(self, queue_tab, queue_manager, sample_task):
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
-        sample_task.fail("Download failed")
+    def test_failed_row_tooltip_shows_reason(self, queue_tab, queue_manager):
+        task = make_task(0)
+        add(queue_manager, task)
+        task.fail("HTTP Error 403: Forbidden")
         queue_manager.queue_updated.emit()
-        assert queue_tab.retry_failed_button.isEnabled() is True
+        tooltip = queue_tab.queue_table.item(0, COL_STATUS).toolTip()
+        assert tooltip
+        assert "details" in tooltip
 
-    def test_retry_all_button_click(self, qtbot, queue_tab, queue_manager, sample_task):
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
-        sample_task.fail("Download failed")
-        queue_manager.queue_updated.emit()
+    def test_progress_cells_from_signal(self, queue_tab, queue_manager):
+        task = make_task(0, status=TaskStatus.DOWNLOADING)
+        add(queue_manager, task)
+        task.update_progress(47.3, download_speed=3_400_000, eta_seconds=135, downloaded_bytes=1, file_size=410_000_000)
+        queue_manager.task_progress.emit(0, {"percent": 47.3})
 
-        with patch.object(queue_manager, "retry_all_failed", return_value=1) as mock_retry:
-            qtbot.mouseClick(queue_tab.retry_failed_button, Qt.LeftButton)
-            mock_retry.assert_called_once()
+        assert queue_tab.queue_table.item(0, COL_STATUS).data(PROGRESS_ROLE) == pytest.approx(47.3)
+        assert strip_isolates(queue_tab.queue_table.item(0, COL_SPEED).text()).endswith("MB/s")
+        assert strip_isolates(queue_tab.queue_table.item(0, COL_SIZE).text()).endswith("MB")
+        assert strip_isolates(queue_tab.queue_table.item(0, COL_ETA).text()) == "2:15"
 
-    def test_retry_all_resets_failed_task(self, qtbot, queue_tab, queue_manager, sample_task):
-        queue_manager.pause_queue()
-        queue_manager.add_task(sample_task)
-        sample_task.fail("Download failed")
-        queue_manager.queue_updated.emit()
+    def test_progress_invalid_index_is_ignored(self, queue_tab):
+        queue_tab._on_task_progress(100, {"percent": 50})
 
-        qtbot.mouseClick(queue_tab.retry_failed_button, Qt.LeftButton)
+    def test_no_progress_for_waiting_task(self, queue_tab, queue_manager):
+        add(queue_manager, make_task(0, download_speed=1000.0))
+        assert queue_tab.queue_table.item(0, COL_STATUS).data(PROGRESS_ROLE) is None
+        assert queue_tab.queue_table.item(0, COL_SPEED).text() == ""
 
-        assert sample_task.status == TaskStatus.PENDING
-        assert queue_tab.queue_table.item(0, 3).text() == "Pending"
-        assert queue_tab.retry_failed_button.isEnabled() is False
+    def test_rtl_speed_is_isolated(self, queue_tab, queue_manager):
+        task = make_task(0, status=TaskStatus.DOWNLOADING, download_speed=3_400_000)
+        add(queue_manager, task)
+        text = queue_tab.queue_table.item(0, COL_SPEED).text()
+        assert text.startswith("\u2066") and text.endswith("\u2069")
 
-    def test_row_retry_button_uses_queue_manager(self, queue_tab, queue_manager, sample_task):
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
-        sample_task.fail("Download failed")
-        queue_manager.queue_updated.emit()
-
-        with patch.object(queue_manager, "retry_task", return_value=True) as mock_retry:
-            queue_tab._on_retry_task(0)
-            mock_retry.assert_called_once_with(0)
-
-
-class TestQueueTabProgressUpdates:
-    """Test progress update handling."""
-
-    def test_progress_update(self, queue_tab, queue_manager, sample_task):
-        """Test handling progress updates."""
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
-
-        # Simulate progress update
-        progress_data = {"percent": 50.5, "speed": 1024000}
-        queue_tab._on_task_progress(0, progress_data)
-
-        # Check that progress is displayed
-        progress_item = queue_tab.queue_table.item(0, 4)
-        assert progress_item is not None
-        assert "50.5%" in progress_item.text()
-
-    def test_speed_update(self, queue_tab, queue_manager, sample_task):
-        """Test handling speed updates."""
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
-
-        # Simulate progress with speed
-        progress_data = {"percent": 50, "speed": 2048000}
-        queue_tab._on_task_progress(0, progress_data)
-
-        # Check that speed is displayed
-        speed_item = queue_tab.queue_table.item(0, 4)
-        assert speed_item is not None
-        # Speed should be formatted (e.g., "2.0 MB/s")
-        assert speed_item.text() != "-"
-
-    def test_progress_update_invalid_index(self, queue_tab):
-        """Test progress update with invalid index."""
-        # Should not crash with invalid index
-        progress_data = {"percent": 50}
-        queue_tab._on_task_progress(100, progress_data)
-
-
-class TestQueueTabSignalConnections:
-    """Test signal connections."""
-
-    def test_queue_updated_signal_connected(self, queue_tab, queue_manager, sample_task):
-        """Test that queue_updated signal refreshes display."""
-        initial_row_count = queue_tab.queue_table.rowCount()
-
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
-
-        # Queue should be refreshed
-        assert queue_tab.queue_table.rowCount() == initial_row_count + 1
-
-    def test_task_progress_signal_connected(self, queue_tab, queue_manager, sample_task):
-        """Test that task_progress signal updates display."""
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
-
-        with patch.object(queue_tab, "_on_task_progress") as mock_handler:
-            # Emit progress signal
-            progress_data = {"percent": 50}
-            queue_manager.task_progress.emit(0, progress_data)
-
-            # Handler should be called
-            mock_handler.assert_called_once_with(0, progress_data)
-
-
-class TestQueueTabTableDisplay:
-    """Test table display details."""
-
-    def test_table_row_selection(self, qtbot, queue_tab, queue_manager, multiple_tasks):
-        """Test selecting table rows."""
-        with patch.object(queue_manager, "_try_start_next"):
-            for task in multiple_tasks:
-                queue_manager.add_task(task)
-
-        # Select row
-        queue_tab.queue_table.selectRow(2)
-        selected = queue_tab.queue_table.selectedItems()
-        assert len(selected) > 0
-        assert queue_tab.queue_table.row(selected[0]) == 2
-
-    def test_table_displays_url(self, queue_tab, queue_manager, sample_task):
-        """Test that URL is displayed in table."""
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
-
-        url_item = queue_tab.queue_table.item(0, 1)
-        assert url_item is not None
-        # URL might be truncated, but should contain some part
-        assert "youtube.com" in url_item.text()
-
-    def test_table_displays_quality(self, queue_tab, queue_manager, sample_task):
-        """Test that quality is displayed in table."""
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
-
-        quality_item = queue_tab.queue_table.item(0, 2)
-        assert quality_item is not None
-        assert quality_item.text() == "1080p"
-
-    def test_table_displays_status(self, queue_tab, queue_manager, sample_task):
-        """Test that status is displayed in table."""
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
-
-        status_item = queue_tab.queue_table.item(0, 3)
-        assert status_item is not None
-        assert "PENDING" in status_item.text().upper()
-
-    def test_table_progress_for_downloading(self, queue_tab, queue_manager, sample_task):
-        """Test progress display for downloading task."""
-        sample_task.status = TaskStatus.DOWNLOADING
-        sample_task.progress_percent = 45.5
-
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
-
-        progress_item = queue_tab.queue_table.item(0, 4)
-        assert progress_item is not None
-        assert "45.5%" in progress_item.text()
-
-    def test_table_progress_for_completed(self, queue_tab, queue_manager, sample_task):
-        """Test progress display for completed task."""
-        sample_task.status = TaskStatus.COMPLETED
-
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
-
-        progress_item = queue_tab.queue_table.item(0, 4)
-        assert progress_item is not None
-        assert "100%" in progress_item.text()
-
-    def test_table_progress_for_pending(self, queue_tab, queue_manager, sample_task):
-        """Test progress display for pending task."""
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
-
-        progress_item = queue_tab.queue_table.item(0, 4)
-        assert progress_item is not None
-        assert progress_item.text() == "-"
-
-    def test_table_speed_for_downloading(self, queue_tab, queue_manager, sample_task):
-        """Test speed display for downloading task."""
-        sample_task.status = TaskStatus.DOWNLOADING
-        sample_task.download_speed = 1024000  # 1 MB/s
-
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
-
-        speed_item = queue_tab.queue_table.item(0, 5)
-        assert speed_item is not None
-        # Should show formatted speed
-        assert speed_item.text() != "-"
-
-    def test_table_output_directory(self, queue_tab, queue_manager, sample_task):
-        """Test output directory display."""
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(sample_task)
-
-        output_item = queue_tab.queue_table.item(0, 6)
-        assert output_item is not None
-        assert output_item.text() == sample_task.output_directory
-
-
-class TestQueueTabOpenFile:
-    """The Open file button opens the real downloaded file."""
-
-    def _select_completed(self, queue_tab, queue_manager, task):
-        with patch.object(queue_manager, "_try_start_next"):
-            queue_manager.add_task(task)
+    def test_table_paints(self, queue_tab, queue_manager):
+        """The delegates paint every status without errors."""
+        add(
+            queue_manager,
+            make_task(0, status=TaskStatus.DOWNLOADING, progress_percent=40.0),
+            make_task(1, status=TaskStatus.ERROR),
+        )
+        queue_tab.resize(900, 400)
+        queue_tab.show()
         queue_tab.queue_table.selectRow(0)
+        assert not queue_tab.grab().isNull()
+        queue_tab.setLayoutDirection(Qt.RightToLeft)
+        assert not queue_tab.grab().isNull()
 
-    def test_opens_real_file(self, queue_tab, queue_manager, tmp_path):
-        out = tmp_path / "Me at the zoo_240p.mp4"
-        out.write_bytes(b"x")
-        task = DownloadTask(url="https://www.youtube.com/watch?v=x", output_directory=str(tmp_path), quality="240p")
-        task.complete(out.name)
-        self._select_completed(queue_tab, queue_manager, task)
 
-        with (
-            patch("platform.system", return_value="Linux"),
-            patch("subprocess.Popen") as popen,
-            patch("PySide6.QtWidgets.QMessageBox.warning") as warning,
+class TestSelectionBar:
+    def test_nothing_selected_disables_row_actions(self, queue_tab, queue_manager):
+        add(queue_manager, make_task())
+        for button in (
+            queue_tab.open_file_button,
+            queue_tab.retry_button,
+            queue_tab.cancel_button,
+            queue_tab.remove_button,
         ):
+            assert not button.isEnabled()
+
+    def test_actions_follow_selected_state(self, queue_tab, queue_manager):
+        add(
+            queue_manager,
+            make_task(0),
+            make_task(1, status=TaskStatus.ERROR),
+            make_task(2, status=TaskStatus.COMPLETED, filename="v.mp4"),
+        )
+        queue_tab.queue_table.selectRow(0)
+        assert queue_tab.cancel_button.isEnabled() and not queue_tab.retry_button.isEnabled()
+        assert not queue_tab.move_up_button.isEnabled() and queue_tab.move_down_button.isEnabled()
+        queue_tab.queue_table.selectRow(1)
+        assert queue_tab.retry_button.isEnabled() and not queue_tab.cancel_button.isEnabled()
+        queue_tab.queue_table.selectRow(2)
+        assert queue_tab.open_file_button.isEnabled() and not queue_tab.move_down_button.isEnabled()
+
+    def test_move_buttons(self, queue_tab, queue_manager):
+        add(queue_manager, *(make_task(i) for i in range(3)))
+        queue_tab.queue_table.selectRow(1)
+        with patch.object(queue_manager, "move_task_up", return_value=True) as up:
+            queue_tab.move_up_button.click()
+        up.assert_called_once_with(1)
+        queue_tab.queue_table.selectRow(1)
+        with patch.object(queue_manager, "move_task_down", return_value=True) as down:
+            queue_tab.move_down_button.click()
+        down.assert_called_once_with(1)
+
+    def test_move_keeps_selection_on_task(self, queue_tab, queue_manager):
+        tasks = [make_task(i) for i in range(3)]
+        add(queue_manager, *tasks)
+        queue_tab.queue_table.selectRow(2)
+        queue_tab.move_up_button.click()
+        assert queue_tab._selected_task() is tasks[2]
+        assert queue_manager.get_all_tasks()[1] is tasks[2]
+
+    def test_retry_button(self, queue_tab, queue_manager):
+        task = make_task(0)
+        add(queue_manager, task)
+        task.fail("boom")
+        queue_manager.queue_updated.emit()
+        queue_tab.queue_table.selectRow(0)
+        queue_tab.retry_button.click()
+        assert task.status == TaskStatus.PENDING
+
+    def test_cancel_button_removes_waiting_task(self, queue_tab, queue_manager):
+        add(queue_manager, make_task(0))
+        queue_tab.queue_table.selectRow(0)
+        queue_tab.cancel_button.click()
+        assert queue_manager.get_all_tasks() == []
+
+    def test_retry_all_failed(self, queue_tab, queue_manager):
+        task = make_task(0)
+        add(queue_manager, task)
+        assert not queue_tab.retry_failed_button.isEnabled()
+        task.fail("boom")
+        queue_manager.queue_updated.emit()
+        assert queue_tab.retry_failed_button.isEnabled()
+        queue_tab.retry_failed_button.click()
+        assert task.status == TaskStatus.PENDING
+        assert not queue_tab.retry_failed_button.isEnabled()
+
+
+class TestClearMenu:
+    def test_clear_finished_menu(self, queue_tab, queue_manager):
+        add(
+            queue_manager,
+            make_task(0, status=TaskStatus.COMPLETED),
+            make_task(1, status=TaskStatus.ERROR),
+            make_task(2, status=TaskStatus.CANCELLED),
+            make_task(3),
+        )
+        assert queue_tab.clear_button.isEnabled()
+        queue_tab.clear_completed_action.trigger()
+        queue_tab.clear_failed_action.trigger()
+        queue_tab.clear_cancelled_action.trigger()
+        statuses = [t.status for t in queue_manager.get_all_tasks()]
+        assert statuses == [TaskStatus.PENDING]
+        assert not queue_tab.clear_button.isEnabled()
+
+
+class TestContextMenu:
+    def test_menu_for_completed_task(self, queue_tab, queue_manager):
+        add(queue_manager, make_task(0, status=TaskStatus.COMPLETED, filename="v.mp4"))
+        actions = menu_actions(queue_tab.build_context_menu(0))
+        assert actions["open_file"].isEnabled()
+        assert actions["copy_link"].isEnabled()
+        assert not actions["retry"].isEnabled()
+        assert not actions["error"].isEnabled()
+
+    def test_menu_for_failed_task(self, queue_tab, queue_manager):
+        add(queue_manager, make_task(0, status=TaskStatus.ERROR, error_message="HTTP Error 403: Forbidden"))
+        actions = menu_actions(queue_tab.build_context_menu(0))
+        assert actions["retry"].isEnabled()
+        assert actions["error"].isEnabled()
+        assert not actions["open_file"].isEnabled()
+
+    def test_copy_link(self, queue_tab, queue_manager):
+        add(queue_manager, make_task(7))
+        queue_tab.queue_table.selectRow(0)
+        menu_actions(queue_tab.build_context_menu(0))["copy_link"].trigger()
+        assert QGuiApplication.clipboard().text() == "https://www.youtube.com/watch?v=test7"
+
+    def test_show_error_details(self, queue_tab, queue_manager):
+        add(queue_manager, make_task(0, status=TaskStatus.ERROR, error_message="HTTP Error 403: Forbidden"))
+        queue_tab.queue_table.selectRow(0)
+        with patch.object(QMessageBox, "exec", return_value=0) as exec_:
+            menu_actions(queue_tab.build_context_menu(0))["error"].trigger()
+        exec_.assert_called_once()
+
+    def test_open_file_and_folder(self, queue_tab, queue_manager, tmp_path):
+        (tmp_path / "v.mp4").write_bytes(b"x")
+        task = make_task(0, status=TaskStatus.COMPLETED, filename="v.mp4")
+        task.output_directory = str(tmp_path)
+        add(queue_manager, task)
+        queue_tab.queue_table.selectRow(0)
+        with patch("src.ui.queue_tab.open_local_path", return_value=True) as opener:
+            menu_actions(queue_tab.build_context_menu(0))["open_file"].trigger()
+            menu_actions(queue_tab.build_context_menu(0))["open_folder"].trigger()
+        assert [c.args[0] for c in opener.call_args_list] == [str(tmp_path / "v.mp4"), str(tmp_path)]
+
+    def test_missing_file_warns(self, queue_tab, queue_manager, tmp_path):
+        task = make_task(0, status=TaskStatus.COMPLETED, filename="gone.mp4")
+        task.output_directory = str(tmp_path)
+        add(queue_manager, task)
+        queue_tab.queue_table.selectRow(0)
+        with patch.object(QMessageBox, "warning") as warning, patch("src.ui.queue_tab.open_local_path") as opener:
             queue_tab._on_open_file_clicked()
-
-        warning.assert_not_called()
-        popen.assert_called_once_with(["xdg-open", str(out)])
-
-    def test_name_column_shows_file_name(self, queue_tab, queue_manager, tmp_path):
-        task = DownloadTask(url="https://www.youtube.com/watch?v=x", output_directory=str(tmp_path), quality="240p")
-        task.complete("Me at the zoo_240p.mp4")
-        self._select_completed(queue_tab, queue_manager, task)
-        assert queue_tab.queue_table.item(0, 0).text() == "Me at the zoo_240p.mp4"
-
-    def test_moved_or_deleted_file_shows_warning(self, queue_tab, queue_manager, tmp_path):
-        task = DownloadTask(url="https://www.youtube.com/watch?v=x", output_directory=str(tmp_path), quality="240p")
-        task.complete("deleted.mp4")
-        self._select_completed(queue_tab, queue_manager, task)
-
-        with (
-            patch("subprocess.Popen") as popen,
-            patch("PySide6.QtWidgets.QMessageBox.warning") as warning,
-        ):
-            queue_tab._on_open_file_clicked()
-
-        popen.assert_not_called()
         warning.assert_called_once()
-        assert str(tmp_path / "deleted.mp4") in warning.call_args.args[2]
+        opener.assert_not_called()
 
-    def test_folder_with_same_name_is_not_opened(self, queue_tab, queue_manager, tmp_path):
-        (tmp_path / "clip.mp4").mkdir()
-        task = DownloadTask(url="https://www.youtube.com/watch?v=x", output_directory=str(tmp_path), quality="240p")
-        task.complete("clip.mp4")
-        self._select_completed(queue_tab, queue_manager, task)
+    def test_double_click_failed_row_shows_error(self, queue_tab, queue_manager):
+        add(queue_manager, make_task(0, status=TaskStatus.ERROR, error_message="boom"))
+        queue_tab.queue_table.selectRow(0)
+        with patch.object(queue_tab, "_on_show_error_clicked") as show:
+            queue_tab._on_row_double_clicked(0, 0)
+        show.assert_called_once()
 
-        with (
-            patch("subprocess.Popen") as popen,
-            patch("PySide6.QtWidgets.QMessageBox.warning") as warning,
-        ):
-            queue_tab._on_open_file_clicked()
 
-        popen.assert_not_called()
-        warning.assert_called_once()
+class TestKeyboard:
+    def test_no_space_shortcut(self, queue_tab):
+        keys = [s.key() for s in queue_tab.findChildren(QShortcut)]
+        assert QKeySequence("Space") not in keys
+        assert not hasattr(queue_tab, "_toggle_queue")
+
+    def test_shortcuts_are_bound_to_the_table(self, queue_tab):
+        for shortcut in queue_tab.shortcuts:
+            assert shortcut.parent() is queue_tab.queue_table
+            assert shortcut.context() == Qt.WidgetWithChildrenShortcut
+
+    def test_delete_finished_task_without_question(self, queue_tab, queue_manager):
+        add(queue_manager, make_task(0, status=TaskStatus.COMPLETED))
+        queue_tab.queue_table.selectRow(0)
+        with patch.object(QMessageBox, "question") as question:
+            queue_tab._on_remove_clicked()
+        question.assert_not_called()
+        assert queue_manager.get_all_tasks() == []
+
+    def test_delete_waiting_task_asks_first(self, queue_tab, queue_manager):
+        add(queue_manager, make_task(0))
+        queue_tab.queue_table.selectRow(0)
+        with patch.object(QMessageBox, "question", return_value=QMessageBox.No) as question:
+            queue_tab._on_remove_clicked()
+        question.assert_called_once()
+        assert len(queue_manager.get_all_tasks()) == 1
+        with patch.object(QMessageBox, "question", return_value=QMessageBox.Yes):
+            queue_tab._on_remove_clicked()
+        assert queue_manager.get_all_tasks() == []
+
+    def test_delete_running_task_cancels_then_removes(self, queue_tab, queue_manager):
+        task = make_task(0, status=TaskStatus.DOWNLOADING)
+        add(queue_manager, task)
+        worker = MagicMock()
+        worker.task = task
+        queue_manager.workers[id(task)] = worker
+        queue_tab.queue_table.selectRow(0)
+        with patch.object(QMessageBox, "question", return_value=QMessageBox.Yes) as question:
+            queue_tab._on_remove_clicked()
+        question.assert_called_once()
+        assert "running" in question.call_args.args[2]
+        worker.cancel.assert_called_once()
+        assert queue_manager.get_all_tasks() == [task]  # still there until the cancel is through
+
+        # The worker reports the cancel; the task then leaves the queue.
+        task.cancel()
+        queue_manager._on_worker_failed(worker, "Download cancelled")
+        assert queue_manager.get_all_tasks() == []
+
+    def test_delete_running_task_no_keeps_it(self, queue_tab, queue_manager):
+        task = make_task(0, status=TaskStatus.DOWNLOADING)
+        add(queue_manager, task)
+        worker = MagicMock()
+        queue_manager.workers[id(task)] = worker
+        queue_tab.queue_table.selectRow(0)
+        with patch.object(QMessageBox, "question", return_value=QMessageBox.No):
+            queue_tab._on_remove_clicked()
+        worker.cancel.assert_not_called()
+
+    def test_delete_without_selection_does_nothing(self, queue_tab, queue_manager):
+        add(queue_manager, make_task(0))
+        with patch.object(queue_manager, "remove_task") as remove:
+            queue_tab._on_remove_clicked()
+        remove.assert_not_called()
+
+
+class TestHebrew:
+    def test_hebrew_headers_and_counters(self, qtbot, queue_manager):
+        get_translation_manager().set_language("he")
+        tab = QueueTab(queue_manager)
+        qtbot.addWidget(tab)
+        add(queue_manager, make_task(0))
+        assert tab.queue_table.horizontalHeaderItem(COL_ETA).text() == tr("col_time_left")
+        assert tab.counters_label.text() == f"{tr('summary_waiting', count=1)}, {tr('summary_paused')}"

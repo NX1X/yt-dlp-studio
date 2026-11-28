@@ -8,7 +8,7 @@ from datetime import UTC
 
 from PySide6.QtCore import QSize, Qt, QUrl
 from PySide6.QtGui import QDesktopServices, QIcon, QKeySequence, QShortcut
-from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QStatusBar, QTabWidget
+from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QMessageBox, QStatusBar, QTabWidget
 
 from ..backend.config_manager import ConfigManager
 from ..backend.history_manager import HistoryManager
@@ -172,7 +172,7 @@ class MainWindow(QMainWindow):
         # Create tabs
         self.download_tab = DownloadTab(self.config_manager, self.queue_manager)
         self.queue_tab = QueueTab(self.queue_manager)
-        self.history_tab = HistoryTab(self.history_manager)
+        self.history_tab = HistoryTab(self.history_manager, config_manager=self.config_manager)
         # New history entries show up without pressing Refresh.
         self.queue_manager.history_recorded.connect(self.history_tab.refresh)
         self.settings_tab = SettingsTab(self.config_manager)
@@ -182,6 +182,12 @@ class MainWindow(QMainWindow):
         self.settings_tab.default_folder_changed.connect(self.download_tab.update_output_directory)
         self.settings_tab.notifications_enabled_changed.connect(self.notification_manager.set_enabled)
         self.settings_tab.close_to_tray_changed.connect(self.set_close_to_tray)
+
+        # Links between the tabs
+        self.download_tab.open_queue_requested.connect(lambda: self.tabs.setCurrentWidget(self.queue_tab))
+        self.download_tab.open_settings_requested.connect(lambda: self.tabs.setCurrentWidget(self.settings_tab))
+        self.queue_tab.go_to_download_requested.connect(lambda: self.tabs.setCurrentWidget(self.download_tab))
+        self.history_tab.download_again_requested.connect(self._download_again)
 
         # Add tabs with translations (v2.0.0 - added History and About tabs)
         self.tabs.addTab(self.download_tab, tr("tab_download"))
@@ -213,10 +219,16 @@ class MainWindow(QMainWindow):
         self.help_shortcut = QShortcut(QKeySequence(Qt.Key.Key_F1), self)
         self.help_shortcut.activated.connect(self.open_online_help)
 
-        # Create status bar
+        # Status bar: short confirmations on the left (status_messages.py),
+        # the queue state ("Downloading 2 of 5", "Idle") on the right.
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage(tr("status_bar_ready"))
+        self.queue_status_label = QLabel()
+        self.queue_status_label.setObjectName("queueStatusLabel")
+        self.status_bar.addPermanentWidget(self.queue_status_label)
+        self.queue_manager.queue_updated.connect(self._update_queue_status)
+        self.queue_manager.paused_changed.connect(self._update_queue_status)
+        self._update_queue_status()
 
         logger.debug("Main window UI setup complete")
 
@@ -281,6 +293,36 @@ class MainWindow(QMainWindow):
             return APP_NAME
         return tr("tray_tooltip_busy", app=APP_NAME, active=active, pending=pending)
 
+    def queue_status_text(self) -> str:
+        """
+        Queue state for the status bar.
+
+        Returns:
+            "Downloading 2 of 5" while downloads run (running of running
+            plus waiting), "Queue paused, 3 waiting" for a paused queue with
+            waiting downloads, "3 waiting" while waiting downloads have no
+            free slot yet, else "Idle"
+        """
+        stats = self.queue_manager.get_queue_statistics()
+        active = stats.get("active", 0)
+        pending = stats.get("pending", 0)
+        if active:
+            return tr("status_bar_downloading", active=active, total=active + pending)
+        if pending and self.queue_manager.is_paused:
+            return tr("status_bar_paused", count=pending)
+        if pending:
+            return tr("summary_waiting", count=pending)
+        return tr("status_bar_idle")
+
+    def _update_queue_status(self, *_args) -> None:
+        """Refresh the queue state in the status bar. Runs on the GUI thread (queue signals)."""
+        self.queue_status_label.setText(self.queue_status_text())
+
+    def _download_again(self, url: str) -> None:
+        """History "Download again": put the link into the Download tab and show it."""
+        self.download_tab.set_url(url)
+        self.tabs.setCurrentWidget(self.download_tab)
+
     def _update_tray_tooltip(self) -> None:
         """Refresh the tray tooltip. Runs on the GUI thread (queue signals)."""
         self.notification_manager.set_tray_tooltip(self.tray_tooltip_text())
@@ -314,12 +356,9 @@ class MainWindow(QMainWindow):
 
         logger.info("Application closing, window state saved")
 
-        # Check if download is in progress
-        if (
-            hasattr(self.download_tab, "current_worker")
-            and self.download_tab.current_worker
-            and self.download_tab.current_worker.is_running()
-        ):
+        # Ask before quitting while queue downloads run. They are saved as
+        # in progress and continue at the next start.
+        if self.queue_manager.workers:
             reply = QMessageBox.question(
                 self,
                 tr("dialog_download_in_progress"),
@@ -332,9 +371,6 @@ class MainWindow(QMainWindow):
                 self._quitting = False
                 event.ignore()
                 return
-            else:
-                # Cancel download
-                self.download_tab.current_worker.cancel()
 
         try:
             # Once the close is certain: save the download queue (running
@@ -356,10 +392,10 @@ class MainWindow(QMainWindow):
             QApplication.quit()
 
     def _apply_theme(self) -> None:
-        """Apply modern theme to application (v1.8.0)."""
-        stylesheet = self.theme_manager.set_theme(ThemeMode.DARK)
-        self.setStyleSheet(stylesheet)
-        logger.info("Modern theme applied")
+        """Apply the saved theme (dark or light) to the whole application."""
+        mode = ThemeMode.from_value(getattr(self.config_manager.get_config(), "theme", ThemeMode.DARK.value))
+        self.theme_manager.apply_theme(mode)
+        logger.info(f"Theme applied: {mode.value}")
 
     def _apply_rtl_layout(self) -> None:
         """Apply RTL (Right-to-Left) layout for Hebrew (v1.9.0)."""
