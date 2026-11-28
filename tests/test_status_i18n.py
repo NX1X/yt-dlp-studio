@@ -276,7 +276,12 @@ class TestNotificationTexts:
 
         for key, en_text in TRANSLATIONS["en"].items():
             if key.startswith("notif_") or key.startswith("status_") or key == "msg_clear_status_confirm":
-                assert fields(en_text) == fields(TRANSLATIONS["he"][key]), key
+                en_fields, he_fields = fields(en_text), fields(TRANSLATIONS["he"][key])
+                if key.endswith("_one"):
+                    # A singular text may say "one" in words and leave out {count}.
+                    en_fields.discard("count")
+                    he_fields.discard("count")
+                assert en_fields == he_fields, key
 
 
 class TestQueueManagerErrorReason:

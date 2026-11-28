@@ -19,13 +19,13 @@ from .theme import get_theme_manager, theme_color
 
 logger = get_logger()
 
-# Level -> (theme color token, prefix). None = plain text in the normal color.
-_LEVELS: dict[str | None, tuple[str | None, str]] = {
-    None: (None, ""),
-    "error": ("error", "ERROR: "),
-    "success": ("success", "SUCCESS: "),
-    "info": ("log_info", "INFO: "),
-    "warning": ("warning", "WARNING: "),
+# Level -> (theme color token, translation key of the prefix). None = plain text.
+_LEVELS: dict[str | None, tuple[str | None, str | None]] = {
+    None: (None, None),
+    "error": ("error", "log_level_error"),
+    "success": ("success", "log_level_success"),
+    "info": ("log_info", "log_level_info"),
+    "warning": ("warning", "log_level_warning"),
 }
 
 # Lines kept for redrawing after a theme change.
@@ -72,7 +72,8 @@ class LogWidget(QTextEdit):
 
     @staticmethod
     def _line_html(level: str | None, stamp: str | None, message: str) -> str:
-        token, prefix = _LEVELS[level]
+        token, prefix_key = _LEVELS[level]
+        prefix = f"{tr(prefix_key)}: " if prefix_key else ""
         line = html.escape(f"[{stamp}] {prefix}{message}" if stamp else f"{prefix}{message}")
         if token is None:
             # A span keeps the escaped text rich text, so "&lt;" shows as "<".

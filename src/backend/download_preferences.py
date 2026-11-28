@@ -370,14 +370,48 @@ def set_download_preferences(preferences: DownloadPreferences) -> None:
 # ---------- clear messages for cookie and sign-in failures ----------
 
 
-def explain_download_error(messages: list[str | None], *, cookies_browser: str = "", proxy: str = "") -> str | None:
-    """Return a translated explanation for a cookie, sign-in or proxy failure.
+# yt-dlp texts for a post that holds photos only. The first three come from
+# the Instagram and X extractors. The text names an issue tracker, which
+# invites a bug report for what is a missing feature.
+_NO_VIDEO_TEXTS = (
+    "there is no video in this post",
+    "no video could be found in this tweet",
+    "no video formats found",
+)
+_NO_VIDEO_HOSTS = ("instagram.com", "twitter.com", "x.com", "facebook.com", "fb.watch")
+# Facebook has no extractor for these URLs, so yt-dlp says "Unsupported URL".
+_FACEBOOK_POST_PATHS = ("/photo", "/posts/", "/permalink.php", "/photos/", "/story.php")
+
+
+def _host_matches(url: str, hosts: tuple[str, ...]) -> bool:
+    try:
+        host = (urlsplit(url).hostname or "").lower()
+    except ValueError:
+        return False
+    return any(host == h or host.endswith("." + h) for h in hosts)
+
+
+def _is_photo_post_error(text: str, url: str) -> bool:
+    """True if ``text`` (lower case) says that the post at ``url`` has no video."""
+    if any(marker in text for marker in _NO_VIDEO_TEXTS):
+        return not url or _host_matches(url, _NO_VIDEO_HOSTS)
+    if "unsupported url" in text and url and _host_matches(url, ("facebook.com",)):
+        return any(part in url.lower() for part in _FACEBOOK_POST_PATHS)
+    return False
+
+
+def explain_download_error(
+    messages: list[str | None], *, cookies_browser: str = "", proxy: str = "", url: str = ""
+) -> str | None:
+    """Return a translated explanation for a cookie, sign-in, proxy or photo-post failure.
 
     Args:
         messages: Error texts for the failure (the exception text and the
             last yt-dlp error). None entries are skipped.
         cookies_browser: The browser the download read cookies from, or "".
         proxy: The proxy the download used, or "".
+        url: The URL of the download, or "". It limits the photo-post
+            messages to the sites that give them.
 
     Returns:
         The message for the user, or None if the failure is of another kind.
@@ -392,6 +426,8 @@ def explain_download_error(messages: list[str | None], *, cookies_browser: str =
         key = _cookie_error_key(text)
         if key:
             return tr(key, browser=browser_display_name(browser))
+    if _is_photo_post_error(text, url):
+        return tr("error_no_video_in_post")
     if "sign in" in text or "cookies-from-browser" in text or "--cookies" in text:
         if browser:
             return tr("cookies_hint_signed_in_browser", browser=browser_display_name(browser))

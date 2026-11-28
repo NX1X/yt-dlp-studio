@@ -22,6 +22,7 @@ from src.backend.download_preferences import DownloadPreferences, get_download_p
 from src.backend.download_worker import DownloadWorker, download_options_for
 from src.models.download_task import DownloadTask, TaskStatus
 from src.ui.settings_tab import SettingsTab
+from src.utils.constants import QUALITY_OPTIONS
 from src.utils.translations import TRANSLATIONS, get_translation_manager, tr
 
 URL = "https://www.youtube.com/watch?v=abc123"
@@ -167,7 +168,7 @@ def test_download_options_for_uses_the_preferences(tmp_path):
     options = download_options_for(task, _PREFS)
     assert (options.cookies_browser, options.cookies_profile, options.proxy) == ("firefox", PROFILE, SECRET_PROXY)
     assert (options.filename_preset, options.video_codec, options.audio_codec) == ("uploader_title", "h264", "aac")
-    assert options.format_string == "bestvideo[height<=720]+bestaudio/best[height<=720]"
+    assert options.format_string == QUALITY_OPTIONS["720p (HD)"]
 
 
 def test_download_options_for_reads_the_current_preferences(tmp_path):

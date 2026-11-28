@@ -173,6 +173,26 @@ Downloads and other network work run in `QThread` workers. Update the GUI only t
 
 Every user-facing string goes through `tr()` and needs a key in both the `en` and `he` dictionaries in `src/utils/translations.py`.
 
+Rules:
+
+- A text with a number uses `tr_count("key", n)`. Add a `key_one` text for exactly one, because Hebrew needs another form ("הורדה אחת", not "1 הורדות").
+- A combo box shows a translated label and stores a stable key as item data (`addItem(tr(...), key)`). Read `currentData()`, never `currentText()`.
+- Technical names that people use in English (YouTube, FFmpeg, MP4) can stay English.
+
+Two checks fail the tests when English text skips `tr()`:
+
+- `python scripts/i18n_audit.py` lists string literals in `src/` that reach the user without `tr()`. Mark intentional English with `# i18n-ok: <reason>` on the same line.
+- `tests/test_hebrew_ui_has_no_english.py` opens the windows in Hebrew and fails on an English word.
+
+#### Translate or update texts without editing Python
+
+1. Run `python scripts/i18n_export.py`. It writes `translations.csv` (columns key, en, he, status) in the project folder. The file is not committed.
+2. Open the file in Excel or LibreOffice and edit the `he` column. Rows with status `missing` have no Hebrew text yet, or the Hebrew text equals the English text.
+3. Run `python scripts/i18n_import.py --dry-run` to see the changes. Then run `python scripts/i18n_import.py` to write them into `src/utils/translations.py`.
+4. Start the app in Hebrew and check the screens. Then run `pytest tests/test_translation_keys_used.py tests/test_translations.py`, and commit `src/utils/translations.py`.
+
+The import changes only the `he` values and keeps the order and formatting of the file. It stops and changes nothing for a key that does not exist, a repeated key, or a text with other `{placeholders}` than the English text. Add `--update-en` to apply the `en` column too. New keys are added in the code first, not in the spreadsheet.
+
 ## Logging
 
 ```python

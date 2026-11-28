@@ -757,7 +757,7 @@ class QueueManager(QObject):
             del self.workers[id(task)]
             freed_slot = True
             if task.status in (TaskStatus.PENDING, TaskStatus.DOWNLOADING):
-                task.fail("Download stopped unexpectedly")
+                task.fail(tr("error_download_stopped"))
                 self.queue_updated.emit()
 
         worker.deleteLater()

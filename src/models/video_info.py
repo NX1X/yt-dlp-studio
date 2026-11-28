@@ -7,6 +7,8 @@ This module defines the structure for video metadata extracted from URLs.
 from dataclasses import dataclass
 from typing import Any
 
+from ..utils.translations import tr
+
 
 @dataclass
 class VideoInfo:
@@ -67,7 +69,7 @@ class VideoInfo:
             VideoInfo instance
         """
         return cls(
-            title=info_dict.get("title", "Unknown Title"),
+            title=info_dict.get("title", tr("text_unknown_title")),
             url=info_dict.get("webpage_url", info_dict.get("url", "")),
             duration=info_dict.get("duration", 0),
             thumbnail=info_dict.get("thumbnail"),
@@ -101,7 +103,7 @@ class VideoInfo:
             Duration in format "HH:MM:SS" or "MM:SS"
         """
         if self.duration <= 0:
-            return "Unknown"
+            return "Unknown"  # i18n-ok: the dialogs show tr("text_unknown_label") when there is no duration
 
         hours = self.duration // 3600
         minutes = (self.duration % 3600) // 60

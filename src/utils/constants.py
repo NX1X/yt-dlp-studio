@@ -41,17 +41,32 @@ DEFAULT_MAX_CONCURRENT_DOWNLOADS = 1  # v1.0 only supports single download
 # quality options (defined once to avoid a duplicated literal).
 _AUDIO_BEST = "bestaudio/best"
 
+
+def _height_capped(height: int) -> str:
+    """Format string for the best quality up to ``height`` pixels.
+
+    ``<=?`` also accepts a format that has no height (Facebook sd/hd,
+    Instagram progressive files), which the plain ``<=`` drops. The
+    ``vcodec!=?none`` filter keeps the second choice from taking an
+    audio-only format. If every format is taller than the cap, the last two
+    choices take the smallest one, so the download works instead of failing
+    with "Requested format is not available". Where heights are known, the
+    result is the same as the old ``bestvideo[height<=N]+bestaudio`` choice.
+    """
+    return f"bestvideo[height<=?{height}]+bestaudio/best[height<=?{height}][vcodec!=?none]/worstvideo+bestaudio/worst"
+
+
 # Quality Options for v1.5.0 - Enhanced with 2K, 4K, 8K and multiple audio quality options
 QUALITY_OPTIONS = {
     # Video Quality Options
     "Best Quality": "bestvideo+bestaudio/best",
-    "8K (4320p)": "bestvideo[height<=4320]+bestaudio/best[height<=4320]",
-    "4K (2160p)": "bestvideo[height<=2160]+bestaudio/best[height<=2160]",
-    "2K (1440p)": "bestvideo[height<=1440]+bestaudio/best[height<=1440]",
-    "1080p (Full HD)": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
-    "720p (HD)": "bestvideo[height<=720]+bestaudio/best[height<=720]",
-    "480p (SD)": "bestvideo[height<=480]+bestaudio/best[height<=480]",
-    "360p": "bestvideo[height<=360]+bestaudio/best[height<=360]",
+    "8K (4320p)": _height_capped(4320),
+    "4K (2160p)": _height_capped(2160),
+    "2K (1440p)": _height_capped(1440),
+    "1080p (Full HD)": _height_capped(1080),
+    "720p (HD)": _height_capped(720),
+    "480p (SD)": _height_capped(480),
+    "360p": _height_capped(360),
     # Audio Quality Options
     "Audio 320kbps": _AUDIO_BEST,
     "Audio 256kbps": _AUDIO_BEST,
@@ -76,24 +91,42 @@ AUDIO_FORMAT = "mp3"
 AUDIO_QUALITY = "192"  # kbps (default)
 
 # v2.0.0: Video Container Format Options
+_MP4_KEY = "MP4 (Best Compatibility)"
+_MP3_KEY = "MP3 (Most Compatible)"
 VIDEO_CONTAINER_FORMATS = {
-    "MP4 (Best Compatibility)": "mp4",
+    _MP4_KEY: "mp4",
     "MKV (Matroska)": "mkv",
     "WebM": "webm",
     "Auto (Best Quality)": None,  # Let yt-dlp choose
 }
-DEFAULT_VIDEO_CONTAINER = "MP4 (Best Compatibility)"
+DEFAULT_VIDEO_CONTAINER = _MP4_KEY
+# The keys above are stable lookup keys (the Download tab stores them as combo
+# item data). The text the user sees comes from these translation keys.
+VIDEO_CONTAINER_LABEL_KEYS = {
+    _MP4_KEY: "format_video_mp4",
+    "MKV (Matroska)": "format_video_mkv",
+    "WebM": "format_video_webm",
+    "Auto (Best Quality)": "format_video_auto",
+}
 
 # v2.0.0: Audio Format Options
 AUDIO_FORMATS = {
-    "MP3 (Most Compatible)": "mp3",
+    _MP3_KEY: "mp3",
     "M4A/AAC (High Quality)": "m4a",
     "OPUS (Best Quality/Size)": "opus",
     "FLAC (Lossless)": "flac",
     "WAV (Uncompressed)": "wav",
     "Vorbis/OGG": "vorbis",
 }
-DEFAULT_AUDIO_FORMAT = "MP3 (Most Compatible)"
+DEFAULT_AUDIO_FORMAT = _MP3_KEY
+AUDIO_FORMAT_LABEL_KEYS = {
+    _MP3_KEY: "format_audio_mp3",
+    "M4A/AAC (High Quality)": "format_audio_m4a",
+    "OPUS (Best Quality/Size)": "format_audio_opus",
+    "FLAC (Lossless)": "format_audio_flac",
+    "WAV (Uncompressed)": "format_audio_wav",
+    "Vorbis/OGG": "format_audio_vorbis",
+}
 
 # Thumbnail settings (v1.7.0)
 THUMBNAIL_DOWNLOAD = False  # Thumbnail off by default; the user opts in

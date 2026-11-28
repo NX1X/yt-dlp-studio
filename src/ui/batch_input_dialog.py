@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 
 from ..utils.constants import URL_PATTERN
 from ..utils.logger import get_logger
-from ..utils.translations import tr
+from ..utils.translations import tr, tr_count
 from .theme import repolish
 
 logger = get_logger()
@@ -157,7 +157,7 @@ class BatchInputDialog(QDialog):
     def _import_from_file(self):
         """Import URLs from a text file."""
         file_path, _ = QFileDialog.getOpenFileName(
-            self, tr("dialog_import_urls_from_file"), str(Path.home()), "Text Files (*.txt);;All Files (*.*)"
+            self, tr("dialog_import_urls_from_file"), str(Path.home()), tr("filter_text_files")
         )
 
         if file_path:
@@ -198,7 +198,7 @@ class BatchInputDialog(QDialog):
         elif invalid:
             self._show_feedback(self._invalid_lines_text(valid, invalid))
         else:
-            self._show_feedback(tr("msg_all_urls_valid", count=len(valid)), "success")
+            self._show_feedback(tr_count("msg_all_urls_valid", len(valid)), "success")
         logger.info(f"Validation: {len(valid)} valid, {len(invalid)} invalid")
 
     def _accept_urls(self):

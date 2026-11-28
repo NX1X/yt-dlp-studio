@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ..utils.logger import get_logger
+from ..utils.translations import tr
 from .download_preferences import get_download_preferences
 
 logger = get_logger()
@@ -53,7 +54,7 @@ class PlaylistVideoInfo:
     def get_duration_formatted(self) -> str:
         """Get formatted duration string."""
         if self.duration <= 0:
-            return "Unknown"
+            return "Unknown"  # i18n-ok: the dialogs show tr("text_unknown_label") when there is no duration
 
         # yt-dlp reports duration as a float (e.g. 245.0); the ``:02d`` format
         # code below requires ints, so normalise once up front - otherwise
@@ -130,7 +131,7 @@ class PlaylistFetcher:
 
                 # Extract playlist info
                 playlist_info = PlaylistInfo(
-                    title=info_dict.get("title", "Unknown Playlist"),
+                    title=info_dict.get("title", tr("text_unknown_playlist")),
                     url=url,
                     video_count=info_dict.get("playlist_count", 0),
                     uploader=info_dict.get("uploader", info_dict.get("channel", "")),
@@ -146,7 +147,7 @@ class PlaylistFetcher:
                         continue
 
                     video = PlaylistVideoInfo(
-                        title=entry.get("title", "Unknown Title"),
+                        title=entry.get("title", tr("text_unknown_title")),
                         url=entry.get("url", entry.get("webpage_url", "")),
                         duration=entry.get("duration", 0),
                         thumbnail=entry.get("thumbnail"),
@@ -196,7 +197,7 @@ class PlaylistFetcher:
                     return None
 
                 return {
-                    "title": info_dict.get("title", "Unknown Playlist"),
+                    "title": info_dict.get("title", tr("text_unknown_playlist")),
                     "video_count": info_dict.get("playlist_count", len(info_dict.get("entries", []))),
                     "uploader": info_dict.get("uploader", info_dict.get("channel", "")),
                 }

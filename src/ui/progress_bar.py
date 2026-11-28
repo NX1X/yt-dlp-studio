@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QVBoxLayout, QW
 from ..utils.file_helper import FileHelper
 from ..utils.logger import get_logger
 from ..utils.translations import tr
-from .display_format import ltr
+from .display_format import duration_text, ltr
 from .theme import repolish
 
 logger = get_logger()
@@ -124,7 +124,7 @@ class DownloadProgressWidget(QWidget):
             )
         )
         self.speed_label.setText(self._value_text("label_speed", FileHelper.format_speed(speed) if speed > 0 else None))
-        self.eta_label.setText(self._value_text("label_eta", FileHelper.format_time(eta) if eta > 0 else None))
+        self.eta_label.setText(self._value_text("label_eta", duration_text(eta) or None))
 
         if percent >= 100:
             self.set_status(tr("status_complete"))

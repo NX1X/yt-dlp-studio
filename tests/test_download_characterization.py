@@ -16,6 +16,16 @@ Changed on purpose in 0.5.0 (each change is marked "Fixed in 0.5.0" below):
 - With metadata on, FFmpegMetadata now stays in the post-processor list when
   other post-processors exist. Before, the later list replaced it. The
   "postprocessors" key is now always the last option.
+Changed on purpose in the site-gaps fix (marked "Fixed with the site-gaps fix"):
+
+- The video template is "%(title)s%(height&_{}p|)s.%(ext)s": the "_720p" part
+  is left out when the format has no height, so no "_NAp" in the name.
+- The height-capped presets also accept formats without a height and fall
+  back to the smallest format (see ``_height_capped`` in constants.py).
+- "writeannotations" is gone: the vendored engine does nothing with it.
+- Duplicate numbering adds a second post-processor, at "after_video", that
+  puts the plain template back after each item.
+
 - The metadata and comments files take the base name of the video
   ("name_metadata.txt", "name Comments.txt"), not "name.info_metadata.txt",
   and "name.description" is renamed to "name_description.txt".
@@ -159,10 +169,15 @@ def _run_wrapper(tmp_path, fake, **kwargs):
     return _snapshot(wrapper, run, ok, out_dir)
 
 
+def _capped(height):
+    """The height-capped format string, written out (not built by the code under test)."""
+    return f"bestvideo[height<=?{height}]+bestaudio/best[height<=?{height}][vcodec!=?none]/worstvideo+bestaudio/worst"
+
+
 # Base options every download gets (with FFmpeg and Deno found).
 _BASE = {
     "format": "bestvideo+bestaudio/best",
-    "outtmpl": OUT + "/%(title)s_%(height)sp.%(ext)s",
+    "outtmpl": OUT + "/%(title)s%(height&_{}p|)s.%(ext)s",
     "quiet": False,
     "no_warnings": False,
     "windowsfilenames": True,
@@ -186,10 +201,14 @@ _METADATA = {
     "writeinfojson": True,
     "clean_infojson": False,
     "writedescription": True,
-    "writeannotations": True,
     "getcomments": True,
 }
-_VIDEO_NUMBERING = [{"when": "video", "template": OUT + "/%(title)s_%(height)sp.%(ext)s", "audio_format": None}]
+_VIDEO_TEMPLATE = OUT + "/%(title)s%(height&_{}p|)s.%(ext)s"
+# Fixed with the site-gaps fix: the second entry puts the plain template back.
+_VIDEO_NUMBERING = [
+    {"when": "video", "template": _VIDEO_TEMPLATE, "audio_format": None},
+    {"when": "after_video", "template": _VIDEO_TEMPLATE, "audio_format": None},
+]
 
 
 def _audio_pp(codec, quality):
@@ -202,7 +221,11 @@ def _audio_pp(codec, quality):
 
 
 def _audio_numbering(codec):
-    return [{"when": "video", "template": OUT + "/%(title)s_%(quality)s.%(ext)s", "audio_format": codec}]
+    template = OUT + "/%(title)s_%(quality)s.%(ext)s"
+    return [
+        {"when": "video", "template": template, "audio_format": codec},
+        {"when": "after_video", "template": template, "audio_format": codec},
+    ]
 
 
 # name -> (download() keyword arguments, expected ydl_opts, expected added pps, subtitles non-fatal)
@@ -221,13 +244,13 @@ CASES = {
     ),
     "video_720p_mp4": (
         {
-            "format_string": "bestvideo[height<=720]+bestaudio/best[height<=720]",
+            "format_string": _capped(720),
             "video_container": "mp4",
             "download_thumbnail": False,
         },
         {
             **_BASE,
-            "format": "bestvideo[height<=720]+bestaudio/best[height<=720]",
+            "format": _capped(720),
             "merge_output_format": "mp4",
         },
         _VIDEO_NUMBERING,
@@ -472,7 +495,6 @@ def test_option_key_order_is_kept(tmp_path, fake_ydl):
         "writeinfojson",
         "clean_infojson",
         "writedescription",
-        "writeannotations",
         "getcomments",
         "sleep_interval_requests",
         # Changed in 0.5.0: always last (it was where metadata put it).
@@ -757,14 +779,22 @@ def test_comments_and_metadata_keep_json(tmp_path, fake_ydl, utc):
     ]
 
 
-def test_comments_none_found_keeps_json(tmp_path, fake_ydl, utc):
+def test_comments_none_found_removes_temporary_json(tmp_path, fake_ydl, utc):
+    # Fixed with the site-gaps fix: the JSON was kept when there were no
+    # comments (X and Facebook give none), although only comments were asked for.
     fake_ydl.extract = _extract_with_sidecars({"title": "Clip", "comments": []})
     _run_wrapper(tmp_path, fake_ydl, download_comments=True, download_thumbnail=False)
     assert sorted(p.name for p in tmp_path.iterdir()) == [
         "Clip_720p.description",
-        "Clip_720p.info.json",
         "Clip_720p.mp4",
     ]
+
+
+def test_comments_none_found_keeps_json_with_metadata(tmp_path, fake_ydl, utc):
+    fake_ydl.extract = _extract_with_sidecars({"title": "Clip", "comments": []})
+    _run_wrapper(tmp_path, fake_ydl, download_comments=True, download_metadata=True, download_thumbnail=False)
+    assert (tmp_path / "Clip_720p.info.json").exists()
+    assert not (tmp_path / "Clip_720p Comments.txt").exists()
 
 
 def test_side_files_without_info_json_still_succeed(tmp_path, fake_ydl):
@@ -806,15 +836,17 @@ def _run_worker(tmp_path, fake, **task_fields):
     return task, worker, _snapshot(worker.wrapper, run, task.status == TaskStatus.COMPLETED, str(tmp_path))
 
 
+# Fixed with the site-gaps fix: "<=?" accepts formats without a height, and the
+# last two choices take the smallest format instead of failing.
 _VIDEO_PRESET_FORMATS = {
     "Best Quality": "bestvideo+bestaudio/best",
-    "8K (4320p)": "bestvideo[height<=4320]+bestaudio/best[height<=4320]",
-    "4K (2160p)": "bestvideo[height<=2160]+bestaudio/best[height<=2160]",
-    "2K (1440p)": "bestvideo[height<=1440]+bestaudio/best[height<=1440]",
-    "1080p (Full HD)": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
-    "720p (HD)": "bestvideo[height<=720]+bestaudio/best[height<=720]",
-    "480p (SD)": "bestvideo[height<=480]+bestaudio/best[height<=480]",
-    "360p": "bestvideo[height<=360]+bestaudio/best[height<=360]",
+    "8K (4320p)": _capped(4320),
+    "4K (2160p)": _capped(2160),
+    "2K (1440p)": _capped(1440),
+    "1080p (Full HD)": _capped(1080),
+    "720p (HD)": _capped(720),
+    "480p (SD)": _capped(480),
+    "360p": _capped(360),
 }
 _AUDIO_PRESET_QUALITY = {
     "Best Quality": "0",
