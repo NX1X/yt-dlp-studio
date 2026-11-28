@@ -8,11 +8,7 @@ history file) and retries failed tasks: on request from the user, and once
 automatically for network errors.
 """
 
-import contextlib
 import json
-import os
-import shutil
-import tempfile
 import time
 from functools import partial
 from pathlib import Path
@@ -23,6 +19,15 @@ from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from ..models.download_queue import DownloadQueue
 from ..models.download_task import DownloadTask, TaskStatus
 from ..utils.error_handler import ErrorCategory, ErrorHandler
+from ..utils.file_formats import (
+    QUEUE_FORMAT,
+    VERSION_KEY,
+    FileState,
+    backup_newer_file,
+    keep_bad_copy,
+    load_json_file,
+)
+from ..utils.file_formats import write_text_atomic as _write_atomic
 from ..utils.logger import get_logger
 from ..utils.translations import tr
 from .download_worker import DownloadWorker
@@ -160,9 +165,9 @@ class QueueManager(QObject):
 
     # Queue file name inside APP_DATA_DIR (same folder as the history file)
     QUEUE_FILE = "download_queue.json"
-    # Format version of the queue file. Bump it and add a migration when
-    # the format changes; an unknown version is never loaded.
-    QUEUE_FILE_VERSION = 1
+    # Format version of the queue file. To change the format, add a
+    # migration to QUEUE_FORMAT in src/utils/file_formats.py.
+    QUEUE_FILE_VERSION = QUEUE_FORMAT.current_version
     # Automatic retries allowed per task (network errors only)
     MAX_AUTO_RETRIES = 1
     # Default delay before an automatic retry starts, in milliseconds. The
@@ -846,7 +851,7 @@ class QueueManager(QObject):
             pending, in-progress and failed tasks in queue order
         """
         return {
-            "version": self.QUEUE_FILE_VERSION,
+            VERSION_KEY: self.QUEUE_FILE_VERSION,
             "paused": self.is_paused,
             "tasks": [task.to_dict() for task in self.queue.get_all_tasks() if task.status in _PERSISTED_STATUSES],
         }
@@ -866,6 +871,8 @@ class QueueManager(QObject):
             return False
         try:
             text = json.dumps(self.to_dict(), ensure_ascii=False, indent=2)
+            # A file from a newer app version is kept as <name>.v<N>.bak first.
+            backup_newer_file(self.persist_path, QUEUE_FORMAT)
             _write_atomic(self.persist_path, text)
             logger.debug(f"Queue saved to {self.persist_path}")
             return True
@@ -880,9 +887,12 @@ class QueueManager(QObject):
         - In-progress tasks become PENDING; yt-dlp continues them from
           their ``.part`` files.
         - A missing file means an empty queue.
-        - An empty, unreadable, corrupt or unknown-version file never
+        - An empty, unreadable, corrupt or invalid-version file never
           raises: it logs a warning, starts with an empty queue and keeps
           a copy as ``<name>.bad`` (if it had content).
+        - A file from a newer app version restores the tasks this app
+          understands, paused. The file is kept as ``<name>.v<N>.bak``
+          before the first save.
         - The paused state is restored when at least one task is restored.
           A queue that was running starts its pending tasks now; a paused
           queue waits for the user.
@@ -1010,6 +1020,10 @@ class QueueManager(QObject):
         """
         Read and check the queue file.
 
+        Version rules are in src/utils/file_formats.py. A file from a newer
+        app version restores the tasks this app understands, always paused,
+        so nothing starts before the user has looked at the queue.
+
         Returns:
             (restored tasks, paused). Empty list on any problem.
         """
@@ -1017,46 +1031,17 @@ class QueueManager(QObject):
         if path is None:
             return [], False
 
-        try:
-            raw = path.read_text(encoding="utf-8")
-        except FileNotFoundError:
-            logger.debug("No queue file found, starting with an empty queue")
+        result = load_json_file(path, QUEUE_FORMAT)
+        if result.data is None:
+            if result.state is FileState.MISSING:
+                logger.debug("No queue file found, starting with an empty queue")
             return [], False
-        except (OSError, UnicodeDecodeError):
-            logger.warning(f"Could not read queue file {path}, starting with an empty queue", exc_info=True)
-            self._backup_bad_file()
-            return [], False
-
-        if not raw.strip():
-            logger.warning(f"Queue file {path} is empty, starting with an empty queue")
-            return [], False
-
-        try:
-            data = json.loads(raw)
-        except json.JSONDecodeError:
-            logger.warning(f"Queue file {path} is not valid JSON, starting with an empty queue")
-            self._backup_bad_file()
-            return [], False
-
-        if not isinstance(data, dict):
-            logger.warning(f"Queue file {path} has an unexpected layout, starting with an empty queue")
-            self._backup_bad_file()
-            return [], False
-
-        version = data.get("version")
-        # type() check: True == 1 in Python, but a bool is not a version.
-        if type(version) is not int or version != self.QUEUE_FILE_VERSION:
-            logger.warning(
-                f"Queue file {path} has unknown version {version!r} "
-                f"(expected {self.QUEUE_FILE_VERSION}), starting with an empty queue"
-            )
-            self._backup_bad_file()
-            return [], False
+        data = result.data
 
         entries = data.get("tasks", [])
         if not isinstance(entries, list):
             logger.warning(f"Queue file {path} has no valid task list, starting with an empty queue")
-            self._backup_bad_file()
+            keep_bad_copy(path)
             return [], False
 
         paused = data.get("paused", False)
@@ -1064,45 +1049,12 @@ class QueueManager(QObject):
             # Do not start downloads on our own when the file is unclear.
             logger.warning(f"Queue file {path} has an invalid paused value, treating the queue as paused")
             paused = True
+        if result.state is FileState.NEWER:
+            paused = True
 
         restored, skipped = self._restore_tasks(entries)
         if skipped:
             logger.warning(f"Skipped {skipped} invalid task entries in queue file {path}")
-            self._backup_bad_file()
+            keep_bad_copy(path)
 
         return restored, paused
-
-    def _backup_bad_file(self) -> None:
-        """Keep a copy of a bad queue file as <name>.bad so no data is lost silently."""
-        if self.persist_path is None:
-            return
-        bad_path = self.persist_path.with_name(self.persist_path.name + ".bad")
-        try:
-            shutil.copyfile(self.persist_path, bad_path)
-            logger.warning(f"Kept a copy of the bad queue file at {bad_path}")
-        except OSError:
-            logger.warning(f"Could not keep a copy of the bad queue file at {bad_path}", exc_info=True)
-
-
-def _write_atomic(path: Path, text: str) -> None:
-    """
-    Write text to path atomically.
-
-    The temp file is in the same folder, so ``os.replace`` is a rename on
-    the same file system and is atomic on Windows and Linux.
-
-    Raises:
-        OSError: If the write or the rename fails. The temp file is removed.
-    """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(text)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(tmp_name, path)
-    except BaseException:
-        with contextlib.suppress(OSError):
-            os.unlink(tmp_name)
-        raise

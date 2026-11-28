@@ -276,7 +276,8 @@ On a Linux machine without a display, use `xvfb-run --auto-servernum pytest test
 - A YouTube playlist
 - An invalid URL
 - A video that does not exist
-- Optional: a Vimeo or Twitter video. Only YouTube is officially supported, so a failure here is not a release blocker.
+- One video each from the other tested sites: Instagram, TikTok, Facebook and X. Check them by hand before each release; the weekly CI check covers YouTube only. The site tiers are in `src/utils/site_tiers.py`.
+- Optional: a video from an experimental site (for example Vimeo). A failure here is not a release blocker.
 
 ## Debugging
 

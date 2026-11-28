@@ -74,20 +74,20 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     # Pin >=9.0.3 for CVE-2025-71176 (vulnerable tmpdir handling).
-    "pytest>=9.1.1",
+    "pytest>=9.2.0",
     "pytest-qt>=4.5.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.16.6,<0.17",
     "black>=26.10.1",
     "pre-commit>=4.6.2",
-    "pip-tools>=7.6.1",
+    "pip-tools>=7.6.2",
 ]
 build = [
     "pyinstaller>=6.22.3",
 ]
 docs = [
     "mkdocs>=1.6.1",
-    "mkdocs-material>=9.7.7",
+    "mkdocs-material>=9.8.1",
 ]
 
 # No `[project.scripts]` / `[project.gui-scripts]` entries are declared.

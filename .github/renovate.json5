@@ -134,6 +134,16 @@
       "labels": ["dependencies", "github-actions", "major"],
       "minimumReleaseAge": "14 days",
     },
+    // Keep the CI Python on 3.14.x. In 2026-11 Renovate proposed 3.15.2 in
+    // the minor/patch group, and CI failed: PySide6 6.11.x wheels require
+    // Python <3.15, and pip-audit stopped with a ModuleNotFoundError
+    // (sre_constants). Raise this cap in a deliberate PR once the locks
+    // and the CI tools support 3.15.
+    {
+      "matchManagers": ["github-actions"],
+      "matchDepNames": ["python"],
+      "allowedVersions": "<3.15",
+    },
 
     // === yt-dlp engine binary (custom manager → github-releases) ===
     // yt-dlp ships VERY frequently (often daily). The base 14-day cooldown

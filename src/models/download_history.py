@@ -5,7 +5,7 @@ Tracks all downloads with timestamp and statistics.
 """
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import datetime
 
 
@@ -45,8 +45,18 @@ class HistoryEntry:
 
     @classmethod
     def from_dict(cls, data: dict) -> "HistoryEntry":
-        """Create from dictionary (JSON deserialization)."""
-        data_copy = data.copy()
+        """
+        Create from dictionary (JSON deserialization).
+
+        Unknown keys are ignored, so an entry written by a newer app version
+        still loads.
+
+        Raises:
+            KeyError: If a required key is missing
+            TypeError, ValueError: If a value has the wrong type or format
+        """
+        known = {field.name for field in fields(cls)}
+        data_copy = {key: value for key, value in data.items() if key in known}
         data_copy["timestamp"] = datetime.fromisoformat(data["timestamp"])
         return cls(**data_copy)
 
@@ -178,6 +188,51 @@ class DownloadHistory:
             self.entries = []
             return count
 
+    def to_dict(self) -> dict:
+        """
+        Build the history file content (without the format version key).
+
+        Returns:
+            Dictionary with "max_entries" and "entries"
+        """
+        return {
+            "max_entries": self.max_entries,
+            "entries": [e.to_dict() for e in self.entries],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> tuple["DownloadHistory", int]:
+        """
+        Build a history from the file content.
+
+        Invalid entries are skipped, so one bad entry does not lose the rest.
+
+        Args:
+            data: Dictionary with "max_entries" and "entries"
+
+        Returns:
+            (history, number of invalid entries skipped)
+
+        Raises:
+            ValueError: If "entries" is not a list
+        """
+        max_entries = data.get("max_entries", 1000)
+        # type() check: a bool is an int in Python, but not a valid limit.
+        if type(max_entries) is not int or max_entries < 1:
+            max_entries = 1000
+        entries = data.get("entries", [])
+        if not isinstance(entries, list):
+            raise ValueError("history entries is not a list")
+
+        history = cls(max_entries=max_entries)
+        skipped = 0
+        for item in entries:
+            try:
+                history.entries.append(HistoryEntry.from_dict(item))
+            except (AttributeError, KeyError, TypeError, ValueError):
+                skipped += 1
+        return history, skipped
+
     def to_json(self) -> str:
         """
         Export history to JSON string.
@@ -185,11 +240,7 @@ class DownloadHistory:
         Returns:
             JSON string
         """
-        data = {
-            "max_entries": self.max_entries,
-            "entries": [e.to_dict() for e in self.entries],
-        }
-        return json.dumps(data, indent=2)
+        return json.dumps(self.to_dict(), indent=2)
 
     @classmethod
     def from_json(cls, json_str: str) -> "DownloadHistory":
@@ -200,11 +251,9 @@ class DownloadHistory:
             json_str: JSON string
 
         Returns:
-            DownloadHistory object
+            DownloadHistory object (invalid entries are skipped)
         """
-        data = json.loads(json_str)
-        history = cls(max_entries=data.get("max_entries", 1000))
-        history.entries = [HistoryEntry.from_dict(e) for e in data.get("entries", [])]
+        history, _skipped = cls.from_dict(json.loads(json_str))
         return history
 
     def export_to_csv(self) -> str:

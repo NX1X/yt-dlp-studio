@@ -152,6 +152,8 @@ build_rpm() {
     # Never strip the binary or build debug info: stripping a PyInstaller
     # one-file binary cuts off the archive appended to it. AutoReqProv is off
     # so rpmbuild does not scan the bundled libraries for dependencies.
+    # The system libraries the bundled Qt loads are listed by soname instead,
+    # so the same .rpm resolves on Fedora and openSUSE.
     cat > "${top}/SPECS/${APP_ID}.spec" <<EOF
 %global debug_package %{nil}
 %global __os_install_post %{nil}
@@ -166,6 +168,13 @@ BuildArch:      x86_64
 AutoReqProv:    no
 Requires:       (ffmpeg or ffmpeg-free)
 Requires:       glibc >= 2.35
+Requires:       libEGL.so.1()(64bit)
+Requires:       libGL.so.1()(64bit)
+Requires:       libxkbcommon.so.0()(64bit)
+Requires:       libdbus-1.so.3()(64bit)
+Requires:       libxcb-cursor.so.0()(64bit)
+Requires:       libglib-2.0.so.0()(64bit)
+Requires:       libfontconfig.so.1()(64bit)
 
 %description
 ${DESCRIPTION}
