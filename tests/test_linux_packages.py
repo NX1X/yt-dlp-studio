@@ -157,3 +157,19 @@ def test_desktop_entry_and_icons_exist():
     assert (linux / "yt-dlp-studio.desktop").is_file()
     for size in (32, 48, 64, 128, 256):
         assert (linux / f"yt-dlp-studio-{size}.png").is_file()
+
+
+def test_rpm_requires_the_qt_system_libraries_by_soname():
+    # A minimal Fedora lacks these; without them the app fails with
+    # "libEGL.so.1: cannot open shared object file" (found by the Fedora CI test).
+    text = _script()
+    for soname in (
+        "libEGL.so.1",
+        "libGL.so.1",
+        "libxkbcommon.so.0",
+        "libdbus-1.so.3",
+        "libxcb-cursor.so.0",
+        "libglib-2.0.so.0",
+        "libfontconfig.so.1",
+    ):
+        assert f"Requires:       {soname}()(64bit)" in text, soname
