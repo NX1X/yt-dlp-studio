@@ -42,6 +42,32 @@ X_PHOTOS_URL = "https://twitter.com/perrypumas/status/894001459754180609"
 X_MIXED_URL = "https://x.com/carrotsprout_/status/1577924293023133696"
 
 
+# ---------- no network ----------
+
+
+@pytest.fixture(autouse=True)
+def _no_internet(monkeypatch):
+    """Fail loudly on any connection that is not to this computer."""
+    import socket
+
+    real_connect = socket.socket.connect
+
+    def guarded(self, address, *args, **kwargs):
+        host = address[0] if isinstance(address, tuple) else address
+        if self.family in (socket.AF_INET, socket.AF_INET6) and host not in ("127.0.0.1", "::1", "localhost"):
+            raise AssertionError(f"test tried to reach the network: {address!r}")
+        return real_connect(self, address, *args, **kwargs)
+
+    def no_lookup(host, *args, **kwargs):
+        if host not in ("127.0.0.1", "::1", "localhost"):
+            raise AssertionError(f"test tried a DNS lookup: {host!r}")
+        return real_getaddrinfo(host, *args, **kwargs)
+
+    real_getaddrinfo = socket.getaddrinfo
+    monkeypatch.setattr(socket.socket, "connect", guarded)
+    monkeypatch.setattr(socket, "getaddrinfo", no_lookup)
+
+
 # ---------- a local server for the files ----------
 
 
@@ -124,6 +150,9 @@ class _Instagram:
                 return InstagramIE.ie_key()
 
             IE_NAME = InstagramIE.IE_NAME
+
+            def _real_initialize(self):
+                pass  # the real one opens an Instagram session over the network
 
             def _real_extract(self, url):
                 return copy.deepcopy(result)
@@ -560,7 +589,8 @@ def test_x_photo_metadata_and_description(tmp_path, server, downloader, monkeypa
 
 
 def _extract_x(status_file, url, monkeypatch):
-    status = json.loads((FIXTURES / status_file).read_text(encoding="utf-8"))
+    # Only the extraction runs; the media URLs point to this computer and are never opened.
+    status = _x_status(status_file, "http://127.0.0.1:9")
     monkeypatch.setattr(make_twitter_photo_ie(), "_extract_status", lambda self, twid: status)
     opts = {"skip_download": True, "ignore_no_formats_error": True, "quiet": True, "noplaylist": True}
     with mod.YoutubeDL(opts) as ydl:
@@ -600,7 +630,7 @@ def test_x_fixture_photos_only(monkeypatch):
         assert entry["uploader_id"] == "perrypumas"
         assert not entry["formats"]
         (thumb,) = entry["thumbnails"]
-        assert thumb["url"].startswith("https://pbs.twimg.com/media/") and thumb["url"].endswith("?name=orig")
+        assert thumb["url"].startswith("http://127.0.0.1:9/x/") and thumb["url"].endswith("?name=orig")
         assert looks_like_image_item(entry)
     assert info["entries"][0]["thumbnails"][0]["width"] > 0
 
@@ -617,7 +647,7 @@ def test_x_fixture_photo_and_video(monkeypatch):
 
 
 def test_x_fixture_without_photos_is_left_to_the_engine(monkeypatch):
-    status = json.loads((FIXTURES / "x_status_photo_and_video.json").read_text(encoding="utf-8"))
+    status = _x_status("x_status_photo_and_video.json", "http://127.0.0.1:9")
     status["extended_entities"]["media"] = [m for m in status["extended_entities"]["media"] if m["type"] != "photo"]
     monkeypatch.setattr(make_twitter_photo_ie(), "_extract_status", lambda self, twid: status)
     with mod.YoutubeDL({"skip_download": True, "quiet": True, "noplaylist": True}) as ydl:
