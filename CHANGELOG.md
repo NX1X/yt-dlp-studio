@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Advanced Download Options in the Settings tab.** One section that is closed by default. Its settings apply to downloads that start after you save.
+- **Cookies from your browser,** for private and age-restricted videos. Choose "Use cookies from: Firefox" and, if you need it, a profile. On Windows, Chrome, Edge and Brave are offered too. Chrome 127 and later use app-bound encryption that yt-dlp cannot read, so the app shows a clear message for that case. Chromium-based browsers are not offered on Linux: there yt-dlp needs the `secretstorage` package, which fails the project's software-origin policy. Cookies stay on this computer. The app does not log them, and it removes them from a saved `.info.json` file.
+- **Proxy setting** for downloads and for video, subtitle and playlist info (http, https, socks5, socks5h). The app checks the address. A user name and password in it are masked in the log.
+- **File name templates:** "Title_Quality" (the default, as before), "Uploader - Title", "Date - Title" or a custom yt-dlp template. A custom template must end with `.%(ext)s` and must be a file name only. Duplicate numbering (" (1)") still works with every template.
+- **Format options:** a preferred video codec (H.264, H.265/HEVC, VP9, AV1) and audio codec (AAC, Opus, Vorbis) for video downloads, through yt-dlp's format sorting. A custom yt-dlp format string replaces the quality and codec choices when set.
+- **A clear message when a video needs a signed-in account,** instead of yt-dlp's hint about command-line options.
+
 ### Changed
 
 - **Bundled yt-dlp engine 2026.10.26 -> 2026.11.23.** Tarball SHA-256 `8f757547e94c723415fd82bb5da857d8e1b24be2e34218890dfaac134907723e`, matching the `SHA2-256SUMS` file signed by the pinned yt-dlp release key (`AC0CBBE6848D6A873464AF4E57CF65933B5A7581`, GPG "Good signature"). Adds the `ios_producer` YouTube client, makes `tv` the default player JS variant, and fixes post-live streams and several site extractors. No upstream CVEs. Still uses `yt-dlp-ejs==0.8.0`, unchanged, and the Deno minimum (2.3.0) is met by the bundled Deno 2.9.8. The engine is 5 days old, inside the 7-day cooldown, taken by the maintainer's decision.
@@ -35,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The language choice is in the app data folder.** It was saved in `~/.yt-dlp-studio/language.json`, so the uninstaller purge missed it. It is now `language.json` in the app data folder. The app moves an old file there once, then deletes the old folder if it is empty.
 - **Dead links.** The issue templates and the release notes pointed to GitHub Discussions, which is not enabled; they now point to Issues. Links to the private `docs-internal/` folder are gone (the text stays).
 - **The Hebrew batch URL count** was still in English.
+- **Metadata is now embedded in the file** when "Download Metadata" is on together with a thumbnail, subtitles or audio extraction. Before, the other post-processors replaced the FFmpegMetadata step, so it never ran.
+- **Readable metadata files have the video's name:** `name_metadata.txt`, `name Comments.txt` and `name_description.txt`. They were `name.info_metadata.txt` and `name.info Comments.txt`, and the `.description` file was never renamed.
 
 ---
 
