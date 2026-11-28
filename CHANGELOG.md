@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Help links to the website guide.** F1 opens the guide at the section of the open tab (Download, Queue, History or Settings; the About tab opens the top of the guide). A small "Help" link in the About tab, in the Advanced Download Options and in the download error dialog (next to "Copy details") opens the matching section. Only https links are opened. The base address is in `src/utils/constants.py`.
 - **Remove one entry from the history.** Right-click an entry and choose "Remove from history", or select it and press Delete.
 - **The Download tab remembers the "More options" and "Activity log" sections.** Both are closed on the first start, then stay as you left them. Older settings files need no change.
+- **Automatic winget update PR.** After each release, a new `winget` job in `release.yml` runs Microsoft's `wingetcreate` and opens an update PR for `NX1X.YTDLPStudio` in `microsoft/winget-pkgs`. It skips with a notice when the `WINGET_TOKEN` secret is not set or the package is not in winget yet. A manual run with a `version` input re-submits a release. Setup steps are in `docs/DEVELOPMENT.md`.
 
 ### Changed
 
