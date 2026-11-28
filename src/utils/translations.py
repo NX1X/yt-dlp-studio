@@ -522,7 +522,7 @@ TRANSLATIONS = {
         "shortcuts_download_tab": "Download Tab",
         "shortcuts_queue_tab": "Queue Tab",
         "shortcut_quit_app": "Quit application",
-        "shortcut_show_help": "Open the online help",
+        "shortcut_show_help": "Open the guide for the current tab",
         "shortcut_close_dialogs": "Close dialogs",
         "shortcut_paste_url": "Paste URL from clipboard",
         "shortcut_start_download": "Start download (when URL field is focused)",
@@ -585,6 +585,8 @@ TRANSLATIONS = {
         "header_error_suggestions": "Suggestions:",
         "header_error_technical_details": "Technical details:",
         "button_copy_details": "Copy details",
+        "button_help": "Help",
+        "tooltip_help_guide": "Open the guide in your browser",
         "text_copied": "Copied",
         # --- end UI overhaul A ---
         # --- UI overhaul B ---
@@ -1350,7 +1352,7 @@ TRANSLATIONS = {
         "shortcuts_download_tab": "לשונית הורדה",
         "shortcuts_queue_tab": "לשונית תור",
         "shortcut_quit_app": "יציאה מהתוכנה",
-        "shortcut_show_help": "פתח את העזרה המקוונת",
+        "shortcut_show_help": "פתח את המדריך של הלשונית הנוכחית",
         "shortcut_close_dialogs": "סגור חלונות דו-שיח",
         "shortcut_paste_url": "הדבק URL מהלוח",
         "shortcut_start_download": "התחל הורדה (כאשר שדה URL ממוקד)",
@@ -1413,6 +1415,8 @@ TRANSLATIONS = {
         "header_error_suggestions": "הצעות:",
         "header_error_technical_details": "פרטים טכניים:",
         "button_copy_details": "העתק פרטים",
+        "button_help": "עזרה",
+        "tooltip_help_guide": "פתח את המדריך בדפדפן",
         "text_copied": "הועתק",
         # --- end UI overhaul A ---
         # --- UI overhaul B ---
@@ -1795,7 +1799,6 @@ def load_saved_language() -> str | None:
 LANGUAGE_INFO: dict[str, tuple[str, str, bool]] = {
     "en": ("English", "English", False),
     "he": ("עברית", "Hebrew", True),
-    "ar": ("العربية", "Arabic", True),
     "fa": ("فارسی", "Persian", True),
     "ur": ("اردو", "Urdu", True),
     "yi": ("ייִדיש", "Yiddish", True),
@@ -1831,7 +1834,7 @@ _LEGACY_DISPLAY_NAMES = {"en": "English / אנגלית", "he": "עברית / Heb
 
 
 def is_rtl_language(language_code: str) -> bool:
-    """True if the language is written right to left (Hebrew, Arabic, ...)."""
+    """True if the language is written right to left (Hebrew, Persian, ...)."""
     info = LANGUAGE_INFO.get(language_code) or LANGUAGE_INFO.get(language_code.split("-")[0])
     return bool(info and info[2])
 
@@ -1851,7 +1854,7 @@ class TranslationManager:
     """
     Manages translations and language switching.
 
-    Automatically detects system language and provides RTL support (Hebrew, Arabic, Persian, Urdu, Yiddish).
+    Automatically detects system language and provides RTL support (Hebrew, Persian, Urdu, Yiddish).
     """
 
     def __init__(self):
@@ -1924,7 +1927,7 @@ class TranslationManager:
         Check if current language is RTL (Right-to-Left).
 
         Returns:
-            True if the language is RTL (Hebrew, Arabic, Persian, Urdu, Yiddish), False otherwise
+            True if the language is RTL (Hebrew, Persian, Urdu, Yiddish), False otherwise
         """
         return is_rtl_language(self.current_language)
 

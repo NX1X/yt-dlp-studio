@@ -95,7 +95,7 @@ The import stops and changes nothing when a key does not exist, a key is repeate
 Notes:
 
 - A text that you leave empty gets the English text, and the app shows English for it. You can send a partly translated file.
-- Right-to-left languages (Hebrew, Arabic, Persian, Urdu, Yiddish) get the right-to-left layout on their own.
+- Right-to-left languages (Hebrew, Persian, Urdu, Yiddish) get the right-to-left layout on their own.
 - Qt's own texts (the OK, Cancel and Yes buttons in message boxes) use Qt's translation file `qtbase_<code>.qm` when it exists for your language.
 
 ## How to test a translation in the app

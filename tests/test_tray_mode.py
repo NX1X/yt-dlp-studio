@@ -23,7 +23,9 @@ import src.ui.main_window as mw_module
 from src.backend.config_manager import ConfigManager
 from src.models.app_config import AppConfig
 from src.ui.settings_tab import SettingsTab
-from src.utils.constants import APP_DOCS_URL, APP_NAME
+from src.ui import help_links
+from src.ui.help_links import guide_url
+from src.utils.constants import APP_NAME
 from src.utils.translations import get_translation_manager
 
 
@@ -228,15 +230,26 @@ class TestCloseBehaviour:
         window.queue_manager.shutdown.assert_called_once()
         quit_mock.assert_called_once()
 
-    def test_f1_opens_online_help(self, make_window, config_manager, monkeypatch):
+    @pytest.mark.parametrize(
+        ("tab_attr", "anchor"),
+        [
+            ("download_tab", "download"),
+            ("queue_tab", "queue"),
+            ("history_tab", "history"),
+            ("settings_tab", "settings"),
+            ("about_tab", ""),
+        ],
+    )
+    def test_f1_opens_the_guide_for_the_current_tab(self, make_window, config_manager, monkeypatch, tab_attr, anchor):
         opened = []
-        monkeypatch.setattr(mw_module.QDesktopServices, "openUrl", lambda url: opened.append(url.toString()) or True)
+        monkeypatch.setattr(help_links.QDesktopServices, "openUrl", lambda url: opened.append(url.toString()) or True)
         window = make_window(config_manager)
         assert window.help_shortcut.key().toString() == "F1"
+        window.tabs.setCurrentWidget(getattr(window, tab_attr))
 
         window.help_shortcut.activated.emit()
 
-        assert opened == [APP_DOCS_URL]
+        assert opened == [guide_url(anchor)]
 
     def test_no_tray_falls_back_to_quitting(self, make_window, config_manager, no_tray, quit_mock):
         config_manager.update_config(close_to_tray=True)
