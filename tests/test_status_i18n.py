@@ -214,7 +214,10 @@ class TestNotificationTexts:
         title, message = _shown(notifier)
         t = TRANSLATIONS[lang]
         assert title == t["notif_download_complete"]
-        assert message == f"{VIDEO_TITLE}\n" + t["notif_download_complete_msg_size"].format(size="10 MB")
+        expected = t["notif_download_complete_msg_size"].format(size="10 MB")
+        if lang == "he":
+            expected += "\u200f"  # RLM after the closing ")", see translations._end_rtl_paren
+        assert message == f"{VIDEO_TITLE}\n" + expected
 
     @pytest.mark.parametrize("lang", ["en", "he"])
     def test_download_complete_without_size(self, notifier, language, lang):
@@ -311,3 +314,16 @@ class TestQueueManagerErrorReason:
         task.cancel()
         self._fail(manager, task, "Download cancelled", None)
         notifier.notify_download_error.assert_called_once_with(task.url, TRANSLATIONS["he"]["status_cancelled"])
+
+
+def test_hebrew_closing_paren_after_ltr_text_gets_an_rlm():
+    """A ')' after LTR text at the end of a Hebrew string is drawn correctly."""
+    from src.utils.translations import TranslationManager
+
+    tm = TranslationManager()
+    tm.set_language("he")
+    assert tm.translate("tooltip_paste").endswith(")‏")
+    # Qt parses "(*.csv)" in file dialog filters, so filters stay unchanged.
+    assert tm.translate("filter_csv_files").endswith(")")
+    tm.set_language("en")
+    assert not tm.translate("tooltip_paste").endswith("‏")

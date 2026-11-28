@@ -1197,7 +1197,7 @@ TRANSLATIONS = {
         "label_languages": "שפות",
         "button_choose_subs": "בחר...",
         "checkbox_thumbnail_short": "תמונה ממוזערת",
-        "checkbox_metadata_short": "מטא-דאטה (תיאור, info.json)",
+        "checkbox_metadata_short": "מטא-דאטה (info.json, תיאור)",
         "checkbox_comments_short": "תגובות",
         "label_speed_limit_short": "הגבלת מהירות",
         "text_advanced_in_settings": "עוגיות מהדפדפן, פרוקסי, שמות קבצים ואפשרויות פורמט נמצאים בלשונית ההגדרות.",
@@ -1508,6 +1508,8 @@ class TranslationManager:
             if kwargs:
                 text = text.format(**kwargs)
 
+            if self.is_rtl():
+                text = _end_rtl_paren(key, text)
             return text
         except Exception as e:
             logger.warning(f"Translation error for key '{key}': {e}")
@@ -1537,6 +1539,21 @@ class TranslationManager:
 
 # Global translation manager instance
 _translation_manager = None
+
+
+# Right-to-left mark. A ")" at the very end of a right-to-left string that
+# comes after left-to-right text, as in "(info.json)" or "(Ctrl+V)", takes
+# the direction of that text and is drawn as "(" on the wrong side. One RLM
+# after it fixes that and draws nothing. File dialog filters are left out,
+# because Qt reads the "(*.csv)" part of a filter.
+_RLM = "\u200f"
+
+
+def _end_rtl_paren(key: str, text: str) -> str:
+    """Add an RLM after a closing parenthesis at the end of an RTL string."""
+    if text.endswith(")") and not key.startswith("filter_"):
+        return text + _RLM
+    return text
 
 
 def get_translation_manager() -> TranslationManager:
