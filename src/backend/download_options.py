@@ -22,12 +22,17 @@ from dataclasses import KW_ONLY, dataclass
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
+from ..utils.photo_posts import supports_photo_posts
+
 # Output file names. The quality part keeps different qualities of one video
 # apart. "%(height&_{}p|)s" gives "_720p", or nothing when the format has no
 # height (Facebook sd/hd, Instagram progressive files), so the name never
 # holds "_NAp". Duplicate numbering adds " (1)" before ".%(ext)s".
 VIDEO_FILENAME_TEMPLATE = "%(title)s%(height&_{}p|)s.%(ext)s"
 AUDIO_FILENAME_TEMPLATE = "%(title)s_%(quality)s.%(ext)s"
+# A photo has no height or quality in its name. The id keeps the photos of one
+# post apart (they often share the title).
+IMAGE_FILENAME_TEMPLATE = "%(title)s [%(id)s].%(ext)s"
 UPLOADER_TITLE_TEMPLATE = "%(uploader)s - %(title)s.%(ext)s"
 DATE_TITLE_TEMPLATE = "%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s"
 
@@ -166,9 +171,25 @@ class DownloadOptions:
         return AUDIO_FILENAME_TEMPLATE if self.audio_only else VIDEO_FILENAME_TEMPLATE
 
     @property
+    def image_filename_template(self) -> str:
+        """File name template for a photo of a post, without the folder.
+
+        The presets that name by quality (the default and the audio one) give
+        ``IMAGE_FILENAME_TEMPLATE``. A template the user chose is kept.
+        """
+        if self.filename_preset == FILENAME_PRESET_CUSTOM and self.custom_filename_template:
+            return self.custom_filename_template
+        return _FIXED_PRESET_TEMPLATES.get(self.filename_preset, IMAGE_FILENAME_TEMPLATE)
+
+    @property
     def output_template(self) -> str:
         """Full output template (folder and file name) for yt-dlp's ``outtmpl``."""
         return os.path.join(self.output_dir, self.filename_template)
+
+    @property
+    def image_output_template(self) -> str:
+        """Full output template for a photo of a post."""
+        return os.path.join(self.output_dir, self.image_filename_template)
 
     @property
     def extract_audio_format(self) -> str | None:
@@ -216,6 +237,7 @@ def build_ydl_opts(
     ydl_opts.update(_comment_opts(options))
     ydl_opts.update(_request_spacing_opts(options))
     ydl_opts.update(_audio_opts(options))
+    ydl_opts.update(_photo_opts(options.url))
     ydl_opts.update(_format_sort_opts(options))
     ydl_opts.update(network_opts(options.proxy, options.cookies_browser, options.cookies_profile))
     postprocessors = build_postprocessors(options)
@@ -387,6 +409,13 @@ def _request_spacing_opts(options: DownloadOptions) -> dict[str, Any]:
 def _audio_opts(options: DownloadOptions) -> dict[str, Any]:
     # Remove the downloaded stream after the audio is extracted.
     return {"keepvideo": False} if options.audio_only else {}
+
+
+def _photo_opts(url: str) -> dict[str, Any]:
+    # A photo post has no formats. Without this, yt-dlp stops with "No video
+    # formats found" before the app can download the photo. Only the sites
+    # with photo support get it: on others, that error must stay an error.
+    return {"ignore_no_formats_error": True} if supports_photo_posts(url) else {}
 
 
 def _format_sort_opts(options: DownloadOptions) -> dict[str, Any]:
