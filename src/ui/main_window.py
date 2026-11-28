@@ -8,19 +8,20 @@ import sys
 from datetime import UTC
 from pathlib import Path
 
-from PySide6.QtCore import QLibraryInfo, QSize, Qt, QTranslator, QUrl
-from PySide6.QtGui import QDesktopServices, QIcon, QKeySequence, QShortcut
+from PySide6.QtCore import QLibraryInfo, QSize, Qt, QTranslator
+from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QMessageBox, QStatusBar, QTabWidget
 
 from ..backend.config_manager import ConfigManager
 from ..backend.history_manager import HistoryManager
 from ..backend.queue_manager import QueueManager
-from ..utils.constants import APP_DATA_DIR, APP_DOCS_URL, APP_NAME, WINDOW_MIN_HEIGHT, WINDOW_MIN_WIDTH
+from ..utils.constants import APP_DATA_DIR, APP_NAME, WINDOW_MIN_HEIGHT, WINDOW_MIN_WIDTH
 from ..utils.logger import get_logger
 from ..utils.process_exit import note_threads_left_running
 from ..utils.translations import get_translation_manager, tr, tr_count
 from .about_tab import AboutTab
 from .download_tab import DownloadTab
+from .help_links import anchor_for_tab, open_guide
 from .history_tab import HistoryTab
 from .queue_tab import QueueTab
 from .settings_tab import SettingsTab
@@ -218,7 +219,7 @@ class MainWindow(QMainWindow):
         self.quit_shortcut = QShortcut(QKeySequence("Ctrl+Q"), self)
         self.quit_shortcut.activated.connect(self.quit_application)
 
-        # F1 opens the online help (the README on GitHub) in the browser.
+        # F1 opens the guide on the website, at the section of the current tab.
         self.help_shortcut = QShortcut(QKeySequence(Qt.Key.Key_F1), self)
         self.help_shortcut.activated.connect(self.open_online_help)
 
@@ -259,9 +260,19 @@ class MainWindow(QMainWindow):
         return self._close_to_tray and not self._quitting and self.notification_manager.has_visible_tray_icon()
 
     def open_online_help(self) -> None:
-        """Open the online help in the default browser."""
-        if not QDesktopServices.openUrl(QUrl(APP_DOCS_URL)):
-            logger.warning(f"Could not open the online help: {APP_DOCS_URL}")
+        """Open the online guide at the section of the current tab."""
+        open_guide(self.current_guide_anchor())
+
+    def current_guide_anchor(self) -> str:
+        """The guide anchor for the tab that is open (empty for the top of the guide)."""
+        tab_keys = {
+            self.download_tab: "download",
+            self.queue_tab: "queue",
+            self.history_tab: "history",
+            self.settings_tab: "settings",
+            self.about_tab: "about",
+        }
+        return anchor_for_tab(tab_keys.get(self.tabs.currentWidget(), ""))
 
     def quit_application(self) -> None:
         """
@@ -404,13 +415,13 @@ class MainWindow(QMainWindow):
         logger.info(f"Theme applied: {mode.value}")
 
     def _apply_rtl_layout(self) -> None:
-        """Apply the layout direction of the UI language (RTL for Hebrew, Arabic, Persian, Urdu, Yiddish)."""
+        """Apply the layout direction of the UI language (RTL for Hebrew, Persian, Urdu, Yiddish)."""
         from PySide6.QtWidgets import QApplication
 
         lang = self.translation_manager.get_language()
 
         if self.translation_manager.is_rtl():
-            # Hebrew, Arabic, Persian, Urdu, Yiddish: Right-to-Left
+            # Hebrew, Persian, Urdu, Yiddish: Right-to-Left
             QApplication.instance().setLayoutDirection(Qt.RightToLeft)
             logger.info(f"RTL layout applied for {lang}")
         else:

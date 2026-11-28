@@ -16,7 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no entries yet)_
+### Added
+
+- **Help links to the website guide.** F1 opens the guide at the section of the open tab (Download, Queue, History or Settings; the About tab opens the top of the guide). A small "Help" link in the About tab, in the Advanced Download Options and in the download error dialog (next to "Copy details") opens the matching section. Only https links are opened. The base address is in `src/utils/constants.py`.
+- **Remove one entry from the history.** Right-click an entry and choose "Remove from history", or select it and press Delete.
+- **The Download tab remembers the "More options" and "Activity log" sections.** Both are closed on the first start, then stay as you left them. Older settings files need no change.
+
+### Changed
+
+- **The weekly extractor check now covers TikTok.** It reads the info of one public video from yt-dlp's own tests (no download) on GitHub's runners. A real extraction failure opens or updates its own `extractor-broken` issue, titled for TikTok. A block (IP address blocked, login required, bot check, HTTP 403 or 429) is inconclusive and opens no issue. `scripts/check_extractors.py --site tiktok` refuses to run outside GitHub Actions, so no developer machine contacts TikTok. The job allows `www.tiktok.com` and `tiktok.com` in its network policy.
+- **Batch links ask about duplicates once.** Links that are already in the queue with the same settings were added again without a question. Now one question covers all of them: Yes adds them again, No skips them and adds the other links.
+- **F1 no longer opens the README on GitHub.** It opens the website guide (see above). The shortcut list in the About tab says so.
+- **Code cleanup for SonarCloud findings,** with no change in behavior: the queue start logic and the "Now downloading" panel are split into smaller functions, and test assertions that joined two checks are now separate.
 
 ---
 
