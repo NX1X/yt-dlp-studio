@@ -102,6 +102,17 @@ In the Playlist Viewer:
 
 If you started with **Download**, the chosen videos start at once. If you started with **Add to queue**, they wait their turn. **Info** on a playlist link opens the same viewer, and the videos go to the queue like **Add to queue**.
 
+### Photo posts
+
+An Instagram or X post can hold photos instead of a video, or next to one. The app downloads them without a setting:
+
+- A post with one photo gives one image file.
+- A carousel or a post with several photos gives one file per photo. Videos in the same post download as videos.
+- Each image file is named `Title [id].jpg`, with the largest size that the site offers (Instagram: up to 1080 pixels wide). A file name template that you chose in Advanced Download Options is kept.
+- **Open file** in the Queue and History tabs opens the image. If a post gave several files, it opens the first one.
+- Metadata and comments files are written for each photo. Audio extraction, tag embedding and subtitles do not apply to photos, also when **Audio Only** is on.
+- Facebook photo posts are not supported. A TikTok photo slideshow gives only its audio.
+
 ### Info dialog
 
 **Info** on a single video opens the Video Information dialog. It has a **Download** button. Click it to close the dialog and start the download as if you had clicked **Download** on the form. **Close** only closes the dialog.
@@ -240,7 +251,7 @@ If FFmpeg is missing, the FFmpeg line shows "Not found in PATH".
 | Where | Shortcut | Action |
 |-------|----------|--------|
 | Anywhere | `Ctrl+Q` | Quit |
-| Anywhere | `F1` | Open the online help (the README on GitHub) |
+| Anywhere | `F1` | Open the guide on the website, at the section of the open tab |
 | Dialogs | `Esc` | Close the dialog |
 | Download tab | `Ctrl+V` | Paste the link from the clipboard |
 | Download tab | `Enter` | Start the download (when the Link field has the focus) |

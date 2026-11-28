@@ -177,6 +177,14 @@ class NowDownloadingPanel(QGroupBox):
     def refresh(self) -> None:
         """Rebuild the rows and the summary from the queue (GUI thread)."""
         running = self.running_tasks()
+        self._sync_rows(running)
+        stats = self.queue_manager.get_queue_statistics()
+        paused = bool(getattr(self.queue_manager, "is_paused", False))
+        self._update_empty_label(bool(running), paused, stats)
+        self._update_summary(paused, stats)
+
+    def _sync_rows(self, running: list[DownloadTask]) -> None:
+        """Remove rows of tasks that stopped, add rows for new ones and put them in queue order."""
         wanted = {id(task): task for task in running}
 
         for key in list(self._rows):
@@ -194,17 +202,20 @@ class NowDownloadingPanel(QGroupBox):
                 self.rows_layout.insertWidget(position, row)
             row.refresh()
 
-        stats = self.queue_manager.get_queue_statistics()
-        paused = bool(getattr(self.queue_manager, "is_paused", False))
-        if running:
+    def _update_empty_label(self, has_running: bool, paused: bool, stats: dict) -> None:
+        """Show the "nothing is downloading" text, or hide it while a download runs."""
+        if has_running:
             self.empty_label.setVisible(False)
+            return
+        pending = stats.get("pending", 0)
+        if paused and pending:
+            self.empty_label.setText(tr_count("now_empty_paused", pending))
         else:
-            if paused and stats.get("pending", 0):
-                self.empty_label.setText(tr_count("now_empty_paused", stats.get("pending", 0)))
-            else:
-                self.empty_label.setText(tr("now_empty"))
-            self.empty_label.setVisible(True)
+            self.empty_label.setText(tr("now_empty"))
+        self.empty_label.setVisible(True)
 
+    def _update_summary(self, paused: bool, stats: dict) -> None:
+        """One line under the rows: waiting, failed and paused."""
         parts = []
         if stats.get("pending", 0):
             parts.append(tr_count("summary_waiting", stats["pending"]))

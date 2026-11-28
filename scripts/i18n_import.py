@@ -186,7 +186,7 @@ def plan_new_language(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n", maxsplit=1)[0])
-    parser.add_argument("--lang", default="he", help="language code, for example he, es, ar (default: he)")
+    parser.add_argument("--lang", default="he", help="language code, for example he, es, fr (default: he)")
     parser.add_argument("--csv", type=Path, default=ROOT / "translations.csv", help="edited CSV file")
     parser.add_argument("--translations", type=Path, default=TRANSLATIONS_PATH, help="translations.py to change")
     parser.add_argument("--new", action="store_true", help="add a language that is not in translations.py yet")

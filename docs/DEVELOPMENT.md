@@ -42,6 +42,19 @@ This guide is for developers who work on YT-DLP Studio. For the contribution rul
    ls vendor/yt_dlp_engine/yt_dlp
    ```
 
+6. Install the git hooks (needs bash; on Windows use Git Bash):
+
+   ```bash
+   scripts/install-hooks.sh
+   ```
+
+   The project uses plain scripts in `scripts/git-hooks`, not the `pre-commit` framework.
+   - `pre-commit` runs `ruff check`, `ruff format --check` and `black --check` on the staged Python files. It also checks for a final newline, trailing whitespace and files over 5 MB. It never changes a file. If a check fails, it prints the command that fixes it.
+   - `commit-msg` checks that the first line follows Conventional Commits, for example `fix(queue): keep the order`.
+   - The hooks use `ruff` and `black` from the project virtual environment or from `PATH`.
+   - The hooks do not scan for secrets or lint workflows. CI does that: GitGuardian for secrets and zizmor for workflows. There is no local `gitleaks` or `actionlint` run.
+   - To skip the hooks once, use `git commit --no-verify`. To remove them, run `git config --unset core.hooksPath`.
+
 ## Run the app
 
 From the command line:
@@ -102,7 +115,7 @@ yt-dlp-studio/
 ### Before you commit
 
 - Remove debug print statements.
-- Run the formatters and linters (`ruff`, `black`). The pre-commit hooks do this for you.
+- Run the formatters and linters (`ruff`, `black`). The git hooks (step 6 of "Set up the environment") check this for you.
 - Update the documentation if needed.
 - Test one more time.
 
@@ -298,7 +311,7 @@ On a Linux machine without a display, use `xvfb-run --auto-servernum pytest test
 - A YouTube playlist
 - An invalid URL
 - A video that does not exist
-- One video each from the other tested sites: Instagram, TikTok, Facebook and X. Check them by hand before each release; the weekly CI check covers YouTube only. The site tiers are in `src/utils/site_tiers.py`.
+- One video each from the other tested sites: Instagram, Facebook and X. Check them by hand before each release; the weekly CI check covers YouTube and TikTok. Never run the TikTok check on your own machine: `scripts/check_extractors.py --site tiktok` refuses to run outside GitHub Actions. The site tiers are in `src/utils/site_tiers.py`.
 - Optional: a video from an experimental site (for example Vimeo). A failure here is not a release blocker.
 
 ## Debugging
@@ -361,6 +374,22 @@ The specs are in `packaging/`. CI builds the release files. To build locally:
 6. Test the executable, on a clean system if possible.
 
 The Windows EXE is about 200 MB (0.3.1). CI wraps it in the Inno Setup installer (`packaging/installer.iss`). It builds the Linux packages with `packaging/linux/build_packages.sh`.
+
+## Publish to winget
+
+The `winget` job in `.github/workflows/release.yml` runs after each release. It runs Microsoft's `wingetcreate` and opens an update PR for `NX1X.YTDLPStudio` in `microsoft/winget-pkgs`. The job skips with a notice, and the release still succeeds, when the token is missing or the package is not in winget yet.
+
+One-time setup for the maintainer:
+
+1. Wait until the new-package PR (microsoft/winget-pkgs#467730) is merged. Before that, `wingetcreate update` cannot work.
+2. Open GitHub, Settings, Developer settings, Personal access tokens, Tokens (classic).
+3. Create a classic token. Select only the `public_repo` scope. Set an expiry date and note it.
+4. Open the repository, Settings, Secrets and variables, Actions.
+5. Add a repository secret named `WINGET_TOKEN` with the token as value.
+
+`wingetcreate` forks `winget-pkgs` into the account that owns the token and opens the PR from that account. A winget moderator reviews the PR. The job gets no repository write access.
+
+To re-submit a version, run the Release workflow by hand (Actions, Release YT-DLP Studio, Run workflow). Enter the version in the `version` input, for example `0.5.0`.
 
 ## Update the vendored yt-dlp
 

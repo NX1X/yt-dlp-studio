@@ -22,6 +22,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from ..utils.logger import get_logger
+from ..utils.photo_posts import host_matches, supports_photo_posts
 from .download_options import (
     AUDIO_CODEC_SORT,
     CODEC_ANY,
@@ -370,9 +371,9 @@ def set_download_preferences(preferences: DownloadPreferences) -> None:
 # ---------- clear messages for cookie and sign-in failures ----------
 
 
-# yt-dlp texts for a post that holds photos only. The first three come from
-# the Instagram and X extractors. The text names an issue tracker, which
-# invites a bug report for what is a missing feature.
+# yt-dlp texts for a post that holds no video. The first three come from the
+# Instagram and X extractors. The text names an issue tracker, which invites
+# a bug report for what is not a bug.
 _NO_VIDEO_TEXTS = (
     "there is no video in this post",
     "no video could be found in this tweet",
@@ -383,21 +384,23 @@ _NO_VIDEO_HOSTS = ("instagram.com", "twitter.com", "x.com", "facebook.com", "fb.
 _FACEBOOK_POST_PATHS = ("/photo", "/posts/", "/permalink.php", "/photos/", "/story.php")
 
 
-def _host_matches(url: str, hosts: tuple[str, ...]) -> bool:
-    try:
-        host = (urlsplit(url).hostname or "").lower()
-    except ValueError:
-        return False
-    return any(host == h or host.endswith("." + h) for h in hosts)
+def _no_video_message_key(text: str, url: str) -> str | None:
+    """Key of the message for a post without a video, or None if ``text`` is another failure.
 
-
-def _is_photo_post_error(text: str, url: str) -> bool:
-    """True if ``text`` (lower case) says that the post at ``url`` has no video."""
+    ``text`` is lower case. Instagram and X photo posts download, so a post
+    from those sites that still gives nothing has no media at all. Facebook
+    photo posts are not supported.
+    """
     if any(marker in text for marker in _NO_VIDEO_TEXTS):
-        return not url or _host_matches(url, _NO_VIDEO_HOSTS)
-    if "unsupported url" in text and url and _host_matches(url, ("facebook.com",)):
-        return any(part in url.lower() for part in _FACEBOOK_POST_PATHS)
-    return False
+        if not url:
+            return "error_no_video_in_post"
+        if supports_photo_posts(url):
+            return "error_no_media_in_post"
+        return "error_no_video_in_post" if host_matches(url, _NO_VIDEO_HOSTS) else None
+    if "unsupported url" in text and url and host_matches(url, ("facebook.com",)):
+        if any(part in url.lower() for part in _FACEBOOK_POST_PATHS):
+            return "error_no_video_in_post"
+    return None
 
 
 def explain_download_error(
@@ -426,8 +429,9 @@ def explain_download_error(
         key = _cookie_error_key(text)
         if key:
             return tr(key, browser=browser_display_name(browser))
-    if _is_photo_post_error(text, url):
-        return tr("error_no_video_in_post")
+    no_video_key = _no_video_message_key(text, url)
+    if no_video_key:
+        return tr(no_video_key)
     if "sign in" in text or "cookies-from-browser" in text or "--cookies" in text:
         if browser:
             return tr("cookies_hint_signed_in_browser", browser=browser_display_name(browser))

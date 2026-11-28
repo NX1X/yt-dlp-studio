@@ -219,7 +219,8 @@ def test_lookups_without_settings_add_nothing(fake_ydl):
     mod.YtDlpWrapper().get_video_info(URL)
     playlist_mod.PlaylistFetcher.fetch_playlist_quick(URL)
     for run in fake_ydl.runs:
-        assert "proxy" not in run["params"] and "cookiesfrombrowser" not in run["params"]
+        assert "proxy" not in run["params"]
+        assert "cookiesfrombrowser" not in run["params"]
 
 
 # ---------- secrets stay out of the log ----------
@@ -462,4 +463,5 @@ def test_new_strings_exist_in_both_languages():
     keys += ["settings_advanced_download", "label_custom_format", "text_cookies_privacy", "text_advanced_applies"]
     for key in keys:
         assert TRANSLATIONS["he"].get(key), key
-        assert chr(0x2014) not in TRANSLATIONS["en"][key] and chr(0x2013) not in TRANSLATIONS["en"][key]
+        assert chr(0x2014) not in TRANSLATIONS["en"][key]
+        assert chr(0x2013) not in TRANSLATIONS["en"][key]

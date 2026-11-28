@@ -119,6 +119,22 @@ class HistoryManager:
         logger.info(f"Cleared {count} history entries (status={status})")
         return count
 
+    def remove_entry(self, entry: HistoryEntry) -> bool:
+        """
+        Remove one entry from the history and save.
+
+        Args:
+            entry: An entry from ``get_history`` or ``search_history``
+
+        Returns:
+            True if the entry was removed
+        """
+        removed = self.history.remove_entry(entry)
+        if removed:
+            self.save()
+            logger.info(f"Removed from history: {entry.title}")
+        return removed
+
     def export_to_csv(self, filepath: Path) -> bool:
         """
         Export history to CSV file.

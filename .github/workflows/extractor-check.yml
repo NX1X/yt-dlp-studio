@@ -1,19 +1,26 @@
 name: Extractor check
 
-# Weekly check that the vendored yt-dlp engine can still read the officially
-# tested sites (README.md: YouTube only, videos and playlists). Sites change
-# their pages without notice, so an engine that passed CI can break later.
+# Weekly check that the vendored yt-dlp engine can still read the sites that
+# the CI covers: YouTube (one video and one playlist) and TikTok (one public
+# video). Instagram, Facebook and X are checked by hand before each release.
+# Sites change their pages without notice, so an engine that passed CI can
+# break later.
 #
-# The `check` job runs scripts/check_extractors.py, which calls the vendored
-# engine through the app's own wrapper with extract_info(download=False). It
-# fails if an extraction fails or a video returns no formats. The `report` job
-# then opens one issue labelled `extractor-broken`, or comments on the open
-# one. When the check passes again, it closes that issue.
+# The `check` job runs scripts/check_extractors.py once per site. It calls the
+# vendored engine through the app's own wrapper with extract_info(download=False)
+# and downloads no media. A site check fails if an extraction fails or a video
+# returns no formats. The `report` job then opens one issue per site, labelled
+# `extractor-broken` (the title names the site), or comments on the open one.
+# When the check passes again, it closes that issue.
 #
-# YouTube sometimes answers a runner's cloud IP address with "Sign in to
-# confirm you're not a bot". That result is "blocked": inconclusive, not an
-# engine fault. The job then passes with a warning and the issue is left as
-# it is.
+# A site sometimes answers a runner's cloud IP address with a block: YouTube
+# with "Sign in to confirm you're not a bot", TikTok with "Your IP address is
+# blocked", a login page, or HTTP 403 or 429. That result is "blocked":
+# inconclusive, not an engine fault. The job then passes with a warning and the
+# issue is left as it is.
+#
+# The TikTok check runs only on GitHub's runners. The script refuses to run it
+# anywhere else, so no developer machine contacts TikTok.
 #
 # A pull request that changes the check itself also runs the `check` job, so
 # a change is tested before it merges. Pull request runs never touch issues.
@@ -37,13 +44,14 @@ concurrency:
 
 jobs:
   check:
-    name: Check YouTube extraction
+    name: Check YouTube and TikTok extraction
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     permissions:
       contents: read
     outputs:
       outcome: ${{ steps.check.outputs.outcome }}
+      tiktok_outcome: ${{ steps.tiktok.outputs.outcome }}
     steps:
     - name: Harden runner
       # See build.yml (lint job) for the rationale. Baseline plus the hosts
@@ -51,7 +59,10 @@ jobs:
       # release-assets.githubusercontent.com), www.youtube.com for the video
       # and playlist pages, and manifest.googlevideo.com for the HLS/DASH
       # format manifests. No media is downloaded, so the *.googlevideo.com
-      # media hosts are not needed.
+      # media hosts are not needed. TikTok: yt-dlp reads the video web page on
+      # www.tiktok.com. Its mobile API host (api16-normal-c-useast1a.tiktokv.com)
+      # is used only when the app_info extractor argument is set, which this
+      # app never does, and the media CDN hosts only for a download.
       uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: block
@@ -67,6 +78,8 @@ jobs:
           raw.githubusercontent.com:443
           release-assets.githubusercontent.com:443
           results-receiver.actions.githubusercontent.com:443
+          tiktok.com:443
+          www.tiktok.com:443
           www.youtube.com:443
           youtube.com:443
           *.blob.core.windows.net:443
@@ -86,7 +99,7 @@ jobs:
         python -m pip install --require-hashes -r requirements/pip.txt --only-binary :all:
         python -m pip install --require-hashes -r requirements/lock.txt --only-binary :all:
 
-    - name: Check extractors
+    - name: Check YouTube
       # The script gets Deno itself through src/utils/deno_installer.py, the
       # same path a source run uses: the pinned version, checked against the
       # SHA-256 pinned in that file before it is used.
@@ -108,12 +121,35 @@ jobs:
         fi
         [ "$outcome" != fail ]
 
+    - name: Check TikTok
+      # Runs even if the YouTube check failed, so one site never hides the
+      # other. It reads the info of one public video, no download. The script
+      # refuses to run it outside GitHub Actions.
+      # Exit code 0 = pass, 1 = fail, 2 = blocked by TikTok.
+      id: tiktok
+      if: always() && steps.check.outcome != 'skipped'
+      run: |
+        set +e
+        python scripts/check_extractors.py --site tiktok --report
+        rc=$?
+        set -e
+        case "$rc" in
+          0) outcome=pass ;;
+          2) outcome=blocked ;;
+          *) outcome=fail ;;
+        esac
+        echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
+        if [ "$outcome" = blocked ]; then
+          echo "::warning title=TikTok check inconclusive::TikTok blocked this runner (IP address, login, bot check, HTTP 403 or 429). No check failed; see the report."
+        fi
+        [ "$outcome" != fail ]
+
     - name: Upload report
       if: always()
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: extractor-report
-        path: extractor-report.md
+        path: extractor-report*.md
         if-no-files-found: warn
         retention-days: 7         # the repository maximum
 
@@ -147,54 +183,70 @@ jobs:
       with:
         name: extractor-report
 
-    - name: Open, update or close the issue
+    - name: Open, update or close the issues
       env:
         GH_TOKEN: ${{ github.token }}
         GH_REPO: ${{ github.repository }}
         CHECK_RESULT: ${{ needs.check.result }}
-        OUTCOME: ${{ needs.check.outputs.outcome }}
+        YOUTUBE_OUTCOME: ${{ needs.check.outputs.outcome }}
+        TIKTOK_OUTCOME: ${{ needs.check.outputs.tiktok_outcome }}
         RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         REF_NAME: ${{ github.ref_name }}
       run: |
         set -euo pipefail
         label=extractor-broken
-        open=$(gh issue list --label "$label" --state open --limit 1 --json number --jq '.[0].number // empty')
 
-        {
-          echo "Run: $RUN_URL (branch \`$REF_NAME\`)"
-          echo
-          if [ -s extractor-report.md ]; then
-            cat extractor-report.md
-          else
-            echo "No report was written. The job failed before the check ran; see the run log."
-          fi
-        } > body.md
+        # handle SITE REPORT_FILE OUTCOME
+        # One issue per site: the open issue with the label whose title names the site.
+        handle() {
+          site="$1"; report="$2"; outcome="$3"
+          echo "== $site =="
+          open=$(gh issue list --label "$label" --state open --limit 50 --json number,title \
+            | jq -r --arg site "$site" '[.[] | select(.title | contains($site))][0].number // empty')
 
-        # The check job fails only on a real failure or before the check ran.
-        if [ "$CHECK_RESULT" = "failure" ]; then OUTCOME=fail; fi
-        echo "Outcome: ${OUTCOME:-unknown}"
-
-        if [ "$OUTCOME" = "blocked" ]; then
-          echo "Inconclusive (bot check). The issue, if any, stays as it is."
-        elif [ "$OUTCOME" = "fail" ]; then
-          gh label create "$label" --color B60205 \
-            --description "The weekly extractor check failed" --force
-          if [ -n "$open" ]; then
-            gh issue comment "$open" --body-file body.md
-            echo "Commented on issue #$open"
-          else
-            gh issue create --label "$label" \
-              --title "Extractor check failed: YouTube extraction is broken" \
-              --body-file body.md
-          fi
-        elif [ "$OUTCOME" = "pass" ] && [ -n "$open" ]; then
           {
-            echo "The extractor check passes again, so this issue is closed."
+            echo "Run: $RUN_URL (branch \`$REF_NAME\`)"
             echo
-            cat body.md
-          } > close.md
-          gh issue close "$open" --comment "$(cat close.md)"
-          echo "Closed issue #$open"
-        else
-          echo "No issue to open or close. Nothing to do."
-        fi
+            if [ -s "$report" ]; then
+              cat "$report"
+            else
+              echo "No report was written. The job failed before the check ran; see the run log."
+            fi
+          } > "body-$site.md"
+
+          echo "Outcome: ${outcome:-unknown}"
+
+          if [ "$outcome" = "blocked" ]; then
+            echo "Inconclusive (blocked by the site). The issue, if any, stays as it is."
+          elif [ "$outcome" = "fail" ]; then
+            gh label create "$label" --color B60205 \
+              --description "The weekly extractor check failed" --force
+            if [ -n "$open" ]; then
+              gh issue comment "$open" --body-file "body-$site.md"
+              echo "Commented on issue #$open"
+            else
+              gh issue create --label "$label" \
+                --title "Extractor check failed: $site extraction is broken" \
+                --body-file "body-$site.md"
+            fi
+          elif [ "$outcome" = "pass" ] && [ -n "$open" ]; then
+            {
+              echo "The extractor check passes again, so this issue is closed."
+              echo
+              cat "body-$site.md"
+            } > "close-$site.md"
+            gh issue close "$open" --comment "$(cat "close-$site.md")"
+            echo "Closed issue #$open"
+          else
+            echo "No issue to open or close. Nothing to do."
+          fi
+        }
+
+        # The check job fails only on a real failure or before the checks ran.
+        # If it failed and left no YouTube outcome, the failure belongs to
+        # YouTube (the setup steps run before any site). A missing TikTok
+        # outcome opens nothing.
+        if [ "$CHECK_RESULT" = "failure" ] && [ -z "$YOUTUBE_OUTCOME" ]; then YOUTUBE_OUTCOME=fail; fi
+
+        handle YouTube extractor-report.md "$YOUTUBE_OUTCOME"
+        handle TikTok extractor-report-tiktok.md "$TIKTOK_OUTCOME"

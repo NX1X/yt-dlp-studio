@@ -109,7 +109,9 @@ class TestErrorTexts:
         for code in ("en", "he"):
             language(code)
             title, message, suggestions = ErrorHandler.get_error_info("xyz")
-            assert title and message and suggestions
+            assert title
+            assert message
+            assert suggestions
         prefix = f"errcat_{category.value}"
         for part in ("title", "message", "suggestions"):
             assert TRANSLATIONS["en"][f"{prefix}_{part}"]
@@ -158,8 +160,10 @@ class TestOtherMovedTexts:
         log.append_error("x")
         log.append_info("y")
         text = log.toPlainText()
-        assert "ERROR" not in text and "INFO" not in text
-        assert tr("log_level_error") in text and tr("log_level_info") in text
+        assert "ERROR" not in text
+        assert "INFO" not in text
+        assert tr("log_level_error") in text
+        assert tr("log_level_info") in text
 
     def test_activity_log_levels_in_english_are_unchanged(self, qtbot, language):
         from src.ui.log_widget import LogWidget

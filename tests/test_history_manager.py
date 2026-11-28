@@ -111,6 +111,37 @@ class TestHistoryManagerOperations:
         assert len(mgr.get_history()) == 0
 
     @patch("src.backend.history_manager.APP_DATA_DIR")
+    def test_remove_entry_removes_only_that_entry_and_saves(self, mock_dir, tmp_path):
+        mock_dir.__truediv__ = lambda self, x: tmp_path / x
+        mgr = self._make_manager(tmp_path=tmp_path)
+        entries = mgr.get_history()
+        victim = entries[1]
+        assert mgr.remove_entry(victim) is True
+        remaining = mgr.get_history()
+        assert len(remaining) == 2
+        assert all(entry is not victim for entry in remaining)
+        # The change is on disk
+        from src.backend.history_manager import HistoryManager
+
+        assert len(HistoryManager().history.entries) == 2
+
+    @patch("src.backend.history_manager.APP_DATA_DIR")
+    def test_remove_entry_not_in_history(self, mock_dir, tmp_path):
+        mock_dir.__truediv__ = lambda self, x: tmp_path / x
+        mgr = self._make_manager(tmp_path=tmp_path)
+        stranger = HistoryEntry(
+            url="https://example.com/x",
+            title="Not here",
+            quality="best",
+            output_directory=str(tmp_path),
+            filename="",
+            status="completed",
+            timestamp=datetime.now(),
+        )
+        assert mgr.remove_entry(stranger) is False
+        assert len(mgr.get_history()) == 3
+
+    @patch("src.backend.history_manager.APP_DATA_DIR")
     def test_export_csv(self, mock_dir, tmp_path):
         mock_dir.__truediv__ = lambda self, x: tmp_path / x
         mgr = self._make_manager(tmp_path=tmp_path)
