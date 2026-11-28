@@ -57,6 +57,8 @@ yt-dlp-studio/
 │   │   └── theme.py             # Dark and light themes
 │   ├── backend/
 │   │   ├── yt_dlp_wrapper.py    # Interface to yt-dlp
+│   │   ├── download_options.py  # DownloadOptions and the mapping to yt-dlp options
+│   │   ├── side_files.py        # Readable metadata and comments files
 │   │   ├── download_worker.py   # QThread for one download
 │   │   ├── queue_manager.py     # Queue, concurrency, retries, queue file
 │   │   ├── history_manager.py   # Download history file
@@ -179,9 +181,17 @@ Key methods:
 Key methods:
 
 - `get_video_info(url)`: extracts metadata.
-- `download(...)`: downloads a video.
+- `download(options)`: downloads a video. `options` is a `DownloadOptions` value (see below).
 - `get_available_subtitles(url)`: lists subtitle languages.
 - `_progress_hook(data)`: receives the yt-dlp progress.
+
+**Download options:** `src/backend/download_options.py` holds `DownloadOptions`, a frozen dataclass with one typed field per user choice. `build_ydl_opts()` turns it into the `YoutubeDL` options dict. It is a pure function (no file system, network or logging), so `tests/test_download_options.py` tests it directly. `DownloadWorker` fills `DownloadOptions` from the `DownloadTask` in `download_options_for()`. To add a download option:
+
+1. Add a typed field with a default to `DownloadOptions`.
+2. Map it in `build_ydl_opts()`, or in `build_postprocessors()` for a post-processor.
+3. Fill it in `download_options_for()`.
+
+`tests/test_download_characterization.py` records the exact options for many inputs. A new option must not change those results when it is off.
 
 **Path setup:** the top of the file adds `vendor/yt_dlp_engine/` to `sys.path` (in a frozen build, the bundled `yt_dlp_engine` folder), then imports `yt_dlp`.
 
@@ -338,7 +348,7 @@ Keep new files small and focused. Some existing files are large (for example `do
 | Add a quality option | `src/utils/constants.py` |
 | Add a setting | `src/models/app_config.py`, `src/backend/config_manager.py`, `src/ui/settings_tab.py` |
 | Change a tab layout | `src/ui/<name>_tab.py` |
-| Change download logic | `src/backend/yt_dlp_wrapper.py` |
+| Change download logic | `src/backend/yt_dlp_wrapper.py`, `src/backend/download_options.py` |
 | Change queue behavior | `src/backend/queue_manager.py` |
 | Change the progress display | `src/ui/progress_bar.py` |
 | Add or change a UI string | `src/utils/translations.py` (`en` and `he`) |

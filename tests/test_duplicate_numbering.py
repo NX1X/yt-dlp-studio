@@ -14,6 +14,7 @@ import threading
 import pytest
 
 from src.backend import yt_dlp_wrapper as mod
+from src.backend.download_options import DownloadOptions
 
 VIDEO_INFO = {"id": "abc123", "title": "My Video", "ext": "mp4", "height": 720}
 AUDIO_INFO = {"id": "abc123", "title": "My Song", "ext": "webm", "quality": "medium"}
@@ -68,7 +69,7 @@ def _download(tmp_path, info=VIDEO_INFO, **kwargs):
     }
     params.update(kwargs)
     wrapper = mod.YtDlpWrapper()
-    ok = wrapper.download(**params)
+    ok = wrapper.download(DownloadOptions(**params))
     assert ok is True, wrapper.last_error
     (path,) = wrapper.last_output_files
     return path
@@ -176,7 +177,7 @@ def test_numbered_path_is_reported(tmp_path, monkeypatch):
     (tmp_path / "My Video_720p.mp4").write_text("old")
     monkeypatch.setattr(_FakeDownloadYDL, "fake_info", VIDEO_INFO)
     wrapper = mod.YtDlpWrapper()
-    assert wrapper.download("https://example.com/v", str(tmp_path), "best", download_thumbnail=False)
+    assert wrapper.download(DownloadOptions("https://example.com/v", str(tmp_path), "best", download_thumbnail=False))
     assert wrapper.last_output_files == [str(tmp_path / "My Video_720p (1).mp4")]
 
 
@@ -226,6 +227,9 @@ def test_reservation_released_after_failed_download(tmp_path, monkeypatch):
 
     monkeypatch.setattr(_FakeDownloadYDL, "extract_info", boom)
     wrapper = mod.YtDlpWrapper()
-    assert wrapper.download("https://example.com/v", str(tmp_path), "best", download_thumbnail=False) is False
+    assert (
+        wrapper.download(DownloadOptions("https://example.com/v", str(tmp_path), "best", download_thumbnail=False))
+        is False
+    )
     assert wrapper.last_output_files == []
     # The autouse fixture asserts that no reservation is left behind.

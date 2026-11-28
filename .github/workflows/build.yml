@@ -25,7 +25,7 @@ jobs:
       # dependency exfiltrating data or pulling from an unexpected origin.
       # SHA pinned (Renovate keeps the digest current; matches the repo
       # convention for every other third-party action).
-      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: block
         disable-sudo: true                 # no apt/sudo step in this job
@@ -47,9 +47,9 @@ jobs:
         persist-credentials: false   # no job here pushes via git
 
     - name: Set up Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
-        python-version: '3.14.7'
+        python-version: '3.14.10'
 
     - name: Install linting tools
       # Hash-pinned CI tooling (see requirements/ci-tools.in).
@@ -80,7 +80,7 @@ jobs:
       # via matrix; the same policy is applied to both. The Linux leg uses
       # apt (`sudo apt-get`), so disable-sudo MUST be false. Port-80 entries
       # are for the Ubuntu apt mirror (HTTP-only on the Azure-backed mirror).
-      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: block
         disable-sudo: false                # Linux leg runs `sudo apt-get`
@@ -106,9 +106,9 @@ jobs:
         persist-credentials: false   # no job here pushes via git
 
     - name: Set up Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
-        python-version: '3.14.7'
+        python-version: '3.14.10'
 
     - name: Install system dependencies (Linux)
       if: runner.os == 'Linux'
@@ -143,7 +143,7 @@ jobs:
 
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: test-results-${{ matrix.os }}
         path: test-results.xml
@@ -151,7 +151,7 @@ jobs:
 
     - name: Upload coverage report
       if: always()
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: coverage-${{ matrix.os }}
         path: coverage.xml
@@ -193,7 +193,7 @@ jobs:
       # redirect to objects.githubusercontent.com (the GitHub release CDN) -
       # both already in the baseline. Sigstore endpoints (incl. the often-
       # missed sigstore.github.com) are required by attest-build-provenance.
-      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: block
         disable-sudo: true                 # Windows; no sudo step
@@ -219,9 +219,9 @@ jobs:
         persist-credentials: false   # no job here pushes via git
 
     - name: Set up Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
-        python-version: '3.14.7'
+        python-version: '3.14.10'
 
     - name: Install dependencies
       # PyInstaller comes from its own hash-locked file (see
@@ -378,7 +378,7 @@ jobs:
         subject-path: 'dist/yt-dlp-studio.exe'
 
     - name: Upload artifact
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: YT-DLP-Studio-Windows
         path: |
@@ -421,7 +421,7 @@ jobs:
       # See lint job for rationale. Linux runner uses apt (EGL/dbus libs for
       # the PySide6 offscreen import), so disable-sudo MUST be false. Mirrors
       # the test job's Linux allowlist plus PyInstaller wheel fetches.
-      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: block
         disable-sudo: false                # Linux leg runs `sudo apt-get`
@@ -447,9 +447,9 @@ jobs:
         persist-credentials: false   # no job here pushes via git
 
     - name: Set up Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
-        python-version: '3.14.7'
+        python-version: '3.14.10'
 
     - name: Install system dependencies
       # rpm, rpm2cpio and cpio build and inspect the .rpm package.
@@ -534,7 +534,7 @@ jobs:
       run: bash scripts/test_linux_packages.sh dist/yt-dlp-studio dist/packages
 
     - name: Upload artifact
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: YT-DLP-Studio-Linux
         path: |
