@@ -11,6 +11,26 @@ and down when it is open.
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QToolButton, QVBoxLayout, QWidget
 
+# The arrow is a character in front of the title, not Qt's drawn arrow
+# (setArrowType). Qt draws that arrow inside the icon area without making
+# room for it, so at Windows display scaling the bold title ran into it.
+# Text gets its spacing from the font at every scale. U+00A0 keeps the gap.
+ARROW_OPEN = "\u25be"  # small down-pointing triangle
+ARROW_CLOSED_LTR = "\u25b8"  # small right-pointing triangle
+ARROW_CLOSED_RTL = "\u25c2"  # small left-pointing triangle
+
+
+def section_header_text(title: str, expanded: bool, right_to_left: bool) -> str:
+    """Header text with the open or closed arrow in front of ``title``."""
+    if expanded:
+        arrow = ARROW_OPEN
+    else:
+        arrow = ARROW_CLOSED_RTL if right_to_left else ARROW_CLOSED_LTR
+    # The arrow is a neutral character, so a leading direction mark puts it
+    # at the start of the line: right of the title in Hebrew, left in English.
+    mark = "\u200f" if right_to_left else "\u200e"
+    return f"{mark}{arrow}\u00a0\u00a0{title}"
+
 
 class CollapsibleSection(QWidget):
     """Header plus content that the user can fold away."""
@@ -23,9 +43,10 @@ class CollapsibleSection(QWidget):
 
         self.header = QToolButton()
         self.header.setObjectName("collapsibleHeader")
+        self._title = title
         self.header.setText(title)
         self.header.setCheckable(True)
-        self.header.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.header.setToolButtonStyle(Qt.ToolButtonTextOnly)
         self.header.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
         self.header.setAccessibleName(title)
         self.header.toggled.connect(self._on_header_toggled)
@@ -84,10 +105,7 @@ class CollapsibleSection(QWidget):
         self.toggled.emit(expanded)
 
     def _apply_state(self, expanded: bool) -> None:
-        if expanded:
-            arrow = Qt.DownArrow
-        else:
-            arrow = Qt.LeftArrow if self.layoutDirection() == Qt.RightToLeft else Qt.RightArrow
-        self.header.setArrowType(arrow)
+        right_to_left = self.layoutDirection() == Qt.RightToLeft
+        self.header.setText(section_header_text(self._title, expanded, right_to_left))
         self.content.setVisible(expanded)
         self.summary_label.setVisible(bool(self.summary_label.text()) and not expanded)
