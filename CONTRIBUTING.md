@@ -152,6 +152,7 @@ python launcher.py
 
 - **Bugs:** open an issue with the **Bug Report** template.
 - **Features:** open an issue with the **Feature Request** template.
+- **Translations:** open an issue with the **Translation** template, or send a pull request. See [docs/TRANSLATING.md](docs/TRANSLATING.md).
 - **Security vulnerabilities:** do not use public issues. See [SECURITY.md](SECURITY.md).
 
 ## License

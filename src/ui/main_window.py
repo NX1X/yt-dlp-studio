@@ -404,34 +404,35 @@ class MainWindow(QMainWindow):
         logger.info(f"Theme applied: {mode.value}")
 
     def _apply_rtl_layout(self) -> None:
-        """Apply RTL (Right-to-Left) layout for Hebrew (v1.9.0)."""
+        """Apply the layout direction of the UI language (RTL for Hebrew, Arabic, Persian, Urdu, Yiddish)."""
         from PySide6.QtWidgets import QApplication
 
         lang = self.translation_manager.get_language()
 
-        if lang == "he":
-            # Hebrew: Right-to-Left
+        if self.translation_manager.is_rtl():
+            # Hebrew, Arabic, Persian, Urdu, Yiddish: Right-to-Left
             QApplication.instance().setLayoutDirection(Qt.RightToLeft)
-            logger.info("RTL layout applied for Hebrew")
+            logger.info(f"RTL layout applied for {lang}")
         else:
-            # English: Left-to-Right
+            # Left-to-Right
             QApplication.instance().setLayoutDirection(Qt.LeftToRight)
             logger.info("LTR layout applied")
         self._install_qt_translator(lang)
 
     def _install_qt_translator(self, lang: str) -> None:
         """
-        Load Qt's own Hebrew texts (OK, Cancel, Yes, No in message boxes).
+        Load Qt's own texts for the language (OK, Cancel, Yes, No in message boxes).
 
         Qt draws the standard buttons from its own translation files, not from
         ours. Without this, a Hebrew message box has an English "OK" button.
+        The file is ``qtbase_<lang>.qm``; a language without one keeps Qt's English.
         """
         app = QApplication.instance()
         old = getattr(self, "_qt_translator", None)
         if old is not None:
             app.removeTranslator(old)
             self._qt_translator = None
-        if lang != "he":
+        if lang == "en":
             return
 
         folders = [QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)]
@@ -447,9 +448,9 @@ class MainWindow(QMainWindow):
 
         translator = QTranslator(self)
         for folder in folders:
-            if translator.load("qtbase_he", folder):
+            if translator.load(f"qtbase_{lang}", folder):
                 app.installTranslator(translator)
                 self._qt_translator = translator
-                logger.info(f"Qt Hebrew texts loaded from {folder}")
+                logger.info(f"Qt texts for {lang} loaded from {folder}")
                 return
-        logger.warning("Qt Hebrew texts (qtbase_he.qm) not found; standard buttons stay in English")
+        logger.info(f"qtbase_{lang}.qm not found; standard buttons stay in English")

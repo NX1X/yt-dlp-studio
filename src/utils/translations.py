@@ -1788,11 +1788,70 @@ def load_saved_language() -> str | None:
     return _read_language_file(get_language_file())
 
 
+# Languages the app knows how to describe: code -> (native name, English
+# name, right-to-left). A language shows in Settings when it has a block in
+# TRANSLATIONS; this table only gives its names and its reading direction.
+# scripts/i18n_import.py --new adds a line here for a code that is not listed.
+LANGUAGE_INFO: dict[str, tuple[str, str, bool]] = {
+    "en": ("English", "English", False),
+    "he": ("עברית", "Hebrew", True),
+    "ar": ("العربية", "Arabic", True),
+    "fa": ("فارسی", "Persian", True),
+    "ur": ("اردو", "Urdu", True),
+    "yi": ("ייִדיש", "Yiddish", True),
+    "cs": ("Čeština", "Czech", False),
+    "da": ("Dansk", "Danish", False),
+    "de": ("Deutsch", "German", False),
+    "el": ("Ελληνικά", "Greek", False),
+    "es": ("Español", "Spanish", False),
+    "fi": ("Suomi", "Finnish", False),
+    "fr": ("Français", "French", False),
+    "hi": ("हिन्दी", "Hindi", False),
+    "hu": ("Magyar", "Hungarian", False),
+    "id": ("Bahasa Indonesia", "Indonesian", False),
+    "it": ("Italiano", "Italian", False),
+    "ja": ("日本語", "Japanese", False),
+    "ko": ("한국어", "Korean", False),
+    "nl": ("Nederlands", "Dutch", False),
+    "no": ("Norsk", "Norwegian", False),
+    "pl": ("Polski", "Polish", False),
+    "pt": ("Português", "Portuguese", False),
+    "ro": ("Română", "Romanian", False),
+    "ru": ("Русский", "Russian", False),
+    "sv": ("Svenska", "Swedish", False),
+    "th": ("ไทย", "Thai", False),
+    "tr": ("Türkçe", "Turkish", False),
+    "uk": ("Українська", "Ukrainian", False),
+    "vi": ("Tiếng Việt", "Vietnamese", False),
+    "zh": ("中文", "Chinese", False),
+}
+
+# Display names that the app has always used for the two first languages
+_LEGACY_DISPLAY_NAMES = {"en": "English / אנגלית", "he": "עברית / Hebrew"}
+
+
+def is_rtl_language(language_code: str) -> bool:
+    """True if the language is written right to left (Hebrew, Arabic, ...)."""
+    info = LANGUAGE_INFO.get(language_code) or LANGUAGE_INFO.get(language_code.split("-")[0])
+    return bool(info and info[2])
+
+
+def language_display_name(language_code: str) -> str:
+    """Name for the language list: "Native / English", or the code if the language is not in the table."""
+    if language_code in _LEGACY_DISPLAY_NAMES:
+        return _LEGACY_DISPLAY_NAMES[language_code]
+    info = LANGUAGE_INFO.get(language_code)
+    if info is None:
+        return language_code
+    native, english, _rtl = info
+    return native if native == english else f"{native} / {english}"
+
+
 class TranslationManager:
     """
     Manages translations and language switching.
 
-    Automatically detects system language and provides RTL support for Hebrew.
+    Automatically detects system language and provides RTL support (Hebrew, Arabic, Persian, Urdu, Yiddish).
     """
 
     def __init__(self):
@@ -1807,7 +1866,7 @@ class TranslationManager:
         First checks for saved language preference, then falls back to system locale.
 
         Returns:
-            Language code ("en" or "he")
+            Language code of a block in TRANSLATIONS
         """
         # Check for saved language preference (v1.7.0)
         saved_lang = load_saved_language()
@@ -1822,11 +1881,13 @@ class TranslationManager:
 
             if system_locale:
                 lang_code = system_locale.split("_")[0].lower()
+                if lang_code == "iw":  # old Hebrew code
+                    lang_code = "he"
 
-                # Check if Hebrew
-                if lang_code == "he" or lang_code == "iw":  # iw is old Hebrew code
-                    logger.info("Detected Hebrew system language")
-                    return "he"
+                # Use the system language when the app has it
+                if lang_code in TRANSLATIONS:
+                    logger.info(f"Detected system language: {lang_code}")
+                    return lang_code
 
             # Default to English
             logger.info("Defaulting to English language")
@@ -1841,7 +1902,7 @@ class TranslationManager:
         Set the current language.
 
         Args:
-            language_code: Language code ("en" or "he")
+            language_code: Language code of a block in TRANSLATIONS
         """
         if language_code in TRANSLATIONS:
             self.current_language = language_code
@@ -1863,9 +1924,9 @@ class TranslationManager:
         Check if current language is RTL (Right-to-Left).
 
         Returns:
-            True if RTL (Hebrew), False otherwise
+            True if the language is RTL (Hebrew, Arabic, Persian, Urdu, Yiddish), False otherwise
         """
-        return self.current_language == "he"
+        return is_rtl_language(self.current_language)
 
     def translate(self, key: str, **kwargs) -> str:
         """
@@ -1884,7 +1945,10 @@ class TranslationManager:
             "URLs: 5"
         """
         try:
-            text = TRANSLATIONS[self.current_language].get(key, key)
+            # A key that the language does not have yet falls back to English.
+            text = TRANSLATIONS[self.current_language].get(key)
+            if text is None:
+                text = TRANSLATIONS["en"].get(key, key)
 
             # Apply formatting if kwargs provided
             if kwargs:
@@ -1899,12 +1963,14 @@ class TranslationManager:
 
     def get_available_languages(self) -> dict[str, str]:
         """
-        Get list of available languages.
+        Get the languages that have a block in TRANSLATIONS (English first, then Hebrew, then the rest by code).
 
         Returns:
             Dict mapping language codes to display names
         """
-        return {"en": "English / אנגלית", "he": "עברית / Hebrew"}
+        codes = ["en"] + [code for code in ("he",) if code in TRANSLATIONS]
+        codes += sorted(code for code in TRANSLATIONS if code not in codes)
+        return {code: language_display_name(code) for code in codes}
 
     def get_language_name(self, language_code: str) -> str:
         """
@@ -1923,7 +1989,7 @@ class TranslationManager:
 _translation_manager = None
 
 
-# Right-to-left mark. A ")", ":" or "." at the very end of a right-to-left
+# Right-to-left mark (all RTL languages). A ")", ":" or "." at the very end of a right-to-left
 # string that comes after left-to-right text, as in "(info.json)", "(Ctrl+V)"
 # or the Hebrew "yt-dlp engine:" label, takes the direction of that text and is
 # drawn on the wrong side. One RLM after it fixes that and draws nothing. File
