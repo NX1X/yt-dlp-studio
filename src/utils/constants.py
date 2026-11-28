@@ -21,9 +21,11 @@ APP_ORGANIZATION = "NXTools"
 APP_WEBSITE = "https://nx1xlab.dev"
 APP_NXTOOLS_WEBSITE = "https://nx1xlab.dev/nxtools"
 APP_DESCRIPTION = "A user-friendly GUI for yt-dlp video downloader"
+# Online help that F1 opens (the README on GitHub)
+APP_DOCS_URL = "https://github.com/NX1X/yt-dlp-studio#readme"
 
 # yt-dlp Engine Information
-YTDLP_VERSION = "2026.10.26"  # Version of bundled yt-dlp
+YTDLP_VERSION = "2026.11.23"  # Version of bundled yt-dlp
 YTDLP_ENGINE_DIR = "vendor/yt_dlp_engine"
 
 # File Names

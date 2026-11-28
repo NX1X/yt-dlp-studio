@@ -165,8 +165,9 @@ class QueueManager(QObject):
     QUEUE_FILE_VERSION = 1
     # Automatic retries allowed per task (network errors only)
     MAX_AUTO_RETRIES = 1
-    # Delay before an automatic retry starts, in milliseconds
-    AUTO_RETRY_DELAY_MS = 5000
+    # Default delay before an automatic retry starts, in milliseconds. The
+    # instance field auto_retry_delay_ms starts with it (tests shorten it).
+    DEFAULT_AUTO_RETRY_DELAY_MS = 5000
     # Delay between a queue change and the save, in milliseconds. Changes
     # inside this window are written together.
     SAVE_DELAY_MS = 250
@@ -208,7 +209,7 @@ class QueueManager(QObject):
         self._save_timer.setSingleShot(True)
         self._save_timer.setInterval(self.SAVE_DELAY_MS)
         self._save_timer.timeout.connect(self.flush_save)
-        self.auto_retry_delay_ms = self.AUTO_RETRY_DELAY_MS
+        self.auto_retry_delay_ms = self.DEFAULT_AUTO_RETRY_DELAY_MS
         # Tasks waiting for their automatic retry, keyed by id(). The value
         # keeps a reference so the id cannot be reused while it waits.
         self._pending_auto_retries: dict[int, DownloadTask] = {}
@@ -328,7 +329,7 @@ class QueueManager(QObject):
         ``finished``. Pending tasks then start as before, unless paused.
         """
         logger.info("Stopping all active downloads")
-        for worker in list(self.workers.values()):
+        for worker in self.workers.values():
             worker.cancel()
             self._stopping[id(worker)] = worker
         self.workers.clear()
@@ -658,25 +659,13 @@ class QueueManager(QObject):
         detail = getattr(getattr(worker, "wrapper", None), "last_error", None)
         will_retry = not self._shutting_down and self._should_auto_retry(task, error, detail)
 
-        # Send desktop notification (v1.7.0). Skip it when an automatic retry
-        # follows; the user hears about the final result instead. Also skip
-        # it for the cancels that shutdown() causes.
-        if self.notification_manager and not will_retry and not self._shutting_down:
-            title = task.url[:50] + "..." if len(task.url) > 50 else task.url
-            # The worker's own "Download failed" and "Download cancelled" are
-            # English: send a translated reason or the yt-dlp reason instead.
-            if task.status == TaskStatus.CANCELLED:
-                reason = tr("status_cancelled")
-            else:
-                reason = detail or ""
-            self.notification_manager.notify_download_error(title, reason)
-
-        if not will_retry and not self._shutting_down:
-            status = "cancelled" if task.status == TaskStatus.CANCELLED else "failed"
-            self.record_history(task, status, error_message="" if status == "cancelled" else (detail or error))
-
         if will_retry:
             self._schedule_auto_retry(task)
+        elif not self._shutting_down:
+            # Skip the notification and the history entry when an automatic
+            # retry follows (the user hears about the final result instead)
+            # and for the cancels that shutdown() causes.
+            self._report_final_failure(task, error, detail)
 
         self.task_failed.emit(index, error)
         self.queue_updated.emit()
@@ -684,6 +673,21 @@ class QueueManager(QObject):
         # Try to start next task
         if self._auto_start:
             self._try_start_next()
+
+    def _report_final_failure(self, task: DownloadTask, error: str, detail: str | None) -> None:
+        """Send the desktop notification and record history for a failed or cancelled task."""
+        cancelled = task.status == TaskStatus.CANCELLED
+        if self.notification_manager:
+            title = task.url[:50] + "..." if len(task.url) > 50 else task.url
+            # The worker's own "Download failed" and "Download cancelled" are
+            # English: send a translated reason or the yt-dlp reason instead.
+            reason = tr("status_cancelled") if cancelled else (detail or "")
+            self.notification_manager.notify_download_error(title, reason)
+
+        if cancelled:
+            self.record_history(task, "cancelled", error_message="")
+        else:
+            self.record_history(task, "failed", error_message=detail or error)
 
     def _on_worker_progress(self, worker: DownloadWorker, progress_data: dict) -> None:
         """Handle task progress update."""
@@ -977,6 +981,31 @@ class QueueManager(QObject):
         self._save_pending = True
         self.flush_save()
 
+    @staticmethod
+    def _restore_tasks(entries: list) -> tuple[list[DownloadTask], int]:
+        """
+        Build the tasks to restore from the queue file entries.
+
+        Returns:
+            (restored tasks, number of invalid entries skipped)
+        """
+        restored: list[DownloadTask] = []
+        skipped = 0
+        for entry in entries:
+            try:
+                task = DownloadTask.from_dict(entry)
+            except (ValueError, TypeError):
+                skipped += 1
+                continue
+            if task.status == TaskStatus.DOWNLOADING:
+                # Interrupted by the shutdown: run it again. yt-dlp
+                # continues from the .part file.
+                task.reset_for_retry()
+            elif task.status not in _PERSISTED_STATUSES:
+                continue  # completed or cancelled: nothing to restore
+            restored.append(task)
+        return restored, skipped
+
     def _read_queue_file(self) -> tuple[list[DownloadTask], bool]:
         """
         Read and check the queue file.
@@ -1036,22 +1065,7 @@ class QueueManager(QObject):
             logger.warning(f"Queue file {path} has an invalid paused value, treating the queue as paused")
             paused = True
 
-        restored: list[DownloadTask] = []
-        skipped = 0
-        for entry in entries:
-            try:
-                task = DownloadTask.from_dict(entry)
-            except (ValueError, TypeError):
-                skipped += 1
-                continue
-            if task.status == TaskStatus.DOWNLOADING:
-                # Interrupted by the shutdown: run it again. yt-dlp
-                # continues from the .part file.
-                task.reset_for_retry()
-            elif task.status not in _PERSISTED_STATUSES:
-                continue  # completed or cancelled: nothing to restore
-            restored.append(task)
-
+        restored, skipped = self._restore_tasks(entries)
         if skipped:
             logger.warning(f"Skipped {skipped} invalid task entries in queue file {path}")
             self._backup_bad_file()

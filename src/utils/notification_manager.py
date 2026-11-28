@@ -392,7 +392,8 @@ class NotificationManager(QObject):
             message,
         ]
         try:
-            result = subprocess.run(  # noqa: S603 - fixed binary, argument list, no shell
+            # S603: fixed binary and an argument list (no shell).
+            result = subprocess.run(  # noqa: S603
                 args,
                 check=False,
                 timeout=NOTIFY_SEND_TIMEOUT_S,

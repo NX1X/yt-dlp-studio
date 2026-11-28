@@ -319,93 +319,92 @@ class UpdateDialog(QDialog):
         if result.success:
             self.status_label.setText(tr("text_download_verified"))
             logger.info(f"Update downloaded and verified: {result.file_path}")
-
-            if os.name != "nt":
-                # Linux: nothing is run from here. Reveal the file in the file
-                # manager with the next step for its kind (extract the archive,
-                # open the package, or start the new AppImage); the running app
-                # is left open.
-                reveal_key = {
-                    "appimage": "msg_download_verified_reveal_appimage",
-                    "package": "msg_download_verified_reveal_package",
-                }.get(self.release_info.get("update_kind"), "msg_download_verified_reveal")
-                reply = QMessageBox.question(
-                    self,
-                    tr("dialog_download_complete_update"),
-                    tr(reveal_key, path=result.file_path),
-                    QMessageBox.Yes | QMessageBox.No,
-                )
-                if reply == QMessageBox.Yes:
-                    self._reveal_in_file_manager(result.file_path)
-                else:
-                    QMessageBox.information(
-                        self,
-                        tr("dialog_download_complete_update"),
-                        tr("msg_installer_saved", path=result.file_path),
-                    )
-                self.accept()
-                return
-
-            kind = self.release_info.get("update_kind")
-            is_exe = result.file_path.lower().endswith(".exe")
-            if os.name == "nt" and (kind not in ("installer", "portable") or not is_exe):
-                # A ZIP or an unknown asset: never execute it. Show it instead.
-                self._reveal_in_file_manager(result.file_path)
-                self.accept()
-                return
-            if kind == "installer" and not is_installed_copy():
-                # A portable copy must not run the installer silently; that
-                # would create a second, installed copy behind the user's back.
-                logger.warning("Installer update offered to a portable copy; not running it")
-                QMessageBox.information(
-                    self,
-                    tr("dialog_download_complete_update"),
-                    tr("msg_installer_saved", path=result.file_path),
-                )
-                self.accept()
-                return
-
-            if kind == "installer":
-                # Installed copy: the installer replaces this copy in place
-                # and starts the app again (/LAUNCH=yes).
-                reply = QMessageBox.question(
-                    self,
-                    tr("dialog_download_complete_update"),
-                    tr("msg_update_install_restart", version=self.release_info.get("version", "")),
-                    QMessageBox.Yes | QMessageBox.No,
-                )
-                if reply == QMessageBox.Yes:
-                    self._run_installer_silent(result.file_path)
-                else:
-                    QMessageBox.information(
-                        self,
-                        tr("dialog_download_complete_update"),
-                        tr("msg_installer_saved", path=result.file_path),
-                    )
-                    self.accept()
-                return
-
-            # Portable copy: the download is a second, separate copy. Say so.
-            reply = QMessageBox.question(
-                self,
-                tr("dialog_download_complete_update"),
-                tr("msg_portable_update_ready", path=result.file_path),
-                QMessageBox.Yes | QMessageBox.No,
-            )
-            if reply == QMessageBox.Yes:
-                self._launch_and_quit([result.file_path])
-            else:
-                QMessageBox.information(
-                    self,
-                    tr("dialog_download_complete_update"),
-                    tr("msg_portable_update_saved", path=result.file_path),
-                )
-                self.accept()
+            self._handle_verified_download(result.file_path)
             return
 
         # Failure paths.
         self.status_label.setText(tr("text_download_failed"))
+        self._show_download_error(result)
 
+    def _show_file_saved(self, file_path: str, message_key: str = "msg_installer_saved"):
+        """Tell the user where the downloaded update was saved."""
+        QMessageBox.information(
+            self,
+            tr("dialog_download_complete_update"),
+            tr(message_key, path=file_path),
+        )
+
+    def _ask_yes_no(self, message: str) -> bool:
+        """Ask a Yes/No question in the "download complete" dialog."""
+        reply = QMessageBox.question(
+            self,
+            tr("dialog_download_complete_update"),
+            message,
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        return reply == QMessageBox.Yes
+
+    def _handle_verified_download(self, file_path: str):
+        """Offer the next step for a verified update file."""
+        kind = self.release_info.get("update_kind")
+
+        if os.name != "nt":
+            # Linux: nothing is run from here. Reveal the file in the file
+            # manager with the next step for its kind (extract the archive,
+            # open the package, or start the new AppImage); the running app
+            # is left open.
+            reveal_key = {
+                "appimage": "msg_download_verified_reveal_appimage",
+                "package": "msg_download_verified_reveal_package",
+            }.get(kind, "msg_download_verified_reveal")
+            if self._ask_yes_no(tr(reveal_key, path=file_path)):
+                self._reveal_in_file_manager(file_path)
+            else:
+                self._show_file_saved(file_path)
+            self.accept()
+            return
+
+        is_exe = file_path.lower().endswith(".exe")
+        if kind not in ("installer", "portable") or not is_exe:
+            # A ZIP or an unknown asset: never execute it. Show it instead.
+            self._reveal_in_file_manager(file_path)
+            self.accept()
+            return
+
+        if kind == "installer":
+            self._offer_installer_update(file_path)
+        else:
+            self._offer_portable_update(file_path)
+
+    def _offer_installer_update(self, file_path: str):
+        """Run the verified installer on an installed copy, if the user agrees."""
+        if not is_installed_copy():
+            # A portable copy must not run the installer silently; that
+            # would create a second, installed copy behind the user's back.
+            logger.warning("Installer update offered to a portable copy; not running it")
+            self._show_file_saved(file_path)
+            self.accept()
+            return
+
+        # Installed copy: the installer replaces this copy in place
+        # and starts the app again (/LAUNCH=yes).
+        if self._ask_yes_no(tr("msg_update_install_restart", version=self.release_info.get("version", ""))):
+            self._run_installer_silent(file_path)
+        else:
+            self._show_file_saved(file_path)
+            self.accept()
+
+    def _offer_portable_update(self, file_path: str):
+        """Start the new portable EXE, if the user agrees."""
+        # Portable copy: the download is a second, separate copy. Say so.
+        if self._ask_yes_no(tr("msg_portable_update_ready", path=file_path)):
+            self._launch_and_quit([file_path])
+        else:
+            self._show_file_saved(file_path, "msg_portable_update_saved")
+            self.accept()
+
+    def _show_download_error(self, result: DownloadResult):
+        """Show why the update download failed."""
         if result.error == "verify_failed":
             logger.error("Update integrity verification failed")
             QMessageBox.critical(
@@ -471,9 +470,8 @@ class UpdateDialog(QDialog):
                 flags = getattr(subprocess, "DETACHED_PROCESS", 0x00000008) | getattr(
                     subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200
                 )
-            subprocess.Popen(  # noqa: S603 - verified file, list argv
-                argv, close_fds=True, creationflags=flags, env=child_process_env()
-            )
+            # S603: the file was verified and argv is a list (no shell).
+            subprocess.Popen(argv, close_fds=True, creationflags=flags, env=child_process_env())  # noqa: S603
             logger.info(f"Launched update: {argv[0]} (args: {' '.join(argv[1:]) or 'none'})")
 
             from PySide6.QtWidgets import QApplication
@@ -503,7 +501,8 @@ class UpdateDialog(QDialog):
         folder = str(Path(file_path).parent)
         try:
             if os.name == "nt":
-                os.startfile(folder)  # noqa: S606 - opens a folder in Explorer, not a program
+                # S606: this opens a folder in Explorer and starts no program.
+                os.startfile(folder)  # noqa: S606
             else:
                 subprocess.Popen(["xdg-open", folder])
             logger.info(f"Opened download folder: {folder}")

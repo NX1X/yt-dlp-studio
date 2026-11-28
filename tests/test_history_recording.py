@@ -116,5 +116,6 @@ def test_history_entry_uses_the_real_title(tmp_path, monkeypatch):
     task = make_task()
     manager.add_download(task, "completed", platform="youtube.com")
     entries = manager.get_history()
-    assert entries and entries[0].title == "A video"
+    assert entries
+    assert entries[0].title == "A video"
     assert entries[0].filename == "A video_1080p.mp4"

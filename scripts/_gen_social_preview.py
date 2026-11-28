@@ -3,6 +3,7 @@
 Renders the vector brand mark + wordmark via PySide6/QtSvg so the output
 is crisp. Not part of the app; safe to delete after the PNG is produced.
 """
+
 import sys
 
 from PySide6.QtCore import QByteArray

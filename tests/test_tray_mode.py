@@ -23,7 +23,7 @@ import src.ui.main_window as mw_module
 from src.backend.config_manager import ConfigManager
 from src.models.app_config import AppConfig
 from src.ui.settings_tab import SettingsTab
-from src.utils.constants import APP_NAME
+from src.utils.constants import APP_DOCS_URL, APP_NAME
 from src.utils.translations import get_translation_manager
 
 
@@ -228,6 +228,16 @@ class TestCloseBehaviour:
         window.queue_manager.shutdown.assert_called_once()
         quit_mock.assert_called_once()
 
+    def test_f1_opens_online_help(self, make_window, config_manager, monkeypatch):
+        opened = []
+        monkeypatch.setattr(mw_module.QDesktopServices, "openUrl", lambda url: opened.append(url.toString()) or True)
+        window = make_window(config_manager)
+        assert window.help_shortcut.key().toString() == "F1"
+
+        window.help_shortcut.activated.emit()
+
+        assert opened == [APP_DOCS_URL]
+
     def test_no_tray_falls_back_to_quitting(self, make_window, config_manager, no_tray, quit_mock):
         config_manager.update_config(close_to_tray=True)
         window = make_window(config_manager)
@@ -295,7 +305,8 @@ class TestTrayTooltip:
         text = window.tray_tooltip_text()
         assert text.startswith(f"{APP_NAME} - 2 ")
         assert "3" in text
-        assert chr(0x2013) not in text and chr(0x2014) not in text
+        assert chr(0x2013) not in text
+        assert chr(0x2014) not in text
 
     def test_queue_signal_updates_tray_icon(self, window):
         self._set_counts(window, active=1, pending=4)
