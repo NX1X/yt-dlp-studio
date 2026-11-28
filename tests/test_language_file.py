@@ -52,7 +52,7 @@ def test_language_file_is_in_app_data_folder(app_data):
 
 def test_save_and_load(app_data, home):
     assert save_language("he") is True
-    assert json.loads((app_data / "language.json").read_text(encoding="utf-8")) == {"language": "he"}
+    assert json.loads((app_data / "language.json").read_text(encoding="utf-8")) == {"version": 1, "language": "he"}
     assert load_saved_language() == "he"
 
 
@@ -71,7 +71,7 @@ def test_old_file_is_moved(app_data, home):
 
     assert load_saved_language() == "he"
 
-    assert json.loads((app_data / "language.json").read_text(encoding="utf-8")) == {"language": "he"}
+    assert json.loads((app_data / "language.json").read_text(encoding="utf-8")) == {"version": 1, "language": "he"}
     assert not legacy_file.exists()
     assert not legacy_file.parent.exists()
 

@@ -191,6 +191,8 @@ They are in the app data folder:
 
 The app data folder holds the settings (`yt-dlp-studio_config.json`), the language choice (`language.json`), the log (`yt-dlp-studio.log`), the download history, the saved queue and crash reports (`crashes`). The Settings tab shows the paths to the log, crash reports and settings file.
 
+If one of these files is damaged, the app keeps a copy with `.bad` at the end of the name (for example `download_history.json.bad`) and starts with defaults. If a file was saved by a newer version of the app, the app keeps a copy with `.v<N>.bak` at the end (for example `yt-dlp-studio_config.json.v2.bak`) before it saves the file.
+
 Versions up to 0.4.0 stored the language choice in `.yt-dlp-studio` in your home folder. The app moves that file into the app data folder on the next start, and deletes the old folder if it is empty.
 
 ### How do I uninstall? Do I lose my data?

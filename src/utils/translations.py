@@ -10,6 +10,7 @@ import locale
 from pathlib import Path
 
 from ..utils.constants import APP_DATA_DIR
+from ..utils.file_formats import LANGUAGE_FORMAT, load_json_file, save_json_file
 from ..utils.logger import get_logger
 
 logger = get_logger()
@@ -851,14 +852,29 @@ def _legacy_language_dir() -> Path:
     return Path.home() / LEGACY_LANGUAGE_DIR_NAME
 
 
-def _read_language_file(path: Path) -> str | None:
-    """Return the language code saved in ``path``, or None if it is missing or invalid."""
+def _language_from_data(data: dict | None) -> str | None:
+    """Return the language code in parsed file data, or None if it is invalid."""
+    language = data.get("language") if isinstance(data, dict) else None
+    return language if language in TRANSLATIONS else None
+
+
+def _read_legacy_language_file(path: Path) -> str | None:
+    """Return the language code in a file from before 0.4.1, or None if it is missing or invalid."""
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    language = data.get("language") if isinstance(data, dict) else None
-    return language if language in TRANSLATIONS else None
+    return _language_from_data(data)
+
+
+def _read_language_file(path: Path) -> str | None:
+    """
+    Return the language code saved in ``path``, or None if it is missing or invalid.
+
+    Version rules are in src/utils/file_formats.py (a damaged file is kept
+    as ``<name>.bad``).
+    """
+    return _language_from_data(load_json_file(path, LANGUAGE_FORMAT).data)
 
 
 def save_language(language_code: str) -> bool:
@@ -870,9 +886,8 @@ def save_language(language_code: str) -> bool:
     """
     path = get_language_file()
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({"language": language_code}), encoding="utf-8")
-    except OSError:
+        save_json_file(path, LANGUAGE_FORMAT, {"language": language_code}, indent=None)
+    except (OSError, TypeError, ValueError):
         logger.exception("Failed to save language preference")
         return False
     logger.info(f"Language preference saved: {language_code}")
@@ -893,7 +908,7 @@ def migrate_legacy_language_file() -> None:
         return
 
     if not get_language_file().exists():
-        language = _read_language_file(legacy_file)
+        language = _read_legacy_language_file(legacy_file)
         if language is not None and not save_language(language):
             return
         logger.info(f"Moved the language preference from {legacy_file} to {get_language_file()}")

@@ -300,7 +300,7 @@ class TestAtomicWrite:
             calls.append((src, dst))
             real_replace(src, dst)
 
-        with patch("src.backend.queue_manager.os.replace", side_effect=spy):
+        with patch("src.utils.file_formats.os.replace", side_effect=spy):
             assert manager.save_queue() is True
 
         assert len(calls) == 1
@@ -315,7 +315,7 @@ class TestAtomicWrite:
         manager = make_manager(queue_path)
         manager.queue.add_task(make_task())
 
-        with patch("src.backend.queue_manager.os.replace", side_effect=OSError("disk full")):
+        with patch("src.utils.file_formats.os.replace", side_effect=OSError("disk full")):
             assert manager.save_queue() is False  # logged, not raised
 
         assert queue_path.read_text(encoding="utf-8") == before
@@ -357,14 +357,41 @@ class TestBadFiles:
         assert manager.load_queue() == 0
         assert queue_path.with_name("download_queue.json.bad").exists()
 
-    @pytest.mark.parametrize("version", [2, 0, "1", True, None])
-    def test_unknown_version_starts_empty_and_keeps_bad_copy(self, queue_path, version):
+    @pytest.mark.parametrize("version", [0, -1, "1", True, None, 1.0])
+    def test_invalid_version_starts_empty_and_keeps_bad_copy(self, queue_path, version):
         write_queue_file(queue_path, [make_task()], version=version)
         manager = make_manager(queue_path)
 
         assert manager.load_queue() == 0
         assert manager.get_all_tasks() == []
         assert queue_path.with_name("download_queue.json.bad").exists()
+
+    def test_newer_version_restores_tasks_paused(self, queue_path):
+        # A newer app wrote the file: load what is understood, never start it.
+        data = {"version": 2, "paused": False, "new_field": 1, "tasks": [make_task(0).to_dict()]}
+        queue_path.write_text(json.dumps(data), encoding="utf-8")
+        manager = make_manager(queue_path)
+
+        assert manager.load_queue() == 1
+        assert manager.is_paused is True
+        assert not queue_path.with_name("download_queue.json.bad").exists()
+
+    def test_newer_version_is_kept_as_bak_before_first_save(self, queue_path):
+        data = {"version": 7, "paused": True, "tasks": [make_task(0).to_dict()]}
+        original = json.dumps(data)
+        queue_path.write_text(original, encoding="utf-8")
+        manager = make_manager(queue_path)
+        manager.load_queue()
+        backup = queue_path.with_name("download_queue.json.v7.bak")
+        assert not backup.exists()  # nothing written yet
+
+        assert manager.save_queue() is True
+        assert backup.read_text(encoding="utf-8") == original
+        assert read_queue_file(queue_path)["version"] == 1
+
+        backup.unlink()
+        assert manager.save_queue() is True
+        assert not backup.exists()  # the file is version 1 now: no new copy
 
     def test_missing_version_starts_empty(self, queue_path):
         queue_path.write_text(json.dumps({"tasks": [make_task().to_dict()]}), encoding="utf-8")

@@ -10,6 +10,7 @@ from pathlib import Path
 from ..models.download_history import DownloadHistory, HistoryEntry
 from ..models.download_task import DownloadTask
 from ..utils.constants import APP_DATA_DIR
+from ..utils.file_formats import HISTORY_FORMAT, FileState, keep_bad_copy, load_json_file, save_json_file
 from ..utils.logger import get_logger
 
 logger = get_logger()
@@ -138,14 +139,13 @@ class HistoryManager:
 
     def save(self) -> bool:
         """
-        Save history to file.
+        Save history to file, with the format version, atomically.
 
         Returns:
             True if successful
         """
         try:
-            json_data = self.history.to_json()
-            self.history_path.write_text(json_data, encoding="utf-8")
+            save_json_file(self.history_path, HISTORY_FORMAT, self.history.to_dict())
             logger.debug(f"History saved to {self.history_path}")
             return True
         except Exception:
@@ -156,18 +156,30 @@ class HistoryManager:
         """
         Load history from file.
 
+        An older file format is migrated (see src/utils/file_formats.py). A
+        damaged file is kept as ``<name>.bad`` and the history starts empty.
+        Invalid entries are skipped (the file is kept as ``.bad`` too).
+
         Returns:
             True if successful
         """
-        if not self.history_path.exists():
-            logger.debug("No history file found, starting fresh")
+        result = load_json_file(self.history_path, HISTORY_FORMAT)
+        if result.data is None:
+            if result.state is FileState.MISSING:
+                logger.debug("No history file found, starting fresh")
             return False
 
         try:
-            json_data = self.history_path.read_text(encoding="utf-8")
-            self.history = DownloadHistory.from_json(json_data)
-            logger.info(f"History loaded: {len(self.history.entries)} entries")
-            return True
-        except Exception:
-            logger.exception("Failed to load history")
+            history, skipped = DownloadHistory.from_dict(result.data)
+        except ValueError:
+            logger.warning(f"History file {self.history_path} has no valid entry list, starting fresh")
+            keep_bad_copy(self.history_path)
             return False
+
+        if skipped:
+            logger.warning(f"Skipped {skipped} invalid entries in history file {self.history_path}")
+            keep_bad_copy(self.history_path)
+
+        self.history = history
+        logger.info(f"History loaded: {len(self.history.entries)} entries")
+        return True
