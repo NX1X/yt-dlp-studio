@@ -22,9 +22,9 @@ import src.backend.history_manager as hm_module
 import src.ui.main_window as mw_module
 from src.backend.config_manager import ConfigManager
 from src.models.app_config import AppConfig
-from src.ui.settings_tab import SettingsTab
 from src.ui import help_links
 from src.ui.help_links import guide_url
+from src.ui.settings_tab import SettingsTab
 from src.utils.constants import APP_NAME
 from src.utils.translations import get_translation_manager
 
