@@ -22,6 +22,7 @@ import pytest
 import shiboken6
 from PySide6.QtCore import QCoreApplication, Qt, QThread, Signal
 
+import src.utils.process_exit as process_exit
 from src.backend import queue_manager as qm_module
 from src.backend.queue_manager import QueueManager
 from src.models.download_task import DownloadTask, TaskStatus
@@ -463,12 +464,14 @@ class TestShutdown:
         manager.add_task(task)
         qtbot.waitUntil(lambda: task.status == TaskStatus.DOWNLOADING, timeout=5000)
 
+        before = process_exit.threads_left_running()
         started = time.monotonic()
         manager.shutdown(wait_ms=200)
         elapsed = time.monotonic() - started
 
         assert elapsed < 2.0
         assert fake_workers.instances[0].isRunning()  # released by the fixture
+        assert process_exit.threads_left_running() == before + 1  # exit skips Qt teardown
 
     def test_no_start_after_shutdown(self, mock_workers):
         manager = QueueManager(max_concurrent=3)

@@ -17,6 +17,7 @@ from ..backend.history_manager import HistoryManager
 from ..backend.queue_manager import QueueManager
 from ..utils.constants import APP_DATA_DIR, APP_DOCS_URL, APP_NAME, WINDOW_MIN_HEIGHT, WINDOW_MIN_WIDTH
 from ..utils.logger import get_logger
+from ..utils.process_exit import note_threads_left_running
 from ..utils.translations import get_translation_manager, tr, tr_count
 from .about_tab import AboutTab
 from .download_tab import DownloadTab
@@ -379,6 +380,9 @@ class MainWindow(QMainWindow):
             # downloads are saved as in-progress and resume next start), then
             # cancel the queue workers and wait for them, at most 4 s in total.
             self.queue_manager.shutdown()
+            # Info, playlist and subtitle fetches cannot be cancelled. One
+            # that still runs would be destroyed with the window.
+            note_threads_left_running(self.download_tab.running_threads())
 
             # Remove the tray icon now, so no stale icon stays in the tray.
             self.notification_manager.hide_tray_icon()

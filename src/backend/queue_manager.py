@@ -29,6 +29,7 @@ from ..utils.file_formats import (
 )
 from ..utils.file_formats import write_text_atomic as _write_atomic
 from ..utils.logger import get_logger
+from ..utils.process_exit import note_threads_left_running
 from ..utils.translations import tr
 from .download_worker import DownloadWorker
 from .format_handler import FormatHandler
@@ -989,10 +990,15 @@ class QueueManager(QObject):
 
         budget_ms = self.SHUTDOWN_WAIT_MS if wait_ms is None else wait_ms
         deadline = time.monotonic() + budget_ms / 1000
+        still_running = 0
         for worker in running:
             remaining_ms = max(0, int((deadline - time.monotonic()) * 1000))
             if not worker.wait(remaining_ms):
+                still_running += 1
                 logger.warning(f"Download worker did not stop within {budget_ms} ms: {worker.task.url[:60]}")
+        # Destroying a running QThread aborts the process (0xc0000409 on
+        # Windows), so the exit must skip Qt's teardown. See process_exit.
+        note_threads_left_running(still_running)
 
     def flush_save(self) -> bool:
         """
