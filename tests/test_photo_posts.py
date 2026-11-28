@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -345,7 +346,7 @@ def test_image_template_has_no_height_and_follows_presets():
     assert custom.image_filename_template == "%(id)s.%(ext)s"
     empty_custom = DownloadOptions(IG_URL, "/o", "best", filename_preset="custom")
     assert empty_custom.image_filename_template == IMAGE_FILENAME_TEMPLATE
-    assert default.image_output_template == "/o/" + IMAGE_FILENAME_TEMPLATE
+    assert default.image_output_template == os.path.join("/o", IMAGE_FILENAME_TEMPLATE)
 
 
 # ---------- Instagram, end to end ----------
