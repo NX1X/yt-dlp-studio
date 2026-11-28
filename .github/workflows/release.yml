@@ -34,7 +34,7 @@ jobs:
       # Tightest list in this workflow: only checkout (with full history),
       # local-only python script, and a `git ls-remote --tags origin` to
       # decide release immutability. Everything contacts github.com.
-      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: block
         disable-sudo: true
@@ -121,7 +121,7 @@ jobs:
       # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
       # Mirrors build.yml's test job: pip from PyPI, Linux leg uses apt for
       # xvfb/EGL/dbus libs (so disable-sudo MUST be false).
-      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: block
         disable-sudo: false                # Linux leg runs `sudo apt-get`
@@ -147,9 +147,9 @@ jobs:
         persist-credentials: false   # tests never push via git
 
     - name: Set up Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
-        python-version: '3.14.7'
+        python-version: '3.14.10'
 
     - name: Install system dependencies (Linux)
       if: runner.os == 'Linux'
@@ -203,7 +203,7 @@ jobs:
       # objects.githubusercontent.com for Deno/FFmpeg release downloads, and
       # the four Sigstore endpoints (incl. sigstore.github.com) for the
       # attest-build-provenance step.
-      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: block
         disable-sudo: true                 # Windows; no sudo step
@@ -229,9 +229,9 @@ jobs:
         persist-credentials: false   # build only; attestation uses OIDC
 
     - name: Set up Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
-        python-version: '3.14.7'
+        python-version: '3.14.10'
 
     - name: Install dependencies
       # PyInstaller comes from its own hash-locked file (see
@@ -440,7 +440,7 @@ jobs:
         Write-Host "Installer: $($setup.Name)"
 
     - name: Upload Windows artifact
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: windows-release
         path: |
@@ -469,7 +469,7 @@ jobs:
       # Mirrors the Linux test allowlist plus PyInstaller wheel fetches and the
       # Sigstore endpoints required by attest-build-provenance (incl. the often-
       # missed sigstore.github.com). Kept in lockstep with build-windows.
-      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: block
         disable-sudo: false                # `sudo apt-get` for EGL/dbus libs
@@ -499,9 +499,9 @@ jobs:
         persist-credentials: false   # build only, never pushes via git
 
     - name: Set up Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
-        python-version: '3.14.7'
+        python-version: '3.14.10'
 
     - name: Install system dependencies
       # rpm, rpm2cpio and cpio build and inspect the .rpm package.
@@ -660,7 +660,7 @@ jobs:
         cp dist/packages/*.AppImage dist/packages/*.deb dist/packages/*.rpm .
 
     - name: Upload Linux artifact
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: linux-release
         path: |
@@ -686,7 +686,7 @@ jobs:
       # asset upload. uploads.github.com is the multipart PUT endpoint for
       # release assets and is required ONLY by this job — without it the
       # release object is created but file uploads silently fail.
-      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: block
         disable-sudo: true
@@ -755,13 +755,13 @@ jobs:
         exit 1
 
     - name: Download Windows artifact
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         name: windows-release
         path: ./artifacts/
 
     - name: Download Linux artifact
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         name: linux-release
         path: ./artifacts/
@@ -831,7 +831,7 @@ jobs:
     # script step: it is part of the audited/attested release path and Renovate
     # tracks its digest. Replacing it with raw gh is out of scope here.
     - name: Create Release
-      uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3 # zizmor: ignore[superfluous-actions]
+      uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4 # zizmor: ignore[superfluous-actions]
       with:
         tag_name: ${{ needs.check-version.outputs.version }}
         name: yt-dlp-studio ${{ needs.check-version.outputs.version }}
