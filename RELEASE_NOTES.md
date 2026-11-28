@@ -1,6 +1,6 @@
-# YT-DLP Studio v0.4.0 - Release Notes
+# YT-DLP Studio v0.5.0 - Release Notes
 
-**Release Date:** 2026-11-01
+**Release Date:** 2026-11-28
 **Status:** Public Beta
 
 > This file describes the **current release**. For full per-version history, see [CHANGELOG.md](CHANGELOG.md). For planned future work, see [ROADMAP.md](ROADMAP.md).
@@ -11,13 +11,39 @@
 
 ## What is YT-DLP Studio?
 
-A user-friendly desktop GUI for [yt-dlp](https://github.com/yt-dlp/yt-dlp) - download videos and audio from YouTube without touching the command line.
+A user-friendly desktop GUI for [yt-dlp](https://github.com/yt-dlp/yt-dlp) - download video and audio from YouTube, Instagram, TikTok, Facebook, X and many more sites without touching the command line.
 
 This is a **public beta**. The core feature set is functional and the app is usable for daily downloads, but expect rough edges and bug fixes in subsequent 0.x releases. We will tag **v1.0.0** when the feature set is stable and the beta exit criteria (in [ROADMAP.md](ROADMAP.md)) are met.
 
 ---
 
-## What's new in v0.4.0
+## What's new in v0.5.0
+
+**A new interface, more control over downloads, and full Hebrew.**
+
+- **A reworked interface.** The Download tab has a live "Now downloading" panel. The Queue tab has one clear toolbar, and History has search. A Dark or Light theme is saved in Settings, and the layouts fit a 1000x700 window.
+- **Download and Add to queue.** Download starts at once, also while the queue is paused. Add to queue waits for the queue.
+- **Advanced Download Options** in Settings:
+  - Cookies from Firefox, for private and age-restricted videos. Firefox is the only browser offered: Chrome, Edge and Brave encrypt their cookies in a way that yt-dlp cannot read.
+  - A proxy (http, https, socks5).
+  - File name templates, such as "Uploader - Title".
+  - A preferred video and audio codec, or a custom yt-dlp format string.
+- **More sites work better.** YouTube, Instagram, TikTok, Facebook and X are marked "Tested"; other sites are "Experimental" and still download.
+  - Posts with several videos (X, Instagram) are no longer shown as failed.
+  - Quality presets fall back to the closest version when a site gives no height (Facebook).
+  - A photo post gets a clear message. Photo downloads are planned for a later version.
+- **Full Hebrew.** Every text in the app is translated, including error messages, format names and the Activity log. A guard test keeps new English text out.
+- **Two crashes fixed.** Clicking Download twice on a playlist, and closing the app while a download did not stop, made the app close without warning on Windows.
+- **Safer settings files.** Settings, history, queue and language files now carry a format version. An older file is migrated, and a damaged file is kept as `.bad` instead of being lost.
+- **Bundled yt-dlp engine 2026.11.23.**
+
+Tested on Windows 11. Windows 10 should work but is not tested.
+
+Full detail is in [CHANGELOG.md](CHANGELOG.md).
+
+---
+
+## What was new in v0.4.0
 
 **Fixes you notice, and a tray mode.**
 
