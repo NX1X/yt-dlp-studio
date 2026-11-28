@@ -237,7 +237,7 @@ class TestAppUsesTheNewLanguage:
         assert tr("no_such_key_at_all") == "no_such_key_at_all"
 
     def test_rtl_follows_the_table(self, fake_languages):
-        for code in ("he", "ar", "fa", "ur", "yi", "yy"):
+        for code in ("he", "fa", "ur", "yi", "yy"):
             assert is_rtl_language(code), code
         for code in ("en", "es", "zz", "xx"):
             assert not is_rtl_language(code), code

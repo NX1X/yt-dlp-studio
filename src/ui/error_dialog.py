@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox, QWidget
 from ..utils.error_handler import ErrorHandler
 from ..utils.logger import get_logger
 from ..utils.translations import tr
+from .help_links import ANCHOR_DOWNLOAD_FAILED, open_guide
 from .theme import get_theme_manager
 
 logger = get_logger()
@@ -35,12 +36,15 @@ def build_download_error_dialog(parent: QWidget | None, error_message: str, titl
     box.setText(ErrorHandler.format_error_dialog_text(error_message, get_theme_manager().colors()))
 
     copy_button = box.addButton(tr("button_copy_details"), QMessageBox.ButtonRole.ActionRole)
+    help_button = box.addButton(tr("button_help"), QMessageBox.ButtonRole.HelpRole)
+    help_button.setToolTip(tr("tooltip_help_guide"))
     ok_button = box.addButton(QMessageBox.StandardButton.Ok)
     box.setDefaultButton(ok_button)
 
     # A message box closes on any button. Disconnect the copy button from it,
     # so copying keeps the dialog open.
     copy_button.clicked.disconnect()
+    help_button.clicked.disconnect()
 
     def copy_details() -> None:
         clipboard = QApplication.clipboard()
@@ -50,6 +54,7 @@ def build_download_error_dialog(parent: QWidget | None, error_message: str, titl
             logger.debug("Copied download error details to the clipboard")
 
     copy_button.clicked.connect(copy_details)
+    help_button.clicked.connect(lambda: open_guide(ANCHOR_DOWNLOAD_FAILED))
     return box
 
 

@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
 from ..backend.playlist_fetcher import PlaylistInfo
 from ..utils.logger import get_logger
 from ..utils.translations import tr
+from .collapsible_section import section_header_text
 from .display_format import ltr
 
 logger = get_logger()
@@ -234,9 +235,10 @@ class PlaylistDialog(QDialog):
         """
         self.subtitle_header = QToolButton()
         self.subtitle_header.setText(tr("group_playlist_subtitles"))
+        self.subtitle_header.setAccessibleName(tr("group_playlist_subtitles"))
         self.subtitle_header.setCheckable(True)
         self.subtitle_header.setChecked(False)
-        self.subtitle_header.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.subtitle_header.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         self.subtitle_header.setProperty("sectionHeader", True)
         self.subtitle_header.toggled.connect(self._set_subtitles_expanded)
         parent_layout.addWidget(self.subtitle_header)
@@ -304,13 +306,8 @@ class PlaylistDialog(QDialog):
     def _set_subtitles_expanded(self, expanded: bool) -> None:
         """Open or close the subtitle section (the arrow points at the text when closed)."""
         self.subtitle_section.setVisible(expanded)
-        if expanded:
-            arrow = Qt.ArrowType.DownArrow
-        elif QApplication.layoutDirection() == Qt.LayoutDirection.RightToLeft:
-            arrow = Qt.ArrowType.LeftArrow
-        else:
-            arrow = Qt.ArrowType.RightArrow
-        self.subtitle_header.setArrowType(arrow)
+        right_to_left = QApplication.layoutDirection() == Qt.LayoutDirection.RightToLeft
+        self.subtitle_header.setText(section_header_text(tr("group_playlist_subtitles"), expanded, right_to_left))
 
     def _on_subtitles_toggled(self, _state: int) -> None:
         """Enable or disable the language picker based on the master toggle.

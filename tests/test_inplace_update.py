@@ -230,7 +230,7 @@ GH = "https://github.com/NX1X/yt-dlp-studio/releases/download/v0.3.0/YT-DLP-Stud
 
 
 @pytest.mark.parametrize(
-    "url", ["http://github.com/a.exe", "https://evil.example/a.exe", "https://github.com.evil.io/a.exe"]
+    "url", ["http://github.com/a.exe", "https://other.example/a.exe", "https://github.com.example.net/a.exe"]
 )
 def test_download_refuses_unexpected_hosts(tmp_path, url):
     c = UpdateChecker()
@@ -244,7 +244,7 @@ def test_download_refuses_unexpected_hosts(tmp_path, url):
 
 def test_download_refuses_a_redirect_off_github(tmp_path):
     c = UpdateChecker()
-    c._session = _Session(_Resp([PAYLOAD], "https://evil.example/landed.exe"))
+    c._session = _Session(_Resp([PAYLOAD], "https://other.example/landed.exe"))
     out = tmp_path / "a.exe"
     assert c.download_update(GH, str(out), expected_digest=PAYLOAD_DIGEST).success is False
     assert not out.exists()

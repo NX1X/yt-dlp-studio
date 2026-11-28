@@ -13,6 +13,7 @@ This guide lists common problems and their fixes. For how to use the app, see th
 - [The app does not start on Linux](#the-app-does-not-start-on-linux)
 - [The app reset my settings or history](#the-app-reset-my-settings-or-history)
 - [A proxy does not work](#a-proxy-does-not-work)
+- [A photo post does not download](#a-photo-post-does-not-download)
 - [A site does not work](#a-site-does-not-work)
 - [Where the log and crash reports are](#where-the-log-and-crash-reports-are)
 - [How to report an issue](#how-to-report-an-issue)
@@ -147,6 +148,16 @@ If you moved back to an older app version, the `.v<N>.bak` file has your newer d
 4. Click **Save Settings**.
 
 Empty means no proxy. Do not share your settings file when the proxy address has a password. The app saves the password in plain text in `yt-dlp-studio_config.json`. The app masks it in the log.
+
+## A photo post does not download
+
+Photo posts from Instagram and X download as image files. Other sites are different:
+
+- **Facebook:** photo posts are not supported. The app says "This post has no video. Photo posts from Facebook are not supported." Videos from Facebook still download.
+- **TikTok:** a photo slideshow gives only its audio. The app has no photo download for TikTok.
+- **"This post has no photo or video that can be downloaded":** the Instagram or X post holds no media that the site shows to a visitor who is not signed in (for example a text-only post). If the post is private, or it asks for a login, see [A video needs you to sign in](#a-video-needs-you-to-sign-in).
+
+If an Instagram or X photo post that you can see in a private window fails with another message, [report an issue](#how-to-report-an-issue).
 
 ## A site does not work
 

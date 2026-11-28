@@ -32,6 +32,7 @@ from datetime import datetime
 from typing import IO, Any
 
 from ..utils.logger import get_logger
+from ..utils.photo_posts import is_image_item
 
 logger = get_logger()
 
@@ -172,12 +173,17 @@ def _rename_description(base_filename: str) -> None:
 
 
 def _write_metadata_text(f: IO[str], data: dict[str, Any]) -> None:
-    f.write(f"{_RULE}\nVIDEO METADATA\n{_RULE}\n\n")
-    _write_essentials(f, data)
+    image = is_image_item(data)
+    f.write(f"{_RULE}\n{'IMAGE' if image else 'VIDEO'} METADATA\n{_RULE}\n\n")
+    _write_essentials(f, data, image)
     _write_upload_date(f, data.get("upload_date", ""))
-    _write_duration(f, data.get("duration", 0))
+    if not image:
+        _write_duration(f, data.get("duration", 0))
     _write_statistics(f, data)
-    _write_quality(f, data)
+    if image:
+        _write_image_details(f, data)
+    else:
+        _write_quality(f, data)
     _write_categories_and_tags(f, data)
     thumbnail = data.get("thumbnail", "")
     if thumbnail:
@@ -185,13 +191,13 @@ def _write_metadata_text(f: IO[str], data: dict[str, Any]) -> None:
     f.write(f"{_RULE}\nEnd of Metadata\n{_RULE}\n")
 
 
-def _write_essentials(f: IO[str], data: dict[str, Any]) -> None:
+def _write_essentials(f: IO[str], data: dict[str, Any], image: bool = False) -> None:
     f.write("[ESSENTIAL INFORMATION]\n")
     f.write(f"Title: {data.get('title', 'N/A')}\n")
     f.write(f"Uploader: {data.get('uploader', 'N/A')}\n")
     f.write(f"Channel: {data.get('channel', 'N/A')}\n")
     f.write(f"Channel ID: {data.get('channel_id', 'N/A')}\n")
-    f.write(f"Video ID: {data.get('id', 'N/A')}\n")
+    f.write(f"{'Image' if image else 'Video'} ID: {data.get('id', 'N/A')}\n")
     f.write(f"URL: {data.get('webpage_url', 'N/A')}\n\n")
 
 
@@ -230,6 +236,15 @@ def _write_quality(f: IO[str], data: dict[str, Any]) -> None:
     f.write(f"Format: {data.get('format', 'N/A')}\n")
     f.write(f"Video Codec: {data.get('vcodec', 'N/A')}\n")
     f.write(f"Audio Codec: {data.get('acodec', 'N/A')}\n\n")
+
+
+def _write_image_details(f: IO[str], data: dict[str, Any]) -> None:
+    """The section for a photo: no frame rate and no codecs."""
+    f.write("[IMAGE]\n")
+    width, height = data.get("width"), data.get("height")
+    if width and height:
+        f.write(f"Resolution: {width}x{height}\n")
+    f.write(f"Format: {data.get('ext', 'N/A')}\n\n")
 
 
 def _write_categories_and_tags(f: IO[str], data: dict[str, Any]) -> None:
@@ -301,8 +316,9 @@ def _no_comments_reason(provided: bool, expected: int | None) -> str:
 
 
 def _write_comments_header(f: IO[str], data: dict[str, Any], count: int, expected: int | None) -> None:
-    f.write(f"{_RULE}\nVIDEO COMMENTS\n{_RULE}\n\n")
-    f.write(f"Video Title: {data.get('title', 'N/A')}\n")
+    image = is_image_item(data)
+    f.write(f"{_RULE}\n{'POST' if image else 'VIDEO'} COMMENTS\n{_RULE}\n\n")
+    f.write(f"{'Post' if image else 'Video'} Title: {data.get('title', 'N/A')}\n")
     if expected is not None and expected > count:
         # Instagram without a login returns about a dozen of the comments.
         f.write(f"Total Comments: {count:,} of {expected:,}\n")

@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# Pre-commit hook for YT-DLP Studio. Install with scripts/install-hooks.sh.
+#
+# Checks the STAGED files only. It never rewrites a file. If a check fails,
+# it prints the command that fixes the problem.
+#   1. ruff check, ruff format --check and black --check on staged Python files.
+#   2. Final newline and trailing whitespace on staged text files.
+#   3. No staged file over 5 MB.
+# Secrets are checked by CI (GitGuardian) and workflows by zizmor in CI.
+# Bypass once, in an emergency: git commit --no-verify
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+cd "$root"
+
+max_bytes=$((5 * 1024 * 1024))
+failed=0
+
+fail() {
+  echo "pre-commit: $*" >&2
+  failed=1
+}
+
+# Find a tool in the project venv first, then on PATH.
+find_tool() {
+  local name="$1" dir ext
+  for dir in "${VIRTUAL_ENV:+$VIRTUAL_ENV/bin}" "${VIRTUAL_ENV:+$VIRTUAL_ENV/Scripts}" \
+    "$root/venv/bin" "$root/venv/Scripts" "$root/.venv/bin" "$root/.venv/Scripts"; do
+    [[ -n "$dir" ]] || continue
+    for ext in "" ".exe"; do
+      if [[ -f "$dir/$name$ext" && -x "$dir/$name$ext" ]]; then
+        echo "$dir/$name$ext"
+        return 0
+      fi
+    done
+  done
+  command -v "$name"
+}
+
+mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACMR)
+if [[ ${#staged[@]} -eq 0 ]]; then
+  exit 0
+fi
+mapfile -t py_files < <(git diff --cached --name-only --diff-filter=ACMR -- '*.py')
+
+# 1. Python lint and format (versions pinned in requirements/dev.txt).
+if [[ ${#py_files[@]} -gt 0 ]]; then
+  ruff_bin="$(find_tool ruff || true)"
+  black_bin="$(find_tool black || true)"
+  if [[ -z "$ruff_bin" || -z "$black_bin" ]]; then
+    echo "pre-commit: ruff and black are required but not found in the venv or on PATH." >&2
+    echo "Install them: pip install --require-hashes -r requirements/dev.txt" >&2
+    exit 1
+  fi
+  "$ruff_bin" check --force-exclude "${py_files[@]}" || fail "ruff check failed. Fix: ruff check --fix <files>"
+  "$ruff_bin" format --check --force-exclude "${py_files[@]}" || fail "ruff format failed. Fix: ruff format <files>"
+  "$black_bin" --check --quiet --force-exclude '/(vendor|venv|\.venv)/' "${py_files[@]}" || fail "black failed. Fix: black <files>"
+fi
+
+# 2 and 3. Size, final newline and trailing whitespace on staged files.
+for f in "${staged[@]}"; do
+  size="$(git cat-file -s ":$f")"
+  if ((size > max_bytes)); then
+    fail "$f is $((size / 1024 / 1024)) MB. Files over 5 MB are not allowed."
+    continue
+  fi
+  case "$f" in
+    vendor/* | docs-internal/* | requirements/*.txt) continue ;;
+    *.png | *.jpg | *.jpeg | *.gif | *.ico | *.icns | *.svg | *.woff | *.woff2 | *.ttf | *.zip | *.exe | *.dll | *.pdf | *.gz | *.mo | *.qm) continue ;;
+  esac
+  # Skip binary files (numstat prints "-" for them) and empty files.
+  if [[ "$size" -eq 0 ]] || git diff --cached --numstat -- "$f" | grep -q '^-'; then
+    continue
+  fi
+  if [[ -n "$(git show ":$f" | tail -c1)" ]]; then
+    fail "$f: no newline at the end of the file."
+  fi
+  case "$f" in
+    *.md) ;; # two trailing spaces mean a line break in Markdown
+    *)
+      if git show ":$f" | grep -qE '[[:space:]]+$'; then
+        fail "$f: trailing whitespace. Fix: sed -i 's/[[:space:]]*\$//' $f"
+      fi
+      ;;
+  esac
+done
+
+if ((failed)); then
+  echo "pre-commit: checks failed. Fix the problems, run git add, then commit again." >&2
+  exit 1
+fi

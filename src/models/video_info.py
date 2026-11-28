@@ -7,6 +7,7 @@ This module defines the structure for video metadata extracted from URLs.
 from dataclasses import dataclass
 from typing import Any
 
+from ..utils.photo_posts import is_photo_post
 from ..utils.translations import tr
 
 
@@ -32,6 +33,8 @@ class VideoInfo:
         extractor: Extractor name (e.g., 'youtube')
         subtitles: Dict of available subtitles {lang: [subtitle_dicts]}
         automatic_captions: Dict of available auto-generated captions
+        is_photo: True for a post that holds photos only (no duration, no
+            formats)
     """
 
     title: str
@@ -47,6 +50,7 @@ class VideoInfo:
     extractor: str = ""
     subtitles: dict[str, list[dict[str, Any]]] = None
     automatic_captions: dict[str, list[dict[str, Any]]] = None
+    is_photo: bool = False
 
     def __post_init__(self):
         """Initialize mutable default values."""
@@ -71,17 +75,19 @@ class VideoInfo:
         return cls(
             title=info_dict.get("title", tr("text_unknown_title")),
             url=info_dict.get("webpage_url", info_dict.get("url", "")),
-            duration=info_dict.get("duration", 0),
+            # A photo has no duration, and an extractor may give None.
+            duration=info_dict.get("duration") or 0,
             thumbnail=info_dict.get("thumbnail"),
             description=info_dict.get("description", ""),
             uploader=info_dict.get("uploader", ""),
             upload_date=info_dict.get("upload_date", ""),
-            view_count=info_dict.get("view_count", 0),
-            like_count=info_dict.get("like_count", 0),
+            view_count=info_dict.get("view_count") or 0,
+            like_count=info_dict.get("like_count") or 0,
             formats=info_dict.get("formats", []),
             extractor=info_dict.get("extractor", ""),
             subtitles=info_dict.get("subtitles", {}),
             automatic_captions=info_dict.get("automatic_captions", {}),
+            is_photo=is_photo_post(info_dict),
         )
 
     def get_available_subtitle_languages(self) -> list[str]:

@@ -585,6 +585,11 @@ class DownloadTab(QWidget):
         self._set_output_text(config.output_directory)
         self._select_quality(config.default_quality)
         self.url_input.setText(config.last_url)
+        # Open the sections the user left open, then remember later changes.
+        self.more_section.set_expanded(bool(config.more_options_open))
+        self.log_section.set_expanded(bool(config.activity_log_open))
+        self.more_section.toggled.connect(lambda open_: self.config_manager.update_config(more_options_open=open_))
+        self.log_section.toggled.connect(lambda open_: self.config_manager.update_config(activity_log_open=open_))
         logger.debug("Config loaded into DownloadTab UI")
 
         # Auto-detect URL from clipboard on startup
@@ -1185,11 +1190,45 @@ class DownloadTab(QWidget):
         if not self._check_output_dir(output_dir):
             return
 
+        urls = self._drop_declined_duplicates(urls)
+        if not urls:
+            return
+
         for url in urls:
             self.queue_manager.add_task(self._build_task(url, output_dir))
 
         self.log_widget.append_success(tr_count("log_batch_added", len(urls)))
         show_status(self, tr_count("status_batch_added", len(urls)))
+
+    def _drop_declined_duplicates(self, urls: list[str]) -> list[str]:
+        """
+        Apply the duplicate check of single links to a batch, with one question.
+
+        Links that are already in the queue with the same settings are
+        duplicates. The user is asked once for all of them: Yes adds them
+        again, No leaves them out and adds the other links.
+
+        Returns:
+            The links to add
+        """
+        quality = self._current_quality()
+        audio_only = self._is_audio_mode
+        duplicates = [url for url in urls if self.queue_manager.is_duplicate_task(url, quality, audio_only)]
+        if not duplicates or self._confirm_duplicates(len(duplicates)):
+            return urls
+        skipped = set(duplicates)
+        return [url for url in urls if url not in skipped]
+
+    def _confirm_duplicates(self, count: int) -> bool:
+        """Ask once about all duplicate links of a batch."""
+        reply = QMessageBox.question(
+            self,
+            tr("duplicate_download"),
+            tr_count("duplicate_batch_message", count),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        return reply == QMessageBox.Yes
 
     def _drag_enter_event(self, event) -> None:
         """Accept dragged text (a link) on the link field."""

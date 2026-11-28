@@ -225,6 +225,7 @@ def test_restore_runs_after_the_video(tmp_path, monkeypatch):
     mod.YtDlpWrapper().download(DownloadOptions(URL, str(tmp_path), "worst"))
     added = _RecordingYDL.runs[0]["ydl"].added
     assert [(type(pp).__name__, when) for pp, when in added] == [
+        ("_ImageItemPP", "video"),  # Instagram: a photo item becomes an image download
         ("_DuplicateNumberingPP", "video"),
         ("_RestoreTemplatePP", "after_video"),
     ]
@@ -501,6 +502,19 @@ def test_numbered_name_without_a_height():
             "ERROR: [twitter] 1: No video could be found in this tweet",
             "https://x.com/carrotsprout_/status/1577924293023133696",
         ),
+    ],
+)
+def test_instagram_and_x_posts_without_media_get_one_clear_message(message, url):
+    """Their photo posts download now, so a post that still gives nothing has no media at all."""
+    text = explain_download_error([message], url=url)
+    assert text == tr("error_no_media_in_post")
+    assert "report" not in text.lower()
+    assert "github" not in text.lower()
+
+
+@pytest.mark.parametrize(
+    ("message", "url"),
+    [
         (
             "ERROR: Unsupported URL: https://www.facebook.com/photo/?fbid=10160743390456729",
             "https://www.facebook.com/photo/?fbid=10160743390456729",
@@ -519,7 +533,7 @@ def test_numbered_name_without_a_height():
         ),
     ],
 )
-def test_photo_post_errors_get_one_clear_message(message, url):
+def test_facebook_photo_posts_get_one_clear_message(message, url):
     text = explain_download_error([message], url=url)
     assert text == tr("error_no_video_in_post")
     assert "report" not in text.lower()
@@ -536,7 +550,8 @@ def test_photo_post_message_is_in_both_languages():
     hebrew = tr("error_no_video_in_post")
     get_translation_manager().set_language("en")
     assert english != hebrew
-    assert "photo" in english
+    assert "Facebook" in english
+    assert "photo" in english.lower()
     assert hebrew != "error_no_video_in_post"
 
 
@@ -567,5 +582,6 @@ def test_failed_photo_download_shows_the_clear_message(tmp_path, monkeypatch):
     monkeypatch.setattr(mod.YtDlpWrapper, "_get_deno_location", lambda self: None)
     wrapper = mod.YtDlpWrapper()
     assert wrapper.download(DownloadOptions(URL, str(tmp_path), "worst")) is False
-    assert wrapper.user_error == tr("error_no_video_in_post")
-    assert wrapper.last_error == tr("error_no_video_in_post")
+    # Instagram photo posts download; a post that gives no media says so.
+    assert wrapper.user_error == tr("error_no_media_in_post")
+    assert wrapper.last_error == tr("error_no_media_in_post")

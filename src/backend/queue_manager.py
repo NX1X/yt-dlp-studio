@@ -548,12 +548,24 @@ class QueueManager(QObject):
             logger.debug("Max concurrent downloads reached, waiting...")
             return
 
-        # Iterate pending tasks in order; skip any that conflict with a
-        # running download (same URL + same format → same temp files).
-        # Skipped tasks stay PENDING and will be retried automatically
-        # when a worker finishes and calls _try_start_next() again.
-        next_task = None
-        task_index = None
+        picked = self._pick_next_task(waiting)
+        if picked is None:
+            if waiting and not self.workers and not self._stopping:
+                logger.info("All tasks completed")
+                self.all_completed.emit()
+            return
+
+        self._start_task(*picked)
+
+    def _pick_next_task(self, waiting: bool) -> tuple[int, DownloadTask] | None:
+        """
+        Find the next task to start: its queue index and the task, or None.
+
+        Iterates the pending tasks in order and skips any that conflict with
+        a running download (same URL + same format, so the same temp files).
+        Skipped tasks stay PENDING and are tried again when a worker
+        finishes and calls ``_try_start_next()``.
+        """
         tasks = self.queue.get_all_tasks()
         # Forget "start now" requests for tasks that left the queue or are
         # no longer waiting.
@@ -566,29 +578,25 @@ class QueueManager(QObject):
         if waiting:
             candidates += [(i, task) for i, task in enumerate(tasks) if id(task) not in self._start_now]
         for i, task in candidates:
-            if task.status != TaskStatus.PENDING:
-                continue
-            # A task stays PENDING until its worker thread runs. Never
-            # start a second worker for a task that already has one.
-            if self.get_worker(task) is not None:
-                continue
-            if self._has_conflicting_download(task):
-                logger.info(
-                    f"Deferring task {i} ({task.url[:60]}) - "
-                    f"same URL+format already downloading, will auto-start when ready"
-                )
-                continue
-            next_task = task
-            task_index = i
-            break
+            if self._can_start(i, task):
+                return i, task
+        return None
 
-        if next_task is None:
-            if waiting and not self.workers and not self._stopping:
-                logger.info("All tasks completed")
-                self.all_completed.emit()
-            return
-
-        self._start_task(task_index, next_task)
+    def _can_start(self, index: int, task: DownloadTask) -> bool:
+        """True if a pending task may start now."""
+        if task.status != TaskStatus.PENDING:
+            return False
+        # A task stays PENDING until its worker thread runs. Never
+        # start a second worker for a task that already has one.
+        if self.get_worker(task) is not None:
+            return False
+        if self._has_conflicting_download(task):
+            logger.info(
+                f"Deferring task {index} ({task.url[:60]}) - "
+                f"same URL+format already downloading, will auto-start when ready"
+            )
+            return False
+        return True
 
     def _start_task(self, index: int, task: DownloadTask) -> None:
         """

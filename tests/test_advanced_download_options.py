@@ -191,7 +191,8 @@ def test_redacted_options_hide_secrets():
     assert "progress_hooks" not in safe
     assert safe["proxy"] == "http://***@proxy:3128"
     assert safe["cookiesfrombrowser"] == ["firefox", "***"]
-    assert "hunter2" not in repr(safe) and "/home/a/ff" not in repr(safe)
+    assert "hunter2" not in repr(safe)
+    assert "/home/a/ff" not in repr(safe)
     # The real options are not changed.
     assert ydl_opts["proxy"] == "http://alice:hunter2@proxy:3128"
 
@@ -566,7 +567,8 @@ def test_hebrew_messages():
     get_translation_manager().set_language("he")
     try:
         text = explain_download_error(["failed to load cookies"], cookies_browser="firefox")
-        assert "Firefox" in text and text != tr("cookies_error_generic")
+        assert "Firefox" in text
+        assert text != tr("cookies_error_generic")
         assert text.startswith("לא")
     finally:
         get_translation_manager().set_language("en")

@@ -10,7 +10,7 @@ Site tiers: which sites YT-DLP Studio tests.
 - **Invalid:** not an http or https URL with a host name.
 
 The tier comes from the host name of the parsed URL, with exact matches
-only: ``evil-youtube.com`` and ``youtube.com.evil.example`` are not YouTube.
+only: ``myyoutube.example`` and ``youtube.com.example.net`` are not YouTube.
 """
 
 from enum import Enum
@@ -54,8 +54,8 @@ def _host_of(url: str) -> str | None:
         return None
     if parts.scheme.lower() not in _SCHEMES or not host:
         return None
-    # Browsers read "\" as "/", so in "https://evil.example\@youtube.com" the
-    # real host is evil.example, but urlsplit says youtube.com. Refuse it.
+    # Browsers read "\" as "/", so in "https://other.example\@youtube.com" the
+    # real host is other.example, but urlsplit says youtube.com. Refuse it.
     if "\\" in parts.netloc:
         return None
     # "youtube.com." (fully qualified) is the same host as "youtube.com".
