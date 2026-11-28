@@ -76,6 +76,14 @@ TRANSLATIONS = {
         "error_invalid_dir": "Invalid Directory",
         "duplicate_download": "Duplicate Download?",
         "duplicate_download_message": "This exact download (same URL, quality, and format) is already in the queue.\n\nDo you want to add it again?",
+        "duplicate_batch_message": (
+            "{count} of these links are already in the queue with the same settings.\n\n"
+            "Do you want to add them again? Choose No to skip them and add the other links."
+        ),
+        "duplicate_batch_message_one": (
+            "1 of these links is already in the queue with the same settings.\n\n"
+            "Do you want to add it again? Choose No to skip it and add the other links."
+        ),
         # Batch Input Dialog
         "batch_count": "URLs: {count}",
         # Queue Tab
@@ -915,6 +923,14 @@ TRANSLATIONS = {
         "error_invalid_dir": "תיקייה לא תקינה",
         "duplicate_download": "הורדה כפולה?",
         "duplicate_download_message": "הורדה זהה (אותו URL, איכות, ופורמט) כבר נמצאת בתור.\n\nהאם להוסיף שוב?",
+        "duplicate_batch_message": (
+            "{count} מהקישורים כבר נמצאים בתור עם אותן הגדרות.\n\n"
+            "האם להוסיף אותם שוב? בחר לא כדי לדלג עליהם ולהוסיף את שאר הקישורים."
+        ),
+        "duplicate_batch_message_one": (
+            "אחד מהקישורים כבר נמצא בתור עם אותן הגדרות.\n\n"
+            "האם להוסיף אותו שוב? בחר לא כדי לדלג עליו ולהוסיף את שאר הקישורים."
+        ),
         # Batch Input Dialog
         "batch_count": "כתובות URL: {count}",
         # Queue Tab

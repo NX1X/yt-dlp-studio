@@ -8,6 +8,7 @@ paused; Add to queue respects a paused queue. Workers are replaced with
 mocks, so no test downloads anything.
 """
 
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -355,6 +356,73 @@ class TestDownloadAndAddToQueue:
             tab._on_batch_input_clicked()
         assert len(queue_manager.get_all_tasks()) == 2
         assert window.statusBar().currentMessage() == "Added 2 links to the queue."
+
+    @staticmethod
+    def _run_batch(tab, urls):
+        dialog = MagicMock()
+        dialog.exec.return_value = True
+        dialog.get_urls.return_value = urls
+        with patch("src.ui.batch_input_dialog.BatchInputDialog", return_value=dialog):
+            tab._on_batch_input_clicked()
+
+    def test_batch_asks_once_for_all_duplicates(self, tab, queue_manager):
+        queue_manager.pause_queue()
+        other = "https://vimeo.com/2"
+        self._run_batch(tab, [VIDEO, other])
+        with patch.object(QMessageBox, "question", return_value=QMessageBox.Yes) as question:
+            self._run_batch(tab, [VIDEO, other, "https://vimeo.com/3"])
+        question.assert_called_once()
+        assert len(queue_manager.get_all_tasks()) == 5
+
+    def test_batch_no_skips_only_the_duplicates(self, tab, queue_manager):
+        queue_manager.pause_queue()
+        other = "https://vimeo.com/2"
+        self._run_batch(tab, [VIDEO, other])
+        with patch.object(QMessageBox, "question", return_value=QMessageBox.No) as question:
+            self._run_batch(tab, [VIDEO, other, "https://vimeo.com/3"])
+        question.assert_called_once()
+        urls = [task.url for task in queue_manager.get_all_tasks()]
+        assert urls == [VIDEO, other, "https://vimeo.com/3"]
+
+    def test_batch_without_duplicates_does_not_ask(self, tab, queue_manager):
+        queue_manager.pause_queue()
+        with patch.object(QMessageBox, "question") as question:
+            self._run_batch(tab, [VIDEO, "https://vimeo.com/2"])
+        question.assert_not_called()
+        assert len(queue_manager.get_all_tasks()) == 2
+
+
+class TestSectionState:
+    def test_sections_start_closed(self, tab):
+        assert tab.more_section.is_expanded() is False
+        assert tab.log_section.is_expanded() is False
+
+    def test_open_state_is_saved(self, tab, config_manager):
+        tab.more_section.set_expanded(True)
+        assert config_manager.get_config().more_options_open is True
+        assert config_manager.get_config().activity_log_open is False
+        tab.log_section.set_expanded(True)
+        assert config_manager.get_config().activity_log_open is True
+        tab.more_section.set_expanded(False)
+        assert config_manager.get_config().more_options_open is False
+
+    def test_open_state_is_restored(self, qtbot, config_manager, queue_manager):
+        config_manager.update_config(more_options_open=True, activity_log_open=True)
+        with patch.object(DownloadTab, "_auto_detect_clipboard_url"):
+            restored = DownloadTab(config_manager, queue_manager)
+        qtbot.addWidget(restored)
+        assert restored.more_section.is_expanded() is True
+        assert restored.log_section.is_expanded() is True
+
+    def test_old_config_file_without_the_fields_loads_closed(self, tmp_path):
+        path = tmp_path / "old.json"
+        path.write_text(
+            json.dumps({"version": 1, "output_directory": str(tmp_path), "default_quality": "best"}),
+            encoding="utf-8",
+        )
+        config = ConfigManager(config_path=path).load_config()
+        assert config.more_options_open is False
+        assert config.activity_log_open is False
 
 
 class TestActivityLog:
