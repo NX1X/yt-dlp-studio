@@ -15,6 +15,7 @@ from ..models.download_task import DownloadTask
 from ..utils.constants import PROGRESS_UPDATE_INTERVAL
 from ..utils.logger import get_logger
 from .download_options import DownloadOptions
+from .download_preferences import DownloadPreferences, get_download_preferences
 from .format_handler import FormatHandler
 from .progress_handler import ProgressHandler
 from .yt_dlp_wrapper import YtDlpWrapper
@@ -22,8 +23,15 @@ from .yt_dlp_wrapper import YtDlpWrapper
 logger = get_logger()
 
 
-def download_options_for(task: DownloadTask) -> DownloadOptions:
-    """Turn the settings stored on a queue task into download options."""
+def download_options_for(task: DownloadTask, preferences: DownloadPreferences | None = None) -> DownloadOptions:
+    """Turn the settings stored on a queue task into download options.
+
+    Args:
+        task: The queue task (URL, quality and the Download tab choices).
+        preferences: The advanced settings (cookies, proxy, file name,
+            codecs, custom format). None uses the current ones.
+    """
+    prefs = preferences or get_download_preferences()
     # Use the task flag (set by the UI). Do NOT re-derive audio mode from
     # the quality name: "Best Quality" in audio mode has no "kbps".
     audio_only = task.audio_only
@@ -43,6 +51,14 @@ def download_options_for(task: DownloadTask) -> DownloadOptions:
         download_comments=getattr(task, "download_comments", False),
         speed_limit=task.speed_limit,
         auto_number_duplicates=getattr(task, "auto_number_duplicates", True),
+        cookies_browser=prefs.cookies_browser,
+        cookies_profile=prefs.cookies_profile,
+        proxy=prefs.proxy,
+        filename_preset=prefs.filename_preset,
+        custom_filename_template=prefs.custom_filename_template,
+        video_codec=prefs.video_codec,
+        audio_codec=prefs.audio_codec,
+        custom_format=prefs.custom_format,
     )
 
 
@@ -107,8 +123,12 @@ class DownloadWorker(QThread):
             # Mark task as started
             self.task.start()
 
+            # One snapshot of the advanced settings for the info look-up and
+            # the download, so a save in Settings meanwhile cannot mix them.
+            preferences = get_download_preferences()
+
             # Create wrapper with progress callback
-            self.wrapper = YtDlpWrapper(progress_callback=self._on_progress)
+            self.wrapper = YtDlpWrapper(progress_callback=self._on_progress, preferences=preferences)
 
             # Emit log message
             self.log_message.emit(f"Starting download: {self.task.url}")
@@ -130,7 +150,7 @@ class DownloadWorker(QThread):
                 logger.warning(f"Could not extract video info: {e}")
                 self.download_started.emit("Video")
 
-            options = download_options_for(self.task)
+            options = download_options_for(self.task, preferences)
 
             # Check if cancelled before downloading
             if self._is_cancelled:
@@ -145,7 +165,8 @@ class DownloadWorker(QThread):
             elif success:
                 self._handle_success()
             else:
-                self._handle_failure("Download failed")
+                # A clear reason for cookie, sign-in and proxy failures.
+                self._handle_failure(self.wrapper.user_error or "Download failed")
 
         except Exception as e:
             error_msg = f"Unexpected error: {str(e)}"

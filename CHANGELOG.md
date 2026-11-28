@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Versioned settings, history, queue and language files.** Each file in the app data folder now has a top-level `"version"` key (the file format version, now 1). A file without it is version 0, the 0.4.x format: the app migrates it in memory and writes version 1 on the next save. A file from a newer app version is never overwritten silently: the app loads what it understands, logs a warning and keeps a copy as `<name>.v<N>.bak` before the first save. A damaged settings, history or language file is kept as `<name>.bad`, the same as the queue file, and the app starts with defaults. Before, a damaged history file was lost on the next save. The migrations are in `src/utils/file_formats.py`; docs/ARCHITECTURE.md ("File formats and migrations") lists the files, fields and the compatibility promise that starts at 1.0.
 - **Site tiers.** The Download tab shows "Tested site" or "Experimental site: may not work" next to the URL field, with a tooltip, in English and Hebrew. Tested sites are YouTube, Instagram, TikTok, Facebook and X, checked before every release (only YouTube by the weekly CI check, the others by hand). Every other site is experimental, and downloads from it are still allowed. The tier comes from an exact match of the URL host name, so `evil-youtube.com` is not YouTube. The README has a new "Supported sites" section.
+- **Advanced Download Options in the Settings tab.** One section that is closed by default. Its settings apply to downloads that start after you save.
+- **Cookies from your browser,** for private and age-restricted videos. Choose "Use cookies from: Firefox" and, if you need it, a profile. On Windows, Chrome, Edge and Brave are offered too. Chrome 127 and later use app-bound encryption that yt-dlp cannot read, so the app shows a clear message for that case. Chromium-based browsers are not offered on Linux: there yt-dlp needs the `secretstorage` package, which fails the project's software-origin policy. Cookies stay on this computer. The app does not log them, and it removes them from a saved `.info.json` file.
+- **Proxy setting** for downloads and for video, subtitle and playlist info (http, https, socks5, socks5h). The app checks the address. A user name and password in it are masked in the log.
+- **File name templates:** "Title_Quality" (the default, as before), "Uploader - Title", "Date - Title" or a custom yt-dlp template. A custom template must end with `.%(ext)s` and must be a file name only. Duplicate numbering (" (1)") still works with every template.
+- **Format options:** a preferred video codec (H.264, H.265/HEVC, VP9, AV1) and audio codec (AAC, Opus, Vorbis) for video downloads, through yt-dlp's format sorting. A custom yt-dlp format string replaces the quality and codec choices when set.
+- **A clear message when a video needs a signed-in account,** instead of yt-dlp's hint about command-line options.
 
 ### Changed
 
@@ -42,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The language choice is in the app data folder.** It was saved in `~/.yt-dlp-studio/language.json`, so the uninstaller purge missed it. It is now `language.json` in the app data folder. The app moves an old file there once, then deletes the old folder if it is empty.
 - **Dead links.** The issue templates and the release notes pointed to GitHub Discussions, which is not enabled; they now point to Issues. Links to the private `docs-internal/` folder are gone (the text stays).
 - **The Hebrew batch URL count** was still in English.
+- **Metadata is now embedded in the file** when "Download Metadata" is on together with a thumbnail, subtitles or audio extraction. Before, the other post-processors replaced the FFmpegMetadata step, so it never ran.
+- **Readable metadata files have the video's name:** `name_metadata.txt`, `name Comments.txt` and `name_description.txt`. They were `name.info_metadata.txt` and `name.info Comments.txt`, and the `.description` file was never renamed.
 
 ---
 

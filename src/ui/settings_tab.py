@@ -12,12 +12,14 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFileDialog,
+    QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
@@ -29,6 +31,7 @@ from ..utils.constants import APP_VERSION, CONFIG_PATH, LOG_PATH
 from ..utils.crash_handler import get_crash_dir
 from ..utils.logger import get_logger
 from ..utils.translations import get_translation_manager, save_language, tr
+from .advanced_download_options import AdvancedDownloadOptions
 
 logger = get_logger()
 
@@ -73,7 +76,17 @@ class SettingsTab(QWidget):
 
     def _setup_ui(self) -> None:
         """Set up the UI layout."""
-        main_layout = QVBoxLayout(self)
+        # The groups sit in a scroll area, so the advanced download options
+        # still fit when they are open on a small window.
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        content = QWidget()
+        scroll_area.setWidget(content)
+        outer_layout.addWidget(scroll_area)
+        main_layout = QVBoxLayout(content)
 
         # General settings group
         general_group = QGroupBox(tr("settings_general"))
@@ -191,6 +204,10 @@ class SettingsTab(QWidget):
         features_group.setLayout(features_layout)
         main_layout.addWidget(features_group)
 
+        # Advanced download options (0.5.0): cookies, proxy, file names, formats
+        self.advanced_options = AdvancedDownloadOptions()
+        main_layout.addWidget(self.advanced_options)
+
         # Storage group: surfaces the paths a user would typically need to
         # share when filing a bug report (log file, crash reports directory,
         # config file). Each row has a Copy button so the user can paste
@@ -253,6 +270,7 @@ class SettingsTab(QWidget):
         self.auto_update_checkbox.setChecked(config.check_updates_on_startup)
         self.notifications_checkbox.setChecked(config.notifications_enabled)
         self.close_to_tray_checkbox.setChecked(config.close_to_tray)
+        self.advanced_options.load(config)
         logger.debug("Settings loaded into UI")
 
     def _browse_directory(self) -> None:
@@ -283,6 +301,11 @@ class SettingsTab(QWidget):
             QMessageBox.warning(self, tr("error_invalid_directory"), error)
             return
 
+        advanced_error = self.advanced_options.validation_error()
+        if advanced_error:
+            QMessageBox.warning(self, tr("error_invalid_advanced_settings"), advanced_error)
+            return
+
         # Save language preference
         if language_changed:
             # Saved in the app data folder (see utils/translations.py)
@@ -296,6 +319,7 @@ class SettingsTab(QWidget):
             check_updates_on_startup=self.auto_update_checkbox.isChecked(),
             notifications_enabled=self.notifications_checkbox.isChecked(),
             close_to_tray=self.close_to_tray_checkbox.isChecked(),
+            **self.advanced_options.config_values(),
         )
 
         if success:

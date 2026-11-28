@@ -11,6 +11,15 @@ These tests pin what the download flow hands to yt-dlp, so a refactor of
 The expected values were recorded from the code before the refactor. A change
 here is a change of behavior, so it needs a reason in the PR.
 
+Changed on purpose in 0.5.0 (each change is marked "Fixed in 0.5.0" below):
+
+- With metadata on, FFmpegMetadata now stays in the post-processor list when
+  other post-processors exist. Before, the later list replaced it. The
+  "postprocessors" key is now always the last option.
+- The metadata and comments files take the base name of the video
+  ("name_metadata.txt", "name Comments.txt"), not "name.info_metadata.txt",
+  and "name.description" is renamed to "name_description.txt".
+
 YoutubeDL is replaced by a recording fake; no network is used.
 """
 
@@ -165,6 +174,7 @@ _BASE = {
 }
 _AUDIO_BASE = {**_BASE, "format": "bestaudio", "outtmpl": OUT + "/%(title)s_%(quality)s.%(ext)s", "keepvideo": False}
 _THUMB_PP = {"key": "FFmpegThumbnailsConvertor", "format": "jpg"}
+_METADATA_PP = {"key": "FFmpegMetadata", "add_infojson": "if_exists"}
 _EMBED_SUBS_PP = {"key": "FFmpegEmbedSubtitle"}
 _SUBS = {
     "writesubtitles": True,
@@ -302,15 +312,16 @@ CASES = {
     ),
     "metadata_only_keeps_ffmpeg_metadata": (
         {"download_metadata": True, "download_thumbnail": False},
-        {**_BASE, **_METADATA, "postprocessors": [{"key": "FFmpegMetadata", "add_infojson": "if_exists"}]},
+        {**_BASE, **_METADATA, "postprocessors": [_METADATA_PP]},
         _VIDEO_NUMBERING,
         False,
     ),
-    # Recorded as found: the later postprocessors list replaces the one that
-    # held FFmpegMetadata, so it is dropped when any other pp is configured.
-    "metadata_with_thumbnail_drops_ffmpeg_metadata": (
+    # Fixed in 0.5.0: up to 0.4.1 the later postprocessors list replaced the
+    # one that held FFmpegMetadata, so the metadata was never embedded when
+    # any other pp was configured. It now runs last.
+    "metadata_with_thumbnail_keeps_ffmpeg_metadata": (
         {"download_metadata": True},
-        {**_BASE, **_METADATA, "writethumbnail": True, "postprocessors": [_THUMB_PP]},
+        {**_BASE, **_METADATA, "writethumbnail": True, "postprocessors": [_THUMB_PP, _METADATA_PP]},
         _VIDEO_NUMBERING,
         False,
     ),
@@ -352,10 +363,17 @@ CASES = {
             "ratelimit": 100 * 1024,
             "writethumbnail": True,
             "sleep_interval_requests": 1,
-            "postprocessors": [_THUMB_PP, _EMBED_SUBS_PP],
+            # Fixed in 0.5.0: FFmpegMetadata was dropped here.
+            "postprocessors": [_THUMB_PP, _EMBED_SUBS_PP, _METADATA_PP],
         },
         _VIDEO_NUMBERING,
         True,
+    ),
+    "audio_with_metadata_tags_the_audio_file": (
+        {"audio_only": True, "download_metadata": True, "download_thumbnail": False},
+        {**_AUDIO_BASE, **_METADATA, "postprocessors": [_audio_pp("mp3", "192"), _METADATA_PP]},
+        _audio_numbering("mp3"),
+        False,
     ),
     "audio_mp3_192_default_thumbnail": (
         {"audio_only": True},
@@ -456,8 +474,9 @@ def test_option_key_order_is_kept(tmp_path, fake_ydl):
         "writedescription",
         "writeannotations",
         "getcomments",
-        "postprocessors",
         "sleep_interval_requests",
+        # Changed in 0.5.0: always last (it was where metadata put it).
+        "postprocessors",
         "logger",
     ]
 
@@ -670,15 +689,17 @@ def test_metadata_side_files(tmp_path, fake_ydl, utc):
     fake_ydl.extract = _extract_with_sidecars()
     snap = _run_wrapper(tmp_path, fake_ydl, download_metadata=True, download_thumbnail=False)
     assert snap["ok"] is True
-    # Recorded as found: the base name comes from splitext("x.info.json"),
-    # so it keeps ".info", and the ".description" file is never renamed.
+    # Fixed in 0.5.0: up to 0.4.1 the base name came from
+    # splitext("x.info.json"), so it kept ".info" ("Clip_720p.info_metadata.txt")
+    # and the ".description" file was never renamed.
     assert sorted(p.name for p in tmp_path.iterdir()) == [
-        "Clip_720p.description",
         "Clip_720p.info.json",
-        "Clip_720p.info_metadata.txt",
         "Clip_720p.mp4",
+        "Clip_720p_description.txt",
+        "Clip_720p_metadata.txt",
     ]
-    assert (tmp_path / "Clip_720p.info_metadata.txt").read_text(encoding="utf-8") == _METADATA_TXT
+    assert (tmp_path / "Clip_720p_metadata.txt").read_text(encoding="utf-8") == _METADATA_TXT
+    assert (tmp_path / "Clip_720p_description.txt").read_text(encoding="utf-8") == "The description"
     assert (tmp_path / "Clip_720p.info.json").read_text(encoding="utf-8") == json.dumps(
         _INFO_JSON, indent=2, ensure_ascii=False
     )
@@ -688,7 +709,7 @@ def test_metadata_side_files_minimal_info(tmp_path, fake_ydl, utc):
     """Missing fields print N/A; empty sections are left out."""
     fake_ydl.extract = _extract_with_sidecars({"upload_date": "2005"})
     _run_wrapper(tmp_path, fake_ydl, download_metadata=True, download_thumbnail=False)
-    text = (tmp_path / "Clip_720p.info_metadata.txt").read_text(encoding="utf-8")
+    text = (tmp_path / "Clip_720p_metadata.txt").read_text(encoding="utf-8")
     assert text == (
         "=" * 80 + "\nVIDEO METADATA\n" + "=" * 80 + "\n\n"
         "[ESSENTIAL INFORMATION]\nTitle: N/A\nUploader: N/A\nChannel: N/A\nChannel ID: N/A\n"
@@ -705,7 +726,7 @@ def test_metadata_side_files_minimal_info(tmp_path, fake_ydl, utc):
 def test_metadata_bad_upload_date_is_written_raw(tmp_path, fake_ydl, utc):
     fake_ydl.extract = _extract_with_sidecars({"upload_date": "2005ABCD", "duration": 59})
     _run_wrapper(tmp_path, fake_ydl, download_metadata=True, download_thumbnail=False)
-    text = (tmp_path / "Clip_720p.info_metadata.txt").read_text(encoding="utf-8")
+    text = (tmp_path / "Clip_720p_metadata.txt").read_text(encoding="utf-8")
     assert "[UPLOAD DATE]\n2005ABCD\n\n" in text
     assert "[DURATION]\n0m 59s\n\n" in text
 
@@ -714,23 +735,25 @@ def test_comments_side_file_removes_json(tmp_path, fake_ydl, utc):
     fake_ydl.extract = _extract_with_sidecars()
     snap = _run_wrapper(tmp_path, fake_ydl, download_comments=True, download_thumbnail=False)
     assert snap["ok"] is True
+    # Fixed in 0.5.0: was "Clip_720p.info Comments.txt".
     assert sorted(p.name for p in tmp_path.iterdir()) == [
+        "Clip_720p Comments.txt",
         "Clip_720p.description",
-        "Clip_720p.info Comments.txt",
         "Clip_720p.mp4",
     ]
-    assert (tmp_path / "Clip_720p.info Comments.txt").read_text(encoding="utf-8") == _COMMENTS_TXT
+    assert (tmp_path / "Clip_720p Comments.txt").read_text(encoding="utf-8") == _COMMENTS_TXT
 
 
 def test_comments_and_metadata_keep_json(tmp_path, fake_ydl, utc):
     fake_ydl.extract = _extract_with_sidecars()
     _run_wrapper(tmp_path, fake_ydl, download_comments=True, download_metadata=True, download_thumbnail=False)
+    # Fixed in 0.5.0: base names without ".info", description renamed.
     assert sorted(p.name for p in tmp_path.iterdir()) == [
-        "Clip_720p.description",
-        "Clip_720p.info Comments.txt",
+        "Clip_720p Comments.txt",
         "Clip_720p.info.json",
-        "Clip_720p.info_metadata.txt",
         "Clip_720p.mp4",
+        "Clip_720p_description.txt",
+        "Clip_720p_metadata.txt",
     ]
 
 

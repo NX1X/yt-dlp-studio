@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ..utils.logger import get_logger
+from .download_preferences import get_download_preferences
 
 logger = get_logger()
 
@@ -110,6 +111,8 @@ class PlaylistFetcher:
             "no_warnings": True,
             "extract_flat": "in_playlist",  # Don't download, just extract info
             "skip_download": True,
+            # Same proxy and browser cookies as the downloads.
+            **get_download_preferences().network_opts(),
         }
 
         try:
@@ -181,6 +184,8 @@ class PlaylistFetcher:
             "no_warnings": True,
             "extract_flat": True,  # Very fast, minimal info
             "skip_download": True,
+            # Same proxy and browser cookies as the downloads.
+            **get_download_preferences().network_opts(),
         }
 
         try:

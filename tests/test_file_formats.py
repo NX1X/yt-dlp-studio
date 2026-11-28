@@ -16,6 +16,7 @@ import pytest
 import src.backend.history_manager as hm_module
 import src.utils.translations as tr_module
 from src.backend.config_manager import ConfigManager
+from src.models.app_config import AppConfig
 from src.models.download_history import HistoryEntry
 from src.utils.file_formats import (
     CONFIG_FORMAT,
@@ -263,11 +264,13 @@ class TestConfigFile:
         manager = ConfigManager(path)
         config = manager.load_config()
 
-        assert config.to_dict() == CONFIG_V0  # every value kept
+        # Every v0 value is kept; fields added after 0.4.x take their defaults.
+        expected = {**AppConfig(output_directory="").to_dict(), **CONFIG_V0}
+        assert config.to_dict() == expected
         assert path.read_text(encoding="utf-8") == original  # not written yet
 
         assert manager.save_config(config) is True
-        assert read_json(path) == {"version": 1, **CONFIG_V0}
+        assert read_json(path) == {"version": 1, **expected}
 
     def test_round_trip(self, tmp_path):
         path = tmp_path / "config.json"

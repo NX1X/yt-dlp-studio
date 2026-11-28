@@ -47,6 +47,7 @@ yt-dlp-studio/
 │   │   ├── queue_tab.py         # Queue tab
 │   │   ├── history_tab.py       # History tab
 │   │   ├── settings_tab.py      # Settings tab
+│   │   ├── advanced_download_options.py  # Settings: cookies, proxy, file names, formats
 │   │   ├── about_tab.py         # About tab (versions, credits, shortcuts)
 │   │   ├── playlist_dialog.py   # Select videos from a playlist or channel
 │   │   ├── batch_input_dialog.py         # Add many URLs at once
@@ -60,6 +61,7 @@ yt-dlp-studio/
 │   ├── backend/
 │   │   ├── yt_dlp_wrapper.py    # Interface to yt-dlp
 │   │   ├── download_options.py  # DownloadOptions and the mapping to yt-dlp options
+│   │   ├── download_preferences.py  # Advanced settings: checks, current value, error texts
 │   │   ├── side_files.py        # Readable metadata and comments files
 │   │   ├── download_worker.py   # QThread for one download
 │   │   ├── queue_manager.py     # Queue, concurrency, retries, queue file
@@ -196,6 +198,19 @@ Key methods:
 3. Fill it in `download_options_for()`.
 
 `tests/test_download_characterization.py` records the exact options for many inputs. A new option must not change those results when it is off.
+
+**Advanced download settings (0.5.0):** browser cookies, proxy, file name template and format options are app settings, not per-task choices. `AdvancedDownloadOptions` (`src/ui/advanced_download_options.py`) shows them in the Settings tab and checks them before a save. `src/backend/download_preferences.py` holds:
+
+- `DownloadPreferences`, a frozen value built from `AppConfig` by `from_config()`. A bad value in the config file falls back to its default.
+- The current value. `ConfigManager` publishes it on every load and save (`set_download_preferences()`).
+- The validators, which return a translation key or None.
+- `explain_download_error()`, which turns cookie, sign-in and proxy failures into a clear, translated message (`YtDlpWrapper.user_error`).
+
+`DownloadWorker` takes one snapshot of the current value when a download starts. It passes the snapshot to `download_options_for()` and to `YtDlpWrapper`, so the info look-up and the download use the same proxy and cookies. The info, subtitle and playlist look-ups add the same `network_opts()`.
+
+Secrets in the log: `build_ydl_opts()` output is logged through `redact_ydl_opts()`, which masks the proxy password and keeps only the browser name of the cookie source. The log formatter also scrubs credentials in http, https and socks URLs. yt-dlp writes cookie values only with `verbose` or `print_traffic`, which the app never sets. With cookies on, `_StripInfoJsonCookiesPP` removes the `cookies` fields from a written `.info.json`.
+
+Browsers for cookies: Firefox on all platforms (yt-dlp reads its SQLite file). On Windows also Chrome, Edge and Brave (DPAPI through `ctypes`, AES in yt-dlp's own code). Chromium-based browsers are not offered on Linux, because on GNOME and similar desktops yt-dlp needs `secretstorage`, which fails the software-origin policy. Do not add a browser that needs a new dependency without that check.
 
 **Path setup:** the top of the file adds `vendor/yt_dlp_engine/` to `sys.path` (in a frozen build, the bundled `yt_dlp_engine` folder), then imports `yt_dlp`.
 
@@ -394,6 +409,7 @@ Keep new files small and focused. Some existing files are large (for example `do
 |------|-------|
 | Add a quality option | `src/utils/constants.py` |
 | Add a setting | `src/models/app_config.py`, `src/backend/config_manager.py`, `src/ui/settings_tab.py` |
+| Change cookies, proxy, file name or format settings | `src/backend/download_preferences.py`, `src/ui/advanced_download_options.py` |
 | Change a tab layout | `src/ui/<name>_tab.py` |
 | Change download logic | `src/backend/yt_dlp_wrapper.py`, `src/backend/download_options.py` |
 | Change queue behavior | `src/backend/queue_manager.py` |

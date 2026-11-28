@@ -27,6 +27,19 @@ class AppConfig:
         last_update_check: ISO timestamp of the last successful update check
         notifications_enabled: Show desktop notifications for download events
         close_to_tray: Hide the window to the system tray on close, instead of quitting
+        cookies_browser: Browser to read cookies from for downloads ("" = none)
+        cookies_profile: Browser profile name or folder ("" = default profile)
+        proxy_url: Proxy for downloads and info look-ups ("" = no proxy).
+            May hold a user name and password; never log it unmasked.
+        filename_template_preset: File name preset (see download_options.FILENAME_PRESETS)
+        custom_filename_template: yt-dlp template for the "custom" preset
+        video_codec_preference: Preferred video codec ("any", "h264", "h265", "vp9", "av1")
+        audio_codec_preference: Preferred audio codec for videos ("any", "aac", "opus", "vorbis")
+        custom_format: yt-dlp format string that replaces quality and codecs ("" = not used)
+
+    The advanced download fields are checked when they are used (see
+    backend/download_preferences.py), not in ``validate()``: a bad value
+    there falls back to its default instead of resetting the whole config.
     """
 
     output_directory: str
@@ -39,6 +52,15 @@ class AppConfig:
     last_update_check: str = ""
     notifications_enabled: bool = True
     close_to_tray: bool = False
+    # Advanced download options (0.5.0)
+    cookies_browser: str = ""
+    cookies_profile: str = ""
+    proxy_url: str = ""
+    filename_template_preset: str = "title_quality"
+    custom_filename_template: str = ""
+    video_codec_preference: str = "any"
+    audio_codec_preference: str = "any"
+    custom_format: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         """
