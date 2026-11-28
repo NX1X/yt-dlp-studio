@@ -179,7 +179,7 @@ pip install -e .
 
 This installs the runtime dependencies from `pyproject.toml`:
 
-- PySide6 (the Qt 6 GUI framework). It is the largest dependency, about 650 MB on disk (measured on Linux with Python 3.13).
+- PySide6-Essentials (the Qt 6 GUI framework). It is the largest dependency, about 250 MB on disk (measured on Linux with Python 3.13).
 - requests (used by the update checker).
 - packaging (used to compare version numbers).
 - yt-dlp-ejs (the JavaScript challenge solver scripts for the bundled yt-dlp).
