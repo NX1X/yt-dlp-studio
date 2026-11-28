@@ -39,6 +39,7 @@ from ..utils.validators import Validators
 from .log_widget import LogWidget
 from .playlist_dialog import PlaylistDialog
 from .progress_bar import DownloadProgressWidget
+from .site_tier_label import SiteTierLabel
 from .subtitle_selection_dialog import SubtitleSelectionDialog
 from .video_info_dialog import VideoInfoDialog
 
@@ -140,6 +141,11 @@ class DownloadTab(QWidget):
 
         url_layout.addWidget(url_label)
         url_layout.addWidget(self.url_input)
+
+        # Site tier ("Tested site" / "Experimental site"), updated as the URL changes
+        self.site_tier_label = SiteTierLabel()
+        self.url_input.textChanged.connect(self.site_tier_label.update_for_url)
+        url_layout.addWidget(self.site_tier_label)
 
         # Paste from Clipboard button
         self.paste_button = QPushButton(tr("button_paste"))
@@ -955,6 +961,9 @@ class DownloadTab(QWidget):
             video_info: VideoInfo object
         """
         logger.info(f"Video info received: {video_info.title}")
+        # The page URL from yt-dlp can differ from the entered one (short links).
+        if video_info.url:
+            self.site_tier_label.update_for_url(video_info.url)
         self.log_widget.append_success(f"Video info fetched: {video_info.title}")
 
         # Show dialog

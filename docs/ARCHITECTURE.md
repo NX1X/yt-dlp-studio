@@ -55,6 +55,7 @@ yt-dlp-studio/
 │   │   ├── update_dialog.py     # Update download and install
 │   │   ├── progress_bar.py      # Progress widget
 │   │   ├── log_widget.py        # Log widget
+│   │   ├── site_tier_label.py   # "Tested site" / "Experimental site" label
 │   │   └── theme.py             # Dark and light themes
 │   ├── backend/
 │   │   ├── yt_dlp_wrapper.py    # Interface to yt-dlp
@@ -85,6 +86,7 @@ yt-dlp-studio/
 │   │   ├── crash_handler.py     # Crash reports
 │   │   ├── deno_installer.py    # Downloads Deno when running from source
 │   │   ├── file_formats.py      # Versioned JSON files and their migrations
+│   │   ├── site_tiers.py        # Tested and experimental sites
 │   │   └── ...                  # Other helpers
 │   └── resources/               # Icons
 ├── vendor/yt_dlp_engine/yt_dlp/ # Vendored yt-dlp
@@ -398,6 +400,7 @@ Keep new files small and focused. Some existing files are large (for example `do
 | Change the progress display | `src/ui/progress_bar.py` |
 | Add or change a UI string | `src/utils/translations.py` (`en` and `he`) |
 | Change a saved file format | `src/utils/file_formats.py`, see [File formats and migrations](#file-formats-and-migrations) |
+| Change the tested sites | `src/utils/site_tiers.py`, the README "Supported sites" section |
 | Add logging | Any file: import `get_logger()` |
 | Change the styling | `src/ui/theme.py` |
 

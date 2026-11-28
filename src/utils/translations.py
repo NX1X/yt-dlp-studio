@@ -399,6 +399,16 @@ TRANSLATIONS = {
         # About Tab
         "label_credits": "Credits",
         "text_credits_description": "This application is built using the following open-source projects:",
+        # Site tiers (label next to the URL field)
+        "site_tier_tested": "Tested site",
+        "site_tier_experimental": "Experimental site: may not work",
+        "tooltip_site_tier_tested": (
+            "YT-DLP Studio checks downloads from YouTube, Instagram, TikTok, Facebook and X before every release."
+        ),
+        "tooltip_site_tier_experimental": (
+            "YT-DLP Studio does not test this site. yt-dlp may support it, so the download can work, "
+            "but it can also fail. You can still download."
+        ),
         # Keyboard Shortcuts
         "shortcuts_title": "Keyboard Shortcuts",
         "shortcuts_general": "General",
@@ -806,6 +816,16 @@ TRANSLATIONS = {
         # About Tab
         "label_credits": "קרדיטים",
         "text_credits_description": "אפליקציה זו בנויה באמצעות הפרוייקטים הקוד-פתוח הבאים:",
+        # אתרים שנבדקו (תווית ליד שדה הכתובת)
+        "site_tier_tested": "אתר שנבדק",
+        "site_tier_experimental": "אתר ניסיוני: ייתכן שלא יעבוד",
+        "tooltip_site_tier_tested": (
+            "YT-DLP Studio בודק הורדות מהאתרים YouTube, Instagram, TikTok, Facebook ו-X לפני כל גרסה."
+        ),
+        "tooltip_site_tier_experimental": (
+            "YT-DLP Studio לא בודק את האתר הזה. ייתכן ש-yt-dlp תומך בו, כך שההורדה עשויה לעבוד, "
+            "אבל היא עלולה גם להיכשל. אפשר עדיין להוריד."
+        ),
         # Keyboard Shortcuts
         "shortcuts_title": "קיצורי מקלדת",
         "shortcuts_general": "כללי",
