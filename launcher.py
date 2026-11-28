@@ -17,6 +17,7 @@ sys.path.insert(0, str(src_path))
 from src.app import App
 from src.utils.crash_handler import install_crash_handler
 from src.utils.logger import get_logger
+from src.utils.process_exit import exit_process
 
 logger = get_logger()
 
@@ -37,7 +38,7 @@ def main():
         exit_code = app.run()
 
         logger.info(f"Application exited with code {exit_code}")
-        sys.exit(exit_code)
+        exit_process(exit_code)
 
     except Exception as e:
         logger.critical(f"Fatal error: {e}", exc_info=True)

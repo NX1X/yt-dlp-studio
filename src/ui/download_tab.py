@@ -808,6 +808,11 @@ class DownloadTab(QWidget):
 
         is_playlist, platform = PlaylistDetector.is_playlist_url(url)
         if is_playlist:
+            # A second fetch would replace the running worker. Clicking
+            # Download twice on a playlist crashed the app this way (0.5.0
+            # Windows 11 test: Qt aborts when a running QThread is destroyed).
+            if self._fetch_in_progress():
+                return None
             choice = self._ask_playlist_choice(platform)
             if choice == PLAYLIST_CANCEL:
                 return None
@@ -917,13 +922,24 @@ class DownloadTab(QWidget):
     # Info, playlists and subtitles
     # ------------------------------------------------------------------
 
-    def _on_show_info_clicked(self) -> None:
-        """Handle the Info button."""
+    def _fetch_in_progress(self) -> bool:
+        """True (and a message in the log) while a video or playlist fetch runs."""
         if self.info_worker and self.info_worker.isRunning():
             self.log_widget.append_error("Already fetching video info, please wait...")
-            return
+            return True
         if self.playlist_worker and self.playlist_worker.isRunning():
             self.log_widget.append_error("Already fetching playlist info, please wait...")
+            return True
+        return False
+
+    def running_threads(self) -> int:
+        """Number of fetch threads of this tab that are still running."""
+        workers = (self.info_worker, self.playlist_worker, self.subtitle_list_worker)
+        return sum(1 for worker in workers if worker is not None and worker.isRunning())
+
+    def _on_show_info_clicked(self) -> None:
+        """Handle the Info button."""
+        if self._fetch_in_progress():
             return
 
         url = self.url_input.text().strip()
@@ -944,7 +960,10 @@ class DownloadTab(QWidget):
         self.show_info_button.setText(tr("button_fetching"))
         self.log_widget.append_info(f"Fetching video info: {url}")
 
-        self.info_worker = VideoInfoWorker(url)
+        # The parent keeps the thread alive even if this reference changes;
+        # deleteLater frees it once the thread has finished.
+        self.info_worker = VideoInfoWorker(url, parent=self)
+        self.info_worker.finished.connect(self.info_worker.deleteLater)
         self.info_worker.info_fetched.connect(self._on_info_fetched)
         self.info_worker.fetch_failed.connect(self._on_info_fetch_failed)
         self.info_worker.finished.connect(self._on_info_worker_finished)
@@ -956,7 +975,8 @@ class DownloadTab(QWidget):
         self.show_info_button.setText(tr("button_fetching_playlist"))
         self.log_widget.append_info(f"Detected {platform} playlist, fetching info...")
 
-        self.playlist_worker = PlaylistWorker(url)
+        self.playlist_worker = PlaylistWorker(url, parent=self)
+        self.playlist_worker.finished.connect(self.playlist_worker.deleteLater)
         self.playlist_worker.playlist_fetched.connect(self._on_playlist_fetched)
         self.playlist_worker.fetch_failed.connect(self._on_playlist_fetch_failed)
         self.playlist_worker.finished.connect(self._on_playlist_worker_finished)
@@ -998,6 +1018,7 @@ class DownloadTab(QWidget):
         """Handle info worker finished (cleanup)."""
         self.show_info_button.setEnabled(True)
         self.show_info_button.setText(tr("button_info"))
+        self.info_worker = None  # deleteLater frees it
         logger.debug("Info worker finished")
 
     def _on_playlist_fetched(self, playlist_info) -> None:
@@ -1019,6 +1040,7 @@ class DownloadTab(QWidget):
         """Handle playlist worker finished (cleanup)."""
         self.show_info_button.setEnabled(True)
         self.show_info_button.setText(tr("button_info"))
+        self.playlist_worker = None  # deleteLater frees it
         logger.debug("Playlist worker finished")
 
     def _on_playlist_videos_selected(
