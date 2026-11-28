@@ -9,7 +9,7 @@
 #
 # Regenerate the lock after editing this file with scripts/relock.sh, which
 # builds all four lock files with the same 14-day cooldown. It targets
-# Python 3.11, which every CI tooling job uses (ubuntu-24.04 +
+# Python 3.11, which every CI tooling job uses (ubuntu-26.04 +
 # actions/setup-python python-version: '3.11'), with --universal so
 # version-conditional transitives (e.g. typing-extensions, only required by
 # cyclonedx-python-lib on python_version < "3.13") stay in the lock and

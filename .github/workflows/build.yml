@@ -14,7 +14,7 @@ permissions:
 jobs:
   lint:
     name: Lint & Format Check
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
     - name: Harden runner
@@ -70,10 +70,10 @@ jobs:
       fail-fast: false
       matrix:
         # Runner labels are pinned (no "-latest"). The job names, "Tests
-        # (ubuntu-24.04)" and "Tests (windows-2025)", are the required checks
+        # (ubuntu-26.04)" and "Tests (windows-2025)", are the required checks
         # in the repo ruleset. windows-2022 adds the older Windows Server
         # image. These are Windows Server runner images, not Windows 10 or 11.
-        os: [ubuntu-24.04, windows-2025, windows-2022]
+        os: [ubuntu-26.04, windows-2025, windows-2022]
     steps:
     - name: Harden runner
       # See lint job for rationale. This job runs on both ubuntu and windows
@@ -396,16 +396,16 @@ jobs:
   build-linux:
     name: Build Linux Executable
     needs: [lint, test]
-    # Built in an ubuntu:22.04 container (glibc 2.35) on an ubuntu-24.04
+    # Built in an ubuntu:22.04 container (glibc 2.35) on an ubuntu-26.04
     # runner. A PyInstaller binary only runs on a glibc at least as new as the
     # build host's, so the build-host glibc IS the compatibility floor for the
-    # shipped binary. The runner image is 24.04 (glibc 2.39), which would
+    # shipped binary. The runner image is 26.04 (newer glibc), which would
     # refuse to start on most distributions older than ~2024. 22.04's 2.35
     # covers Ubuntu 22.04+, Debian 12+, Fedora 36+, Mint 21+, and most
     # 2022-and-later distros. The container keeps that floor without the
     # ubuntu-22.04 runner label, which GitHub retires on 2027-04-17.
     # Keep this in lockstep with the build-linux job in release.yml.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     # Same rationale as build-windows: catch PyInstaller-only regressions
     # (missing hidden imports, broken bundle paths, vendored-engine path math
@@ -501,7 +501,7 @@ jobs:
     # removes it again (see scripts/test_fedora_rpm.sh). Fedora runs in a
     # `docker run` step, not as a job container, because harden-runner does
     # not run inside job containers.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     if: >
       github.event_name == 'pull_request' ||

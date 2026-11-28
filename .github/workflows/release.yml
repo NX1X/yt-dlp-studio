@@ -20,7 +20,7 @@ concurrency:
 jobs:
   check-version:
     name: Check for new version
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -112,10 +112,10 @@ jobs:
       fail-fast: false
       matrix:
         # Runner labels are pinned (no "-latest"). The job names, "Tests
-        # (ubuntu-24.04)" and "Tests (windows-2025)", are the required checks
+        # (ubuntu-26.04)" and "Tests (windows-2025)", are the required checks
         # in the repo ruleset. windows-2022 adds the older Windows Server
         # image. These are Windows Server runner images, not Windows 10 or 11.
-        os: [ubuntu-24.04, windows-2025, windows-2022]
+        os: [ubuntu-26.04, windows-2025, windows-2022]
     steps:
     - name: Harden runner
       # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
@@ -452,14 +452,14 @@ jobs:
     name: Build Linux Executable
     needs: [check-version, test]
     if: needs.check-version.outputs.should_release == 'true'
-    # Built in an ubuntu:22.04 container (glibc 2.35) on an ubuntu-24.04
+    # Built in an ubuntu:22.04 container (glibc 2.35) on an ubuntu-26.04
     # runner. The shipped PyInstaller binary cannot run on a glibc older than
-    # the build host's, so building on 24.04 (glibc 2.39) would lock users out
+    # the build host's, so building on 26.04 (newer glibc) would lock users out
     # of most pre-2024 distros. 22.04's 2.35 covers Ubuntu 22.04+, Debian 12+,
     # Fedora 36+, and most 2022-and-later distributions. The container keeps
     # that floor without the ubuntu-22.04 runner label, which GitHub retires
     # on 2027-04-17. Keep in lockstep with build.yml.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -618,7 +618,7 @@ jobs:
     name: Create GitHub Release
     needs: [check-version, build-windows, build-linux]
     if: needs.check-version.outputs.should_release == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 40
     permissions:
       contents: write
@@ -681,7 +681,7 @@ jobs:
           # the ruleset's required checks (no regex: jq treats \( as interpolation).
           pending=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
             --jq '.check_runs[] | select(.status != "completed") | .name' \
-            | grep -cxF -e 'Tests (ubuntu-24.04)' -e 'Tests (windows-2025)' \
+            | grep -cxF -e 'Tests (ubuntu-26.04)' -e 'Tests (windows-2025)' \
                         -e 'Lint & Format Check' -e 'Analyze (python)' || true)
           if [ "$pending" = "0" ]; then break; fi
           echo "Waiting for $pending required check(s) on $SHA to finish ($i/40)"
