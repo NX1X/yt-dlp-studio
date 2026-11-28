@@ -323,6 +323,6 @@ class TestStartNow:
 def test_section_header_text_has_room_after_the_arrow():
     from src.ui.collapsible_section import section_header_text
 
-    assert section_header_text("More options", False, False) == "▸  More options"
-    assert section_header_text("More options", True, False).startswith("▾  ")
-    assert section_header_text("x", False, True).startswith("◂")
+    assert section_header_text("More options", False, False) == "\u200e\u25b8\u00a0\u00a0More options"
+    assert section_header_text("More options", True, False).startswith("\u200e\u25be\u00a0\u00a0")
+    assert section_header_text("x", False, True).startswith("\u200f\u25c2")
