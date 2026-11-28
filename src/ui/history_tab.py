@@ -34,7 +34,7 @@ from PySide6.QtWidgets import (
 from ..backend.history_manager import HistoryManager
 from ..utils.logger import get_logger
 from ..utils.status_labels import history_status_text
-from ..utils.translations import tr
+from ..utils.translations import tr, tr_count
 from .display_format import link_text, ltr, open_local_path, quality_label, size_text, speed_text
 from .status_messages import show_status
 from .table_delegates import STATUS_KIND_ROLE, StatusDelegate
@@ -212,8 +212,9 @@ class HistoryTab(QWidget):
     def _update_summary(self) -> None:
         stats = self.history_manager.get_statistics()
         self.stats_label.setText(
-            tr(
+            tr_count(
                 "history_summary",
+                stats["total_downloads"],
                 total=stats["total_downloads"],
                 done=stats["completed"],
                 failed=stats["failed"],
@@ -410,7 +411,7 @@ class HistoryTab(QWidget):
         if reply == QMessageBox.Yes:
             count = self.history_manager.clear_history(status)
             self._load_history()
-            show_status(self, tr("status_history_cleared", count=count))
+            show_status(self, tr_count("status_history_cleared", count))
 
     def _download_directory(self) -> str:
         if self.config_manager is None:

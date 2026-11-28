@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
 
 from ..backend.queue_manager import QueueManager
 from ..models.download_task import DownloadTask, TaskStatus
-from ..utils.translations import tr
+from ..utils.translations import tr, tr_count
 from .display_format import duration_text, link_text, percent_text, speed_text
 
 
@@ -200,16 +200,16 @@ class NowDownloadingPanel(QGroupBox):
             self.empty_label.setVisible(False)
         else:
             if paused and stats.get("pending", 0):
-                self.empty_label.setText(tr("now_empty_paused", count=stats.get("pending", 0)))
+                self.empty_label.setText(tr_count("now_empty_paused", stats.get("pending", 0)))
             else:
                 self.empty_label.setText(tr("now_empty"))
             self.empty_label.setVisible(True)
 
         parts = []
         if stats.get("pending", 0):
-            parts.append(tr("summary_waiting", count=stats["pending"]))
+            parts.append(tr_count("summary_waiting", stats["pending"]))
         if stats.get("failed", 0):
-            parts.append(tr("summary_failed", count=stats["failed"]))
+            parts.append(tr_count("summary_failed", stats["failed"]))
         if paused:
             parts.append(tr("summary_paused"))
         self.summary_label.setText(", ".join(parts))

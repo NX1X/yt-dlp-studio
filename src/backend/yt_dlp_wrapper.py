@@ -15,6 +15,7 @@ from typing import Any
 
 from ..models.video_info import VideoInfo
 from ..utils.logger import get_logger
+from ..utils.translations import tr
 from .download_options import DownloadOptions, build_ydl_opts, mask_proxy_url, redact_ydl_opts
 from .download_preferences import DownloadPreferences, explain_download_error, get_download_preferences
 from .side_files import iter_downloads, write_side_files
@@ -827,42 +828,43 @@ class YtDlpWrapper:
         Returns:
             Human-readable language name
         """
-        # Common language codes mapping
-        language_names = {
-            "en": "English",
-            "es": "Spanish",
-            "fr": "French",
-            "de": "German",
-            "it": "Italian",
-            "pt": "Portuguese",
-            "ru": "Russian",
-            "ja": "Japanese",
-            "ko": "Korean",
-            "zh": "Chinese",
-            "zh-Hans": "Chinese (Simplified)",
-            "zh-Hant": "Chinese (Traditional)",
-            "ar": "Arabic",
-            "hi": "Hindi",
-            "he": "Hebrew",
-            "iw": "Hebrew",  # Old ISO 639 code for Hebrew (still used by YouTube)
-            "nl": "Dutch",
-            "pl": "Polish",
-            "tr": "Turkish",
-            "sv": "Swedish",
-            "da": "Danish",
-            "no": "Norwegian",
-            "fi": "Finnish",
-            "cs": "Czech",
-            "el": "Greek",
-            "hu": "Hungarian",
-            "ro": "Romanian",
-            "th": "Thai",
-            "vi": "Vietnamese",
-            "id": "Indonesian",
-            "uk": "Ukrainian",
+        # Common language codes mapping to translation keys (language_name_<code>)
+        language_keys = {
+            "en": "language_name_en",
+            "es": "language_name_es",
+            "fr": "language_name_fr",
+            "de": "language_name_de",
+            "it": "language_name_it",
+            "pt": "language_name_pt",
+            "ru": "language_name_ru",
+            "ja": "language_name_ja",
+            "ko": "language_name_ko",
+            "zh": "language_name_zh",
+            "zh-Hans": "language_name_zh_hans",
+            "zh-Hant": "language_name_zh_hant",
+            "ar": "language_name_ar",
+            "hi": "language_name_hi",
+            "he": "language_name_he",
+            "iw": "language_name_he",  # Old ISO 639 code for Hebrew (still used by YouTube)
+            "nl": "language_name_nl",
+            "pl": "language_name_pl",
+            "tr": "language_name_tr",
+            "sv": "language_name_sv",
+            "da": "language_name_da",
+            "no": "language_name_no",
+            "fi": "language_name_fi",
+            "cs": "language_name_cs",
+            "el": "language_name_el",
+            "hu": "language_name_hu",
+            "ro": "language_name_ro",
+            "th": "language_name_th",
+            "vi": "language_name_vi",
+            "id": "language_name_id",
+            "uk": "language_name_uk",
         }
 
-        return language_names.get(lang_code, lang_code.upper())
+        key = language_keys.get(lang_code)
+        return tr(key) if key else lang_code.upper()
 
     def download(self, options: DownloadOptions) -> bool:
         """

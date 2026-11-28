@@ -207,3 +207,8 @@ docs-internal/
 !README.md
 !ROADMAP.md
 !LICENSE
+
+# ========================================
+# Translation spreadsheet (made by scripts/i18n_export.py)
+# ========================================
+translations.csv

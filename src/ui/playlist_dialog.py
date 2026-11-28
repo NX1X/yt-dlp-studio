@@ -355,7 +355,9 @@ class PlaylistDialog(QDialog):
             title_item.setToolTip(video.title)
             self.videos_table.setItem(idx, self.COL_TITLE, title_item)
 
-            duration_item = QTableWidgetItem(ltr(video.get_duration_formatted()))
+            duration_item = QTableWidgetItem(
+                ltr(video.get_duration_formatted()) if video.duration > 0 else tr("text_unknown_label")
+            )
             duration_item.setTextAlignment(Qt.AlignCenter)
             self.videos_table.setItem(idx, self.COL_DURATION, duration_item)
 

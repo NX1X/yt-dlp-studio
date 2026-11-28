@@ -331,7 +331,8 @@ class SettingsTab(QWidget):
 
         is_valid, error = Validators.is_valid_directory(output_dir)
         if not is_valid:
-            QMessageBox.warning(self, tr("error_invalid_directory"), error)
+            logger.info(f"Folder rejected: {error}")
+            QMessageBox.warning(self, tr("error_invalid_directory"), tr("error_folder_invalid"))
             return
 
         advanced_error = self.advanced_options.validation_error()
