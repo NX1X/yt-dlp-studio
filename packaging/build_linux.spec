@@ -12,7 +12,7 @@
 # first run to ~/.config/YT-DLP Studio/deno/<version>/, never to the app folder.
 #
 # Portability: the shipped binary's glibc floor is the build host's glibc, so
-# CI builds this on ubuntu-22.04 (glibc 2.35), not ubuntu-latest. It also relies
+# CI builds this in an ubuntu:22.04 container (glibc 2.35). It also relies
 # on the standard Qt runtime libraries provided by any desktop environment
 # (libglib-2.0, libGL, fontconfig); these are not bundled.
 #

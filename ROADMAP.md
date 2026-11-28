@@ -166,7 +166,7 @@ The first non-beta release. Reached when:
 - ⬜ No known critical UI bugs
 - ⬜ Feature set frozen (no breaking changes planned for short term)
 - ⬜ Config and history file formats stable (backwards-compatibility commitment begins here)
-- ⬜ Tested clean on Windows 11 by hand (a manual checklist). Windows 10 should work but is not tested. CI runs the tests on `windows-latest` (Windows Server 2025) and `windows-2022`. These are Windows Server images, not Windows 10 or 11, so CI does not replace the hand test.
+- ⬜ Tested clean on Windows 11 by hand (a manual checklist). Windows 10 should work but is not tested. CI runs the tests on `windows-2025` (Windows Server 2025) and `windows-2022`. These are Windows Server images, not Windows 10 or 11, so CI does not replace the hand test.
 - ⬜ Documentation complete: [user guide](docs/USER_GUIDE.md), [troubleshooting](docs/TROUBLESHOOTING.md) and [install guide](docs/INSTALLATION_GUIDE.md) are written (in review); final check against the finished UI is open
 - ⬜ The repository is public, so users can download releases and the in-app updater can find them
 - ⬜ Windows release executable is Authenticode code-signed via the
@@ -201,7 +201,7 @@ Kept as ideas. None of these block 1.0.
 - macOS build (`.app`, `.dmg`); PyInstaller is platform-native, so this needs a macOS CI runner
 - Android app; a separate effort, likely with a different UI toolkit
 - Plugin system, web interface, API server, full UI redesign
-- **Containerized reproducible builds with [Dagger](https://dagger.io)**: move lint, tests, and the **Linux** PyInstaller build into a Dagger module (`dagger call ...`) that runs the same containerized pipeline locally and in CI. Real win: the Linux glibc floor is pinned by the container base image instead of the GitHub runner image. The Windows EXE build stays on a native `windows-latest` runner (Dagger runs Linux containers only). Blocked for now: pin to a stable Dagger release (0.21.x); the 1.0 beta line cannot yet install its Python SDK (`v1@v1` ref bug).
+- **Containerized reproducible builds with [Dagger](https://dagger.io)**: move lint, tests, and the **Linux** PyInstaller build into a Dagger module (`dagger call ...`) that runs the same containerized pipeline locally and in CI. Real win: the Linux glibc floor is pinned by the container base image instead of the GitHub runner image. The Windows EXE build stays on a native `windows-2025` runner (Dagger runs Linux containers only). Blocked for now: pin to a stable Dagger release (0.21.x); the 1.0 beta line cannot yet install its Python SDK (`v1@v1` ref bug).
 
 ---
 

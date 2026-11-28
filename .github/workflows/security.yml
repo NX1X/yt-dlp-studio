@@ -52,7 +52,7 @@ permissions:
 jobs:
   pip-audit:
     name: pip-audit (lockfile CVEs)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
     - name: Harden runner
@@ -105,7 +105,7 @@ jobs:
 
   zizmor:
     name: zizmor (workflow security)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -170,7 +170,7 @@ jobs:
 
   scorecard:
     name: OpenSSF Scorecard
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     # No value on PRs (fork tokens cannot publish results). Run on the default
     # branch, the weekly schedule, and manual dispatch only.
