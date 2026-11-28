@@ -53,18 +53,18 @@ On Linux, the app offers only Firefox. Chrome, Edge and Brave are not offered on
 
 **Symptom:** the log shows "Subtitle download failed" and "continuing without subtitles". The log may also show HTTP 429.
 
-**Cause:** HTTP 429 means "too many requests". YouTube limits how fast one IP address can send requests. This happens most often when you turn on **Download Subtitles** together with **Download Comments** or **Download Metadata**.
+**Cause:** HTTP 429 means "too many requests". YouTube limits how fast one IP address can send requests. This happens most often when you turn on **Subtitles** together with **Comments** or **Metadata (description, info.json)** in **More options**.
 
 **What the app does:** a failed subtitle request never stops the video download. The video downloads without subtitles. When subtitles are on together with comments or metadata, the app adds a pause of 1 second between requests. This makes the download slower.
 
 **Fix:**
 
 1. Wait some minutes.
-2. Download the video again with only **Download Subtitles** turned on.
+2. Download the video again with only **Subtitles** turned on in **More options**.
 
 Other causes of missing subtitles:
 
-- The video has no subtitles in the languages you entered. Click **Select Subs...** to see the available languages.
+- The video has no subtitles in the languages you entered. Open **More options** in the Download tab and click **Choose...** to see the available languages.
 - Language codes must be separated by commas, for example `en,es,he`.
 
 ## YouTube downloads fail or offer few formats on Linux
@@ -151,13 +151,13 @@ Empty means no proxy. Do not share your settings file when the proxy address has
 
 ## A site does not work
 
-If the label next to the URL field says "Experimental site: may not work", the site is not tested. A failure is possible. The tested sites are YouTube, Instagram, TikTok, Facebook and X.
+If the label next to the Link field says "Experimental site: may not work", the site is not tested. A failure is possible. The tested sites are YouTube, Instagram, TikTok, Facebook and X.
 
 If a tested site fails, [report an issue](#how-to-report-an-issue). Site changes often break downloads. A newer app version includes a newer yt-dlp engine, so update the app first.
 
 ## Where the log and crash reports are
 
-The app data folder holds both. Open the **Settings** tab to see the exact paths under **Storage**. Click **Copy** to copy a path.
+The app data folder holds both. Open the **Settings** tab to see the exact paths under **Files for bug reports**. Click **Copy** to copy a path, or **Open folder** to open the folder.
 
 | What | Windows | Linux |
 |------|---------|-------|
@@ -176,8 +176,9 @@ The app data folder holds both. Open the **Settings** tab to see the exact paths
 2. Search the [existing issues](https://github.com/NX1X/yt-dlp-studio/issues).
 3. Open a new issue with the Bug Report template: [new issue](https://github.com/NX1X/yt-dlp-studio/issues/new/choose).
 4. Describe what you did, what you expected and what happened.
-5. Add your operating system and the app version (see the **About** tab).
-6. Paste the relevant log lines. Attach the crash report if the app crashed.
-7. Remove private data, such as URLs of private videos, before you post.
+5. Open the **About** tab and click **Copy for bug report**. Paste the result into the issue. It has the app, engine, FFmpeg, Python and Qt versions and your system details.
+6. Paste the relevant log lines. Find the log file in **Settings**, under **Files for bug reports**. Attach the crash report if the app crashed.
+7. If a download failed, click **Copy details** in the error dialog. Paste the text into the issue.
+8. Remove private data, such as links to private videos, before you post.
 
 Do not report security problems in a public issue. [SECURITY.md](../SECURITY.md) explains how to report them privately.

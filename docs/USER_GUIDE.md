@@ -12,130 +12,189 @@ This guide names tabs, buttons and settings by their label in the English interf
 - [History tab](#history-tab)
 - [Settings tab](#settings-tab)
 - [About tab](#about-tab)
+- [Keyboard shortcuts](#keyboard-shortcuts)
 - [Common tasks](#common-tasks)
 - [Where your files go](#where-your-files-go)
 
 ## Before you start
 
 - **Platforms:** Tested on Windows 11. Windows 10 should work but is not tested. Linux builds are also available.
-- **Supported sites:** the app is in public beta. Next to the URL field, the app shows "Tested site" or "Experimental site: may not work".
+- **Supported sites:** the app is in public beta. Next to the Link field, the app shows "Tested site" or "Experimental site: may not work".
   - Tested sites: YouTube, Instagram, TikTok, Facebook and X.
   - Experimental sites: every other site that yt-dlp supports. A download can work, partly work or fail. The app does not block it.
 - **FFmpeg:** the Windows builds include FFmpeg. On Linux, the .deb and .rpm packages install it. For the AppImage and the .tar.gz archive, install FFmpeg yourself.
 
 ## Download tab
 
-Use the Download tab to start a download now, or to add it to the queue.
+Use the Download tab to start a download at once, or to add it to the queue.
 
-### Fields and buttons
+### The form
 
 | Control | What it does |
 |---------|--------------|
-| URL | The video, playlist or channel address. You can type it, paste it or drag it into the field. |
-| Paste | Pastes the URL from the clipboard. Shortcut: `Ctrl+V`. |
-| Show Info | Shows the title, thumbnail, duration and other details before you download. Shortcut: `Ctrl+Shift+I`. |
-| Download Type | **Video** or **Audio Only**. |
-| Quality | The maximum quality (video) or the bit rate (audio). |
-| Video Format | The video container: MP4, MKV, WebM or Auto. |
-| Audio Format | The audio format for **Audio Only**: MP3, M4A/AAC, OPUS, FLAC, WAV or Vorbis/OGG. |
-| Save to | The output folder. Click **Browse** to change it. Click **Open** to open the folder. |
-| Speed Limit | A maximum speed in KB/s. Zero means no limit. |
-| Download Now | Starts the download at once. Shortcut: `Ctrl+D`. |
-| Add to Queue | Adds the download to the queue. Shortcut: `Ctrl+Shift+Q`. |
-| Batch Input | Adds many URLs at once (see [Batch input](#batch-input)). |
-| Show Advanced Log | Shows the log of the current download in the window. |
+| Link | The video, playlist or channel address. You can type it, paste it or drag it into the field. The app shows "Tested site" or "Experimental site: may not work" next to it. |
+| Paste | Pastes the link from the clipboard. Shortcut: `Ctrl+V`. |
+| Info | Shows the title, thumbnail, length and other details of the link before you download. Shortcut: `Ctrl+Shift+I`. |
+| Get | **Video** or **Audio Only**. |
+| Quality | For video, the maximum quality. For audio, **Best Quality** or a bit rate. |
+| Format | For video, the container: MP4, MKV, WebM or Auto. For audio, the format: MP3, M4A/AAC, OPUS, FLAC, WAV or Vorbis/OGG. |
+| Save to | The output folder. Click **Browse** to change it. Click **Open folder** to open it. The field is read-only. |
+| Batch links... | Adds many links at once (see [Batch links](#batch-links)). |
+| Add to queue | Puts the download at the end of the queue (see [Download and Add to queue](#download-and-add-to-queue)). Shortcut: `Ctrl+Shift+Q`. |
+| Download | Starts the download at once (see [Download and Add to queue](#download-and-add-to-queue)). Shortcuts: `Enter` in the Link field, or `Ctrl+D`. |
 
 Quality choices for video: Best Quality, 8K (4320p), 4K (2160p), 2K (1440p), 1080p (Full HD), 720p (HD), 480p (SD) and 360p. Each choice is a maximum. yt-dlp downloads the best quality up to that height.
 
-Quality choices for audio: Audio 320kbps, Audio 256kbps, Audio 192kbps and Audio 128kbps.
+Quality choices for audio: Best Quality, Audio 320kbps, Audio 256kbps, Audio 192kbps and Audio 128kbps.
 
-### Extra files
+If the link is empty or not valid, or the folder is missing or not writable, a message appears under the field. Nothing is added until you fix it.
 
-These check boxes are off by default.
+### Download and Add to queue
 
-| Check box | What it does |
-|-----------|--------------|
-| Download Thumbnail | Saves the thumbnail as a JPG file. |
-| Download Subtitles | Downloads subtitles and embeds them. Enter language codes in **Languages**, for example `en,es,he`. Click **Select Subs...** to choose from the languages that the video has. |
-| Download Metadata | Saves the video metadata, including an `.info.json` file and readable text files. |
-| Download Comments | Saves the comments to a separate text file. This can be slow for popular videos. |
+Both buttons run the same checks. They ask the same playlist question and the same duplicate question. They differ in when the download starts.
 
-### Batch input
+- **Download** starts the download at once, also when the queue is paused. If the maximum number of downloads (3) already runs, it starts next.
+- **Add to queue** puts the download at the end of the queue. It waits its turn. It does not start while the queue is paused.
 
-1. Click **Batch Input**.
-2. Paste one URL per line, or click **Import from File**.
-3. Click **Validate URLs** to check the list.
-4. Click **Add URLs**.
+A message in the status bar tells you what happened, for example "Added to the queue at position 2." If the queue is paused, the message tells you to press **Start** in the Queue tab.
 
-The app adds every valid URL to the queue.
+If the same download (same link, quality and type) is already in the queue, the app asks if you want to add it again.
+
+### More options
+
+This section is closed by default. A summary line next to its title shows what is on, for example "Subtitles (en), Thumbnail". With nothing on, it shows "All off, no speed limit".
+
+| Setting | What it does |
+|---------|--------------|
+| Subtitles | Downloads subtitles and embeds them. Enter language codes in **Languages**, for example `en,es,he`. Click **Choose...** to pick from the languages that the video has. |
+| Thumbnail | Saves the thumbnail as a JPG file. |
+| Metadata (description, info.json) | Saves the video metadata, including an `.info.json` file and readable text files. |
+| Comments | Saves the comments to a separate text file. This can be slow for popular videos. |
+| Speed limit | A maximum speed in KB/s. Zero shows as "Unlimited". |
+
+The section also has a link, **Open Settings**. Cookies, proxy, file names and format options are in the Settings tab, under Advanced Download Options.
+
+**Choose...** needs a valid link in the Link field. It opens "Choose subtitle languages". Type to filter the list, check the languages, then click **Use selected languages**. If you check none, the app asks if you want to continue without subtitles.
+
+### Batch links
+
+1. Click **Batch links...**.
+2. Paste one link per line, or click **Import from File**.
+3. Optional: click **Validate URLs**. The dialog shows the count of valid links and invalid lines.
+4. Click **Add to queue**.
+
+The app adds every valid link to the queue. If some lines are not valid, the app asks if it should add only the valid links.
 
 ### Playlists and channels
 
-When you enter a playlist or channel URL, the app asks if you want to view and select videos. If you answer Yes, the Playlist Viewer opens.
+When you click **Download** or **Add to queue** with a playlist or channel link, the app asks what to do:
 
-1. Clear the videos you do not want. All videos are selected by default.
+- **Choose videos...** opens the Playlist Viewer.
+- **Whole playlist** adds the playlist link as one download.
+- **Cancel** adds nothing.
+
+In the Playlist Viewer:
+
+1. Clear the videos you do not want. All videos are selected by default. Use **Select All** and **Select None** to change many at once.
 2. Select one quality for all selected videos.
 3. Optional: turn on subtitles for every selected video, and select the languages. These settings override the subtitle settings of the Download tab.
-4. Add the videos to the queue.
+4. Click **Add to queue**. The button shows the number of selected videos.
+
+If you started with **Download**, the chosen videos start at once. If you started with **Add to queue**, they wait their turn. **Info** on a playlist link opens the same viewer, and the videos go to the queue like **Add to queue**.
+
+### Info dialog
+
+**Info** on a single video opens the Video Information dialog. It has a **Download** button. Click it to close the dialog and start the download as if you had clicked **Download** on the form. **Close** only closes the dialog.
+
+### Now downloading
+
+This panel shows each running download with its title, a progress bar, the percent, the speed and the time left. A line below it shows how many downloads wait and how many failed. Click **Open queue** to go to the Queue tab. With nothing running, the panel says "Nothing is downloading. Paste a link above to start." If the queue is paused, it also shows how many downloads wait.
+
+### Activity log
+
+This section is closed by default. It shows the log of the app while it works. Click **Clear Log** to empty it.
+
+### If a download fails
+
+A dialog shows a friendly explanation and suggestions. It also shows the technical details. Click **Copy details** to copy the technical text, to paste into a bug report.
 
 ## Queue tab
 
 The Queue tab shows every download that waits, runs or has ended. The queue runs up to 3 downloads at the same time. The app saves the queue and restores it when you start the app again.
 
+### Top bar
+
 | Control | What it does |
 |---------|--------------|
-| Start Queue / Pause Queue | Starts the queue, or pauses it. Shortcut: `Space`. |
-| Stop All | Stops every running download. |
-| Move Up / Move Down | Changes the order of the selected task. Shortcuts: `Ctrl+Up`, `Ctrl+Down`. |
-| Remove | Removes the selected task. Shortcut: `Delete`. |
-| Open File | Opens the file of a completed download. |
-| Retry | Tries a failed task again. |
-| Retry All Failed | Tries every failed task again. |
-| Clear Completed | Removes completed tasks from the list. |
-| Clear Failed | Removes failed tasks from the list. |
+| Start | Starts the waiting downloads. New links then start on their own. |
+| Pause | Lets the running downloads finish, but starts no new ones. Click **Start** to continue. |
+| Stop all | Asks first. If you agree, it cancels the running downloads and pauses the queue. Waiting downloads stay in the queue. |
+| Retry failed | Tries every failed download again. It is on only while a failed download exists. |
+| Clear finished | A menu. Choose **Completed downloads**, **Failed downloads** or **Cancelled downloads** to remove them from the list. The files stay on disk. |
 
-The table shows the video name, URL, quality, status, progress, speed and output file of each task. A statistics area shows the counts of total, pending, active, completed and failed tasks.
+A counters line in the top bar shows the number of downloading, waiting, failed and done downloads, and "queue paused".
 
-The app tries a download again one time on its own after a network error. Downloads that you start with **Download Now** also appear in the Queue tab.
+### Table and selected download
+
+The table shows the title, status, size, speed and time left of each download. A running download shows a progress bar in the Status column. Point at a title to see the link, folder and quality.
+
+Select a row to use these buttons under the table:
+
+| Button | What it does |
+|--------|--------------|
+| Open file | Opens the file of a completed download. |
+| Open folder | Opens the folder of the selected download. |
+| Retry | Tries the selected failed download again. |
+| Cancel | Cancels the selected download. A waiting download is removed. |
+| Up, Down | Moves the selected download in the queue. |
+| Remove | Removes the selected download from the queue. If it runs or waits, the app asks first. |
+
+Right-click a row for a menu with the same actions, plus **Copy link** and **Show error details**. Double-click a completed row to open the file. Double-click a failed row to see the error.
+
+The app tries a download again one time on its own after a network error.
+
+### Closing the app
+
+If downloads run when you close the app, it asks if you want to exit. If you exit, the app saves the running downloads and continues them at the next start. If **Keep running in the tray when I close the window** is on, closing the window only hides it. Use **Quit** in the tray menu to exit.
 
 ## History tab
 
-The History tab lists past downloads. The app keeps up to 1000 entries.
+The History tab lists past downloads. The app keeps up to 1000 entries. The tab updates on its own when a download ends.
 
 | Control | What it does |
 |---------|--------------|
-| Search | Filters the list by title or URL. |
-| Refresh | Reloads the list. |
+| Search | Filters the list by title or link. |
+| Status filter | Shows all statuses, or only completed, failed or cancelled downloads. |
 | Export CSV | Saves the history as a CSV file. |
-| Open Directory | Opens the download folder. |
-| Clear All | Deletes the whole history after you confirm. You cannot undo this. |
+| Open downloads folder | Opens the download folder. |
+| Clear | A menu: **Clear completed**, **Clear failed** or **Clear all history**. The app asks first. Downloaded files stay on disk. |
 
-The Statistics area shows total downloads, completed, failed and cancelled downloads, success rate, total downloaded and average speed. Clearing the history never deletes the downloaded files.
+A summary line shows the number of downloads and how many are done, failed and cancelled, and the total size. Point at it to see the success rate and the average speed.
+
+Right-click a row for the actions: **Open file** (completed downloads only), **Open folder**, **Copy link** and **Download again**. **Download again** puts the link into the Download tab. Check the options, then click **Download**. Double-click a completed row to open the file. Double-click any other row to use **Download again**.
+
+With no history, the tab says "No download history". If a search finds nothing, it says "No matches".
 
 ## Settings tab
 
-Change settings, then click **Save Settings**. Click **Reset to Defaults** to restore the default values after you confirm.
+Change settings, then click **Save Settings**. Click **Reset to Defaults** to restore the default values after you confirm. Both buttons are always visible at the bottom of the tab. The theme is the exception: it applies and saves at once.
 
-### General Settings
+### Downloads
 
-- **Default Download Folder:** the folder for new downloads. The first default is your `Downloads` folder.
+- **Default Download Folder:** the folder for new downloads. The first default is your `Downloads` folder. Click **Browse** to change it.
 - **Default Quality:** the quality that is selected when the app starts.
 
 ### Appearance
 
-- **Language:** English or Hebrew. Restart the app after you change the language.
-- **Theme:** Dark or Light. Use **Toggle Theme (Dark/Light)** to switch.
+- **Theme:** **Dark** or **Light**. The change applies at once and is saved. You do not need to click **Save Settings**.
+- **Language:** English or Hebrew. Restart the app to apply a change.
 
-### Features
+### Behavior
 
 - **Enable Desktop Notifications:** shows a notification when a download completes or fails. It is on by default.
-- **Notify me about new versions on startup:** checks GitHub when the app starts. It is off by default. It does not install anything.
 - **Keep running in the tray when I close the window:** closing the window hides it, and downloads keep running. Use **Quit** in the tray menu to exit. It is off by default. It is not available on a desktop without a system tray.
+- **Notify me about new versions on startup:** checks GitHub when the app starts. It is off by default. It does not install anything.
 - **Check for Updates Now:** checks for a new release at once.
-
-### Storage
-
-This section shows the path of the **Log file**, the **Crash reports** folder and the **Config file**. Click **Copy** next to a path to copy it.
 
 ### Advanced Download Options
 
@@ -162,55 +221,80 @@ Notes:
 - **Codec preference:** to get the codec, a download can use a lower resolution, within the quality you chose.
 - **Invalid values:** if a value is not valid, the app shows a message when you click **Save Settings**.
 
+### Files for bug reports
+
+This group shows the paths of the **Log file**, the **Crash reports** folder and the **Config file**. Click **Copy** next to a path to copy it. Click **Open folder** to open the folder in your file manager.
+
 ## About tab
 
 The About tab shows:
 
-- **Details:** the application version, and the versions of the yt-dlp engine, FFmpeg, Python and PySide6 (Qt).
-- **About the Developer:** information about NX1X and NXTools, and a link to the project on GitHub.
-- **Credits:** the open-source projects that the app uses.
-- **Keyboard Shortcuts:** the list of all shortcuts.
+- **A header:** the app name, the current version, one sentence about the app, and the links **View on GitHub** and **Visit Website**.
+- **System Information:** the versions of the app, the yt-dlp engine, FFmpeg, Python and PySide6 (Qt). Click **Copy for bug report** to copy these versions and your system details. Paste them into a bug report.
+- **Credits:** the open-source projects that the app uses, and the license.
+- **Keyboard Shortcuts:** the list of all shortcuts (see [Keyboard shortcuts](#keyboard-shortcuts)).
 
 If FFmpeg is missing, the FFmpeg line shows "Not found in PATH".
+
+## Keyboard shortcuts
+
+| Where | Shortcut | Action |
+|-------|----------|--------|
+| Anywhere | `Ctrl+Q` | Quit |
+| Anywhere | `F1` | Open the online help (the README on GitHub) |
+| Dialogs | `Esc` | Close the dialog |
+| Download tab | `Ctrl+V` | Paste the link from the clipboard |
+| Download tab | `Enter` | Start the download (when the Link field has the focus) |
+| Download tab | `Ctrl+D` | Download |
+| Download tab | `Ctrl+Shift+Q` | Add to queue |
+| Download tab | `Ctrl+Shift+I` | Show info |
+| Queue tab | `Delete` | Remove the selected download |
+| Queue tab | `Ctrl+Up`, `Ctrl+Down` | Move the selected download up or down |
+
+The queue shortcuts work while the table has the focus. There is no `Space` shortcut for the queue.
 
 ## Common tasks
 
 ### Download a single video
 
 1. Open the **Download** tab.
-2. Paste the video URL into the URL field.
-3. Set **Download Type** to **Video**.
-4. Select a **Quality** and a **Video Format**.
+2. Paste the video link into the **Link** field.
+3. Set **Get** to **Video**.
+4. Select a **Quality** and a **Format**.
 5. Check the **Save to** folder.
-6. Click **Download Now**.
+6. Click **Download**.
 
 ### Download a playlist
 
 1. Open the **Download** tab.
-2. Paste the playlist URL.
-3. Click **Add to Queue**, and answer Yes when the app asks to view the playlist.
-4. Select the videos and the quality in the Playlist Viewer.
-5. Click **Add to Queue**.
-6. Open the **Queue** tab and click **Start Queue**.
+2. Paste the playlist link.
+3. Click **Add to queue**.
+4. Click **Choose videos...** when the app asks.
+5. Select the videos and the quality in the Playlist Viewer.
+6. Click **Add to queue**.
+7. Open the **Queue** tab. If the queue is paused, click **Start**.
+
+To download the whole playlist as one download, click **Whole playlist** instead of **Choose videos...**.
 
 ### Download audio only
 
 1. Open the **Download** tab.
-2. Paste the video URL.
-3. Set **Download Type** to **Audio Only**.
+2. Paste the video link.
+3. Set **Get** to **Audio Only**.
 4. Select an audio **Quality**, for example Audio 192kbps.
-5. Select an **Audio Format**, for example MP3.
-6. Click **Download Now**.
+5. Select a **Format**, for example MP3.
+6. Click **Download**.
 
 FFmpeg converts the audio, so FFmpeg must be present.
 
 ### Download subtitles
 
 1. Open the **Download** tab.
-2. Paste the video URL.
-3. Turn on **Download Subtitles**.
-4. Enter language codes in **Languages**, or click **Select Subs...** to choose.
-5. Click **Download Now**.
+2. Paste the video link.
+3. Open **More options**.
+4. Turn on **Subtitles**.
+5. Enter language codes in **Languages**, or click **Choose...** to pick from the list.
+6. Click **Download**.
 
 If the video has no subtitles, the app tells you. If YouTube blocks the subtitle request, the video still downloads without subtitles. See [Troubleshooting](TROUBLESHOOTING.md#subtitles-are-missing-or-http-429-appears).
 
