@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no entries yet)_
+
+---
+
+## [0.5.0] - 2026-11-28
+
 ### Added
 
 - **Versioned settings, history, queue and language files.** Each file in the app data folder now has a top-level `"version"` key (the file format version, now 1). A file without it is version 0, the 0.4.x format: the app migrates it in memory and writes version 1 on the next save. A file from a newer app version is never overwritten silently: the app loads what it understands, logs a warning and keeps a copy as `<name>.v<N>.bak` before the first save. A damaged settings, history or language file is kept as `<name>.bad`, the same as the queue file, and the app starts with defaults. Before, a damaged history file was lost on the next save. The migrations are in `src/utils/file_formats.py`; docs/ARCHITECTURE.md ("File formats and migrations") lists the files, fields and the compatibility promise that starts at 1.0.
