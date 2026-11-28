@@ -4,11 +4,12 @@ Configuration management for YT-DLP Studio.
 This module handles loading and saving application settings.
 """
 
-import json
+from dataclasses import fields
 from pathlib import Path
 
 from ..models.app_config import AppConfig
 from ..utils.constants import CONFIG_PATH, DEFAULT_OUTPUT_DIR
+from ..utils.file_formats import CONFIG_FORMAT, FileState, keep_bad_copy, load_json_file, save_json_file
 from ..utils.logger import get_logger
 
 logger = get_logger()
@@ -38,7 +39,9 @@ class ConfigManager:
         Load configuration from file.
 
         If config file doesn't exist, creates default configuration.
-        If config file is corrupted, logs error and returns default.
+        An older file format is migrated (see src/utils/file_formats.py).
+        If config file is damaged or invalid, keeps a copy as
+        ``<name>.bad``, logs a warning and returns defaults.
 
         Returns:
             AppConfig instance
@@ -52,32 +55,47 @@ class ConfigManager:
         if self.config is not None:
             return self.config
 
-        # Try to load from file
-        if self.config_path.exists():
-            try:
-                with open(self.config_path, encoding="utf-8") as f:
-                    data = json.load(f)
-                    self.config = AppConfig.from_dict(data)
-
-                    # Validate loaded config
-                    if not self.config.validate():
-                        logger.warning("Loaded config failed validation, using defaults")
-                        self.config = self._create_default_config()
-                    else:
-                        logger.info("Configuration loaded successfully")
-
-            except json.JSONDecodeError as e:
-                logger.exception(f"Config file corrupted: {e}. Using defaults.")
-                self.config = self._create_default_config()
-            except Exception as e:
-                logger.exception(f"Error loading config: {e}. Using defaults.")
-                self.config = self._create_default_config()
-        else:
+        result = load_json_file(self.config_path, CONFIG_FORMAT)
+        if result.state is FileState.MISSING:
             logger.info("Config file not found, creating default")
             self.config = self._create_default_config()
             self.save_config(self.config)
+            return self.config
+
+        config = self._config_from_data(result.data) if result.data is not None else None
+        if config is None:
+            if result.data is not None:
+                # Parsed, but the values are unusable: keep the file as .bad.
+                logger.warning("Loaded config failed validation, using defaults")
+                keep_bad_copy(self.config_path)
+            self.config = self._create_default_config()
+        else:
+            self.config = config
+            logger.info("Configuration loaded successfully")
 
         return self.config
+
+    @staticmethod
+    def _config_from_data(data: dict) -> AppConfig | None:
+        """
+        Build an AppConfig from the (migrated) file content.
+
+        Keys that AppConfig does not know are ignored, so a file from a newer
+        app still loads the settings this app understands.
+
+        Returns:
+            AppConfig, or None if the values are missing or invalid
+        """
+        known = {field.name for field in fields(AppConfig)}
+        unknown = sorted(set(data) - known)
+        if unknown:
+            logger.info(f"Ignoring unknown config fields: {', '.join(unknown)}")
+        try:
+            config = AppConfig.from_dict({key: value for key, value in data.items() if key in known})
+            # validate() compares values, so a wrong type raises TypeError.
+            return config if config.validate() else None
+        except (TypeError, ValueError):
+            return None
 
     def save_config(self, config: AppConfig) -> bool:
         """
@@ -104,9 +122,8 @@ class ConfigManager:
                 logger.error("Cannot save invalid configuration")
                 return False
 
-            # Save to file
-            with open(self.config_path, "w", encoding="utf-8") as f:
-                json.dump(config.to_dict(), f, indent=4)
+            # Save to file (with the format version, atomically)
+            save_json_file(self.config_path, CONFIG_FORMAT, config.to_dict(), indent=4)
 
             self.config = config
             logger.info("Configuration saved successfully")

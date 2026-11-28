@@ -4,9 +4,12 @@ This guide explains how to use YT-DLP Studio. For install options, see the [Inst
 
 ## Supported sites
 
-YT-DLP Studio is in public beta. Only YouTube is officially supported and tested (videos, playlists and channels).
+YT-DLP Studio is in public beta. Sites are in two tiers:
 
-The download engine (yt-dlp) can handle many other sites, and support for more sites is planned. Until a site is officially listed as supported, treat it as untested: it may work, partly work or fail. If a site is important to you, [open a feature request](https://github.com/NX1X/yt-dlp-studio/issues/new/choose).
+- **Tested:** YouTube, Instagram, TikTok, Facebook and X (Twitter). They are checked before every release. Only YouTube is covered by the automatic weekly check in CI; the other tested sites are checked by hand before each release.
+- **Experimental:** every other site. The download engine (yt-dlp) supports more than 1000 sites, but YT-DLP Studio does not test them. A download may work, partly work or fail. The app does not block it.
+
+When you enter a URL, the Download tab shows "Tested site" or "Experimental site: may not work" next to the URL field. Hover over the label for an explanation. The [README](../README.md#supported-sites) lists the exact host names of the tested sites. If a site is important to you, [open a feature request](https://github.com/NX1X/yt-dlp-studio/issues/new/choose).
 
 ## Install and start
 
@@ -138,7 +141,7 @@ Click **Save Settings** to save your changes. The app keeps them between session
 
 **"Invalid URL":** make sure the URL starts with `http://` or `https://`, or try another video.
 
-**A site other than YouTube fails:** this is expected during the beta. Only YouTube is officially supported now.
+**A site fails:** if the label next to the URL field says "Experimental site: may not work", the site is not tested, and a failure can be expected. If a tested site fails, [report a bug](https://github.com/NX1X/yt-dlp-studio/issues/new/choose).
 
 **"Directory not writable":** select a different output folder, or fix the permissions of the folder.
 

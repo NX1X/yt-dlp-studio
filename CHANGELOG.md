@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Versioned settings, history, queue and language files.** Each file in the app data folder now has a top-level `"version"` key (the file format version, now 1). A file without it is version 0, the 0.4.x format: the app migrates it in memory and writes version 1 on the next save. A file from a newer app version is never overwritten silently: the app loads what it understands, logs a warning and keeps a copy as `<name>.v<N>.bak` before the first save. A damaged settings, history or language file is kept as `<name>.bad`, the same as the queue file, and the app starts with defaults. Before, a damaged history file was lost on the next save. The migrations are in `src/utils/file_formats.py`; docs/ARCHITECTURE.md ("File formats and migrations") lists the files, fields and the compatibility promise that starts at 1.0.
+- **Site tiers.** The Download tab shows "Tested site" or "Experimental site: may not work" next to the URL field, with a tooltip, in English and Hebrew. Tested sites are YouTube, Instagram, TikTok, Facebook and X, checked before every release (only YouTube by the weekly CI check, the others by hand). Every other site is experimental, and downloads from it are still allowed. The tier comes from an exact match of the URL host name, so `evil-youtube.com` is not YouTube. The README has a new "Supported sites" section.
+
 ### Changed
 
 - **Bundled yt-dlp engine 2026.10.26 -> 2026.11.23.** Tarball SHA-256 `8f757547e94c723415fd82bb5da857d8e1b24be2e34218890dfaac134907723e`, matching the `SHA2-256SUMS` file signed by the pinned yt-dlp release key (`AC0CBBE6848D6A873464AF4E57CF65933B5A7581`, GPG "Good signature"). Adds the `ios_producer` YouTube client, makes `tv` the default player JS variant, and fixes post-live streams and several site extractors. No upstream CVEs. Still uses `yt-dlp-ejs==0.8.0`, unchanged, and the Deno minimum (2.3.0) is met by the bundled Deno 2.9.8. The engine is 5 days old, inside the 7-day cooldown, taken by the maintainer's decision.

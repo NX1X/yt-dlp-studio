@@ -9,6 +9,7 @@ This document explains the structure of the YT-DLP Studio code. It helps contrib
 - [Key components](#key-components)
 - [Download flow](#download-flow)
 - [Runtime files](#runtime-files)
+- [File formats and migrations](#file-formats-and-migrations)
 - [Packaging](#packaging)
 - [How to add features](#how-to-add-features)
 - [Debugging guide](#debugging-guide)
@@ -54,6 +55,7 @@ yt-dlp-studio/
 │   │   ├── update_dialog.py     # Update download and install
 │   │   ├── progress_bar.py      # Progress widget
 │   │   ├── log_widget.py        # Log widget
+│   │   ├── site_tier_label.py   # "Tested site" / "Experimental site" label
 │   │   └── theme.py             # Dark and light themes
 │   ├── backend/
 │   │   ├── yt_dlp_wrapper.py    # Interface to yt-dlp
@@ -83,6 +85,8 @@ yt-dlp-studio/
 │   │   ├── notification_manager.py  # Desktop notifications, tray icon
 │   │   ├── crash_handler.py     # Crash reports
 │   │   ├── deno_installer.py    # Downloads Deno when running from source
+│   │   ├── file_formats.py      # Versioned JSON files and their migrations
+│   │   ├── site_tiers.py        # Tested and experimental sites
 │   │   └── ...                  # Other helpers
 │   └── resources/               # Icons
 ├── vendor/yt_dlp_engine/yt_dlp/ # Vendored yt-dlp
@@ -241,6 +245,49 @@ All files below are in the app data folder: `%APPDATA%\YT-DLP Studio` on Windows
 
 `src/utils/translations.py` reads and writes `language.json`. Up to 0.4.0 it was in `~/.yt-dlp-studio/`. At startup, `migrate_legacy_language_file()` moves an old file into the app data folder, then deletes the old folder if it is empty.
 
+## File formats and migrations
+
+The JSON files in the app data folder have a format version. The code is in `src/utils/file_formats.py`: one `FileFormat` per file, with its ordered migration functions.
+
+### The version key
+
+Every file has a top-level `"version"` key: an integer, the version of the file format. It is not the app version. All files use the same key name. A file without the key is version 0, the format of 0.4.x and earlier.
+
+| File | Code | Current version | Fields next to `"version"` |
+|------|------|-----------------|----------------------------|
+| `yt-dlp-studio_config.json` | `ConfigManager`, `CONFIG_FORMAT` | 1 | One key per `AppConfig` field (`src/models/app_config.py`), for example `output_directory`, `default_quality`, `window_width`, `window_height`, `last_url`, `check_updates_on_startup`, `skipped_update_version`, `last_update_check`, `notifications_enabled`, `close_to_tray` |
+| `download_history.json` | `HistoryManager`, `HISTORY_FORMAT` | 1 | `max_entries` (int), `entries` (list of `HistoryEntry.to_dict()`: `url`, `title`, `quality`, `output_directory`, `filename`, `status`, `timestamp` (ISO 8601), `file_size`, `download_speed`, `duration`, `error_message`, `platform`) |
+| `download_queue.json` | `QueueManager`, `QUEUE_FORMAT` | 1 | `paused` (bool), `tasks` (list of `DownloadTask.to_dict()`, the fields in `_PERSISTED_FIELDS` plus `status` and `created_at`) |
+| `language.json` | `translations.py`, `LANGUAGE_FORMAT` | 1 | `language` (`"en"` or `"he"`) |
+
+Version 1 of the settings, history and language files adds only the `"version"` key; all other fields are the same as in version 0. The queue file had `"version": 1` from the start, so it has no version 0: a queue file without a version is damaged.
+
+### What happens when a file is read
+
+| The file is | What the app does |
+|-------------|-------------------|
+| Missing | Starts with defaults. |
+| At the current version | Reads it. |
+| Older (or without a version) | Runs the migrations in order, in memory. Writes the file back on the next save. |
+| Newer (written by a newer app) | Loads the fields it understands and ignores the others. Logs a warning. Before the first write, keeps a copy as `<name>.v<N>.bak` (for example `download_history.json.v2.bak`). If the copy fails, the file is not written. A queue from a newer app is restored paused. |
+| Damaged (not readable, not JSON, wrong layout, invalid version, failed migration, invalid values) | Keeps a copy as `<name>.bad`, logs a warning and starts with defaults. Startup never stops. An empty file gets no copy. |
+
+Invalid entries in the history or the queue are skipped; the other entries load, and a copy of the file is kept as `<name>.bad`. The files are written atomically (a temp file in the same folder, then `os.replace`), so a crash during a save keeps the old file.
+
+### Change a file format
+
+1. Decide if the change needs a new version. A new field with a default does not: old files load with the default, and older apps ignore the unknown key. A renamed, removed or retyped field, or a field with a new meaning, needs a new version.
+2. Write a function that takes the data of version N (without the version key) and returns the data of version N + 1.
+3. Append it to the `migrations` tuple of the file's `FileFormat`. The current version is then N + 1.
+4. Add tests in `tests/test_file_formats.py`: the migration step, and a file of each older version.
+5. Update the tables above.
+
+Never change or remove a migration that has shipped. Users can skip versions, so every step must stay.
+
+### Compatibility promise
+
+Starting with 1.0, every release reads the settings, history, queue and language files of every earlier release from 1.0 on, and migrates them. A file from a newer release is never overwritten without a `.v<N>.bak` copy. Before 1.0, the formats can still change. The plan is that every change comes with a migration.
+
 ## Packaging
 
 - `packaging/build.spec`: the Windows one-file EXE. It bundles FFmpeg, Deno, the vendored yt-dlp and `src/resources`.
@@ -352,6 +399,8 @@ Keep new files small and focused. Some existing files are large (for example `do
 | Change queue behavior | `src/backend/queue_manager.py` |
 | Change the progress display | `src/ui/progress_bar.py` |
 | Add or change a UI string | `src/utils/translations.py` (`en` and `he`) |
+| Change a saved file format | `src/utils/file_formats.py`, see [File formats and migrations](#file-formats-and-migrations) |
+| Change the tested sites | `src/utils/site_tiers.py`, the README "Supported sites" section |
 | Add logging | Any file: import `get_logger()` |
 | Change the styling | `src/ui/theme.py` |
 

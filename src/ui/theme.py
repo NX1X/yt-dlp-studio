@@ -466,6 +466,21 @@ QLabel[labelStyle="subtitle"] {{
     color: {colors["text_secondary"]};
 }}
 
+/* Site tier next to the URL field (src/ui/site_tier_label.py) */
+QLabel#siteTierLabel {{
+    font-size: 9pt;
+    font-weight: 600;
+    padding: 0px 4px;
+}}
+
+QLabel#siteTierLabel[siteTier="tested"] {{
+    color: {colors["success"]};
+}}
+
+QLabel#siteTierLabel[siteTier="experimental"] {{
+    color: {colors["warning"]};
+}}
+
 /* ===== TOOLTIPS ===== */
 QToolTip {{
     background-color: {colors["bg_tertiary"]};

@@ -14,6 +14,7 @@ YT-DLP Studio is part of [NXTools](https://nx1xlab.dev/nxtools), a collection of
 ## Contents
 
 - [Project status](#project-status)
+- [Supported sites](#supported-sites)
 - [Features](#features)
 - [Download and install](#download-and-install)
 - [Quick start](#quick-start)
@@ -29,7 +30,28 @@ YT-DLP Studio is part of [NXTools](https://nx1xlab.dev/nxtools), a collection of
 YT-DLP Studio is in public beta. The current release is
 [0.4.0](https://github.com/NX1X/yt-dlp-studio/releases/tag/v0.4.0).
 
-YouTube is the only site that is officially supported and tested (videos, playlists and channels). yt-dlp supports more than 1000 sites, and support for more sites is planned. Until a site is listed here, treat it as untested. To ask for a site, [open a feature request](https://github.com/NX1X/yt-dlp-studio/issues/new/choose).
+Five sites are tested. Every other site is experimental. See [Supported sites](#supported-sites).
+
+## Supported sites
+
+Sites are in two tiers. The Download tab shows the tier next to the URL field: "Tested site" or "Experimental site: may not work". Hover over the label for an explanation.
+
+| Tier | Sites | How they are checked |
+|------|-------|----------------------|
+| **Tested** | YouTube, Instagram, TikTok, Facebook, X (Twitter) | Before every release |
+| **Experimental** | Every other site that yt-dlp supports (more than 1000) | Not tested by YT-DLP Studio |
+
+- **How the checks work:** only YouTube is covered by the automatic weekly check in CI. Instagram, TikTok, Facebook and X are checked by hand before each release. A site can change at any time, so a tested site can still break between releases.
+- **Experimental sites:** the app does not block them. The download may work, partly work or fail.
+- **How the app finds the tier:** it compares the host name of the URL with a fixed list. Only exact host names count, so `evil-youtube.com` is experimental, not YouTube.
+- **Tested host names:**
+  - YouTube: `youtube.com`, `www.youtube.com`, `m.youtube.com`, `music.youtube.com`, `youtu.be`
+  - Instagram: `instagram.com`, `www.instagram.com`
+  - TikTok: `tiktok.com`, `www.tiktok.com`, `vm.tiktok.com`
+  - Facebook: `facebook.com`, `www.facebook.com`, `m.facebook.com`, `fb.watch`
+  - X: `x.com`, `www.x.com`, `twitter.com`, `www.twitter.com`, `mobile.twitter.com`
+
+To ask for a site, [open a feature request](https://github.com/NX1X/yt-dlp-studio/issues/new/choose).
 
 ## Features
 
@@ -191,6 +213,8 @@ They are in the app data folder:
 
 The app data folder holds the settings (`yt-dlp-studio_config.json`), the language choice (`language.json`), the log (`yt-dlp-studio.log`), the download history, the saved queue and crash reports (`crashes`). The Settings tab shows the paths to the log, crash reports and settings file.
 
+If one of these files is damaged, the app keeps a copy with `.bad` at the end of the name (for example `download_history.json.bad`) and starts with defaults. If a file was saved by a newer version of the app, the app keeps a copy with `.v<N>.bak` at the end (for example `yt-dlp-studio_config.json.v2.bak`) before it saves the file.
+
 Versions up to 0.4.0 stored the language choice in `.yt-dlp-studio` in your home folder. The app moves that file into the app data folder on the next start, and deletes the old folder if it is empty.
 
 ### How do I uninstall? Do I lose my data?
@@ -205,9 +229,9 @@ Uninstalling never deletes your downloaded videos. It keeps the app data folder 
 
 To delete your settings and history too, delete the app data folder by hand.
 
-### A site other than YouTube fails
+### A site fails
 
-This is expected during the beta. Only YouTube is officially supported now.
+If the label next to the URL field says "Experimental site: may not work", the site is not tested by YT-DLP Studio, and a failure can be expected. If a tested site fails, [report a bug](https://github.com/NX1X/yt-dlp-studio/issues/new/choose). See [Supported sites](#supported-sites).
 
 ### "Invalid URL"
 
