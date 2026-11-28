@@ -97,7 +97,7 @@ yt-dlp-studio/
 - Test the change by hand in the GUI.
 - Check the log file for errors.
 - Test edge cases.
-- If possible, test on Windows 10 and 11.
+- If possible, test on Windows 11. Windows 10 should work but is not tested by the maintainer. CI runs on Windows Server images, not on Windows 10 or 11.
 
 ### Before you commit
 
