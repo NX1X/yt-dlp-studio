@@ -11,7 +11,7 @@ Website: https://nx1xlab.dev/nxtools
 >
 > Latest released: **0.4.0** (tray mode, duplicate numbering, update restart fix, Deno on Linux, 2026-11-01). Next: **0.4.x** (UI tests and a weekly extractor check).
 >
-> Earlier private development history (up through internal version 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md). The reasoning behind the version reset to 0.1.0 lives in [docs-internal/VERSIONING.md](docs-internal/VERSIONING.md).
+> Earlier private development history (up through internal version 0.9.2) is archived in the private `docs-internal/OLD_CHANGELOG.md`. The reasoning behind the version reset to 0.1.0 lives in the private `docs-internal/VERSIONING.md`.
 
 ### Completed Features
 
@@ -172,7 +172,7 @@ The first non-beta release. Reached when:
 - ⬜ Windows release executable is Authenticode code-signed via the
   [SignPath Foundation](https://signpath.org/) free OSS program (kills the
   SmartScreen "Unknown publisher" warning). Application pending - process,
-  alternatives, and CI wiring documented in [docs-internal/CODE_SIGNING.md](docs-internal/CODE_SIGNING.md).
+  alternatives, and CI wiring documented in [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md).
   Non-blocking if approval is delayed: ship v1.0.0 unsigned and roll signing
   into the next patch release.
 - ⬜ Release artifacts are Sigstore-signed (cosign + keyless OIDC) so any
@@ -184,7 +184,7 @@ The first non-beta release. Reached when:
   remaining work is a `cosign sign-blob` step that publishes the detached
   `.sig` + `.crt` next to each release asset. Implementation notes,
   key-management decisions (keyless vs. managed), and end-user verification
-  instructions live in [docs-internal/SIGSTORE_SIGNING.md](docs-internal/SIGSTORE_SIGNING.md).
+  instructions live in the private `docs-internal/SIGSTORE_SIGNING.md`.
 
 ### After 1.0 (not scheduled)
 Kept as ideas. None of these block 1.0.
@@ -214,6 +214,7 @@ Kept as ideas. None of these block 1.0.
 - 360° video download support
 
 ### Organization
+- Download statistics (downloads per day, total size, most-used sites)
 - Custom tags and categories
 - Search within download history
 - Duplicate detection and management
@@ -265,7 +266,7 @@ We welcome contributions to YT-DLP Studio! If you have ideas for new features or
 
 ## Version History
 
-Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.4.0** (2026-11-01). Next: **0.4.x**. Earlier private development history (internal 0.1.0 to 0.9.2) is archived in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md).
+Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.4.0** (2026-11-01). Next: **0.4.x**. Earlier private development history (internal 0.1.0 to 0.9.2) is archived in the private `docs-internal/OLD_CHANGELOG.md`.
 
 ---
 

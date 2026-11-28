@@ -6,14 +6,14 @@ The main application window with tabs for Download and Settings.
 
 from datetime import UTC
 
-from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QIcon, QKeySequence, QShortcut
+from PySide6.QtCore import QSize, Qt, QUrl
+from PySide6.QtGui import QDesktopServices, QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QStatusBar, QTabWidget
 
 from ..backend.config_manager import ConfigManager
 from ..backend.history_manager import HistoryManager
 from ..backend.queue_manager import QueueManager
-from ..utils.constants import APP_DATA_DIR, APP_NAME, WINDOW_MIN_HEIGHT, WINDOW_MIN_WIDTH
+from ..utils.constants import APP_DATA_DIR, APP_DOCS_URL, APP_NAME, WINDOW_MIN_HEIGHT, WINDOW_MIN_WIDTH
 from ..utils.logger import get_logger
 from ..utils.translations import get_translation_manager, tr
 from .about_tab import AboutTab
@@ -209,6 +209,10 @@ class MainWindow(QMainWindow):
         self.quit_shortcut = QShortcut(QKeySequence("Ctrl+Q"), self)
         self.quit_shortcut.activated.connect(self.quit_application)
 
+        # F1 opens the online help (the README on GitHub) in the browser.
+        self.help_shortcut = QShortcut(QKeySequence(Qt.Key.Key_F1), self)
+        self.help_shortcut.activated.connect(self.open_online_help)
+
         # Create status bar
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
@@ -238,6 +242,11 @@ class MainWindow(QMainWindow):
     def _should_hide_to_tray(self) -> bool:
         """Return True if a close should hide the window instead of quitting."""
         return self._close_to_tray and not self._quitting and self.notification_manager.has_visible_tray_icon()
+
+    def open_online_help(self) -> None:
+        """Open the online help in the default browser."""
+        if not QDesktopServices.openUrl(QUrl(APP_DOCS_URL)):
+            logger.warning(f"Could not open the online help: {APP_DOCS_URL}")
 
     def quit_application(self) -> None:
         """

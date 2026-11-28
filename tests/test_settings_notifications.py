@@ -116,7 +116,7 @@ class TestMainWindowWiring:
             qtbot.addWidget(window)
             return window
 
-        yield _make
+        return _make
 
     @pytest.mark.parametrize("enabled", [False, True])
     def test_startup_applies_saved_value(self, make_window, config_manager, enabled):

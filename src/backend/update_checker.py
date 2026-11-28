@@ -84,9 +84,11 @@ class _Asset:
 # The Windows installer (packaging/installer.iss) is named
 # YT-DLP-Studio-Setup-<version>.exe and writes install.ini next to the EXE.
 # Linux install kind -> the release asset suffix that updates it.
-_LINUX_PACKAGE_SUFFIXES = {"appimage": ".appimage", "deb": ".deb", "rpm": ".rpm"}
+_APPIMAGE_SUFFIX = ".appimage"
+_LINUX_PACKAGE_SUFFIXES = {"appimage": _APPIMAGE_SUFFIX, "deb": ".deb", "rpm": ".rpm"}
 
-_SETUP_ASSET_RE = re.compile(r"yt-dlp-studio-setup(-[A-Za-z0-9._+]+)?\.exe", re.IGNORECASE)
+# re.IGNORECASE also covers upper-case letters in the version part.
+_SETUP_ASSET_RE = re.compile(r"yt-dlp-studio-setup(-[a-z0-9._+]+)?\.exe", re.IGNORECASE)
 
 # Hosts an update may be downloaded from (GitHub release assets redirect to
 # the githubusercontent CDNs). Anything else is refused before any byte is
@@ -135,6 +137,14 @@ def sha256_of_file(path: str) -> str:
         for chunk in iter(lambda: f.read(_CHUNK_SIZE), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _remove_quietly(path: str) -> None:
+    """Delete ``path``; a missing file or an OS error is ignored."""
+    try:
+        os.remove(path)
+    except OSError:
+        pass
 
 
 def is_installed_copy(exe_dir: Path | None = None) -> bool:
@@ -368,17 +378,23 @@ class UpdateChecker:
         (before 0.3.1), gets the .tar.gz archive. Never a Windows .exe/.msi.
         """
         suffix = _LINUX_PACKAGE_SUFFIXES.get(kind or "")
-        if suffix:
-            for asset in assets:
-                if asset.get("name", "").lower().endswith(suffix):
-                    return asset
-        for wanted in ((".tar.gz", ".tgz"), (".appimage",)):
-            for asset in assets:
-                if asset.get("name", "").lower().endswith(wanted):
-                    return asset
+        candidates = [(suffix,)] if suffix else []
+        candidates += [(".tar.gz", ".tgz"), (_APPIMAGE_SUFFIX,)]
+        for wanted in candidates:
+            asset = UpdateChecker._first_asset_ending_with(assets, wanted)
+            if asset is not None:
+                return asset
         for asset in assets:
             name = asset.get("name", "").lower()
             if "linux" in name and not name.endswith((".exe", ".msi", ".deb", ".rpm")):
+                return asset
+        return None
+
+    @staticmethod
+    def _first_asset_ending_with(assets: list[dict], suffixes: tuple[str, ...]) -> dict | None:
+        """Return the first asset whose lower-case name ends with one of ``suffixes``."""
+        for asset in assets:
+            if asset.get("name", "").lower().endswith(suffixes):
                 return asset
         return None
 
@@ -421,7 +437,7 @@ class UpdateChecker:
         lower = name.lower()
         if lower.endswith(".exe"):
             return "portable"
-        if lower.endswith(".appimage"):
+        if lower.endswith(_APPIMAGE_SUFFIX):
             return "appimage"
         if lower.endswith((".deb", ".rpm")):
             return "package"
@@ -473,26 +489,10 @@ class UpdateChecker:
                 logger.error(f"Update download was redirected to an unexpected URL: {response.url}")
                 return DownloadResult(success=False, error="download_failed")
 
-            total_size = int(response.headers.get("content-length", 0))
-            limit = total_size + 1024 * 1024 if total_size > 0 else _MAX_DOWNLOAD_BYTES
-            downloaded = 0
-            hasher = hashlib.sha256()
-
             # Write to a .part file; only a verified (or knowingly unverified)
             # download gets the real name, so a broken or partial download
             # never looks like a runnable installer.
-            with open(part_path, "wb") as f:
-                for chunk in response.iter_content(chunk_size=_CHUNK_SIZE):
-                    if chunk:
-                        downloaded += len(chunk)
-                        if downloaded > limit:
-                            raise OSError(f"update download exceeds the expected size ({limit} bytes)")
-                        f.write(chunk)
-                        hasher.update(chunk)
-                        if progress_callback and total_size > 0:
-                            progress_callback(downloaded, total_size)
-
-            actual = hasher.hexdigest()
+            actual = self._write_part_file(response, part_path, progress_callback)
 
             if not want:
                 # GitHub did not publish a digest we can trust. Keep the file
@@ -509,10 +509,7 @@ class UpdateChecker:
 
             if not hmac.compare_digest(actual, want):
                 logger.error(f"Integrity check FAILED (expected {want}, got {actual}); deleting file")
-                try:
-                    os.remove(part_path)
-                except OSError:
-                    pass
+                _remove_quietly(part_path)
                 return DownloadResult(
                     success=False,
                     error="verify_failed",
@@ -531,11 +528,37 @@ class UpdateChecker:
 
         except Exception:
             logger.exception("Download error")
-            try:
-                os.remove(part_path)
-            except OSError:
-                pass
+            _remove_quietly(part_path)
             return DownloadResult(success=False, error="download_failed")
+
+    @staticmethod
+    def _write_part_file(response, part_path: str, progress_callback=None) -> str:
+        """
+        Stream the response body to ``part_path`` and hash it in the same pass.
+
+        Raises:
+            OSError: If the body is larger than the announced size plus 1 MiB
+                (or than _MAX_DOWNLOAD_BYTES when no size is announced)
+
+        Returns:
+            The SHA-256 hex digest of the written bytes
+        """
+        total_size = int(response.headers.get("content-length", 0))
+        limit = total_size + 1024 * 1024 if total_size > 0 else _MAX_DOWNLOAD_BYTES
+        downloaded = 0
+        hasher = hashlib.sha256()
+        with open(part_path, "wb") as f:
+            for chunk in response.iter_content(chunk_size=_CHUNK_SIZE):
+                if not chunk:
+                    continue
+                downloaded += len(chunk)
+                if downloaded > limit:
+                    raise OSError(f"update download exceeds the expected size ({limit} bytes)")
+                f.write(chunk)
+                hasher.update(chunk)
+                if progress_callback and total_size > 0:
+                    progress_callback(downloaded, total_size)
+        return hasher.hexdigest()
 
     def get_current_version(self) -> str:
         """Get current application version."""

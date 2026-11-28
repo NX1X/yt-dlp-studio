@@ -65,7 +65,7 @@ yt-dlp-studio/
 │   ├── backend/           # Downloads, queue, history, config, updates
 │   ├── models/            # Data models
 │   ├── utils/             # Constants, logging, translations, helpers
-│   └── resources/         # Icons, stylesheet, default config
+│   └── resources/         # Icons
 ├── vendor/yt_dlp_engine/  # Vendored yt-dlp
 ├── packaging/             # PyInstaller specs, Inno Setup script, Linux packaging
 ├── requirements/          # Hash-pinned lock files
@@ -304,6 +304,7 @@ On a Linux machine without a display, use `xvfb-run --auto-servernum pytest test
 
 ```python
 import logging
+
 logging.basicConfig(level=logging.DEBUG)
 ```
 
@@ -396,7 +397,7 @@ logger.info(f"Memory usage: {memory_mb:.1f} MB")
 | User-visible change | `CHANGELOG.md` (under `## [Unreleased]`) and the user docs |
 | Planned or completed feature | `ROADMAP.md` |
 | Code structure change | `docs/ARCHITECTURE.md` |
-| Feature idea | `docs/FUTURE_FEATURES.md` |
+| Feature idea | `ROADMAP.md` (Potential Features) or a GitHub issue |
 | Install or packaging change | `README.md` and `docs/INSTALLATION_GUIDE.md` |
 
 ### Doc files
@@ -409,8 +410,7 @@ logger.info(f"Memory usage: {memory_mb:.1f} MB")
 - `docs/ARCHITECTURE.md`: code structure.
 - `docs/DEVELOPMENT.md`: this guide.
 - `docs/CODE_SIGNING.md` and `docs/UPDATE_SERVICE_NOTES.md`: maintainer notes.
-- `ROADMAP.md`: feature planning.
-- `docs/FUTURE_FEATURES.md`: feature ideas.
+- `ROADMAP.md`: feature planning and feature ideas.
 
 ## Get help
 

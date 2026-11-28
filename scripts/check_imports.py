@@ -11,6 +11,7 @@ Exits 0 when all checks pass, 1 otherwise.
 
 from __future__ import annotations
 
+import contextlib
 import sys
 import traceback
 from pathlib import Path
@@ -34,10 +35,9 @@ def _check_import(module_name: str, description: str = "") -> bool:
 
 def main() -> int:
     if sys.platform == "win32":
-        try:
+        # Older consoles may refuse; the ASCII output works without it.
+        with contextlib.suppress(Exception):
             sys.stdout.reconfigure(encoding="utf-8")
-        except Exception:
-            pass
 
     print("=" * 80)
     print("Checking imports for YT-DLP Studio")

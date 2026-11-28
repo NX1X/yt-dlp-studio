@@ -5,7 +5,7 @@
 
 > This file describes the **current release**. For full per-version history, see [CHANGELOG.md](CHANGELOG.md). For planned future work, see [ROADMAP.md](ROADMAP.md).
 >
-> The project was developed privately prior to the public beta - that archived history lives in [docs-internal/OLD_CHANGELOG.md](docs-internal/OLD_CHANGELOG.md).
+> The project was developed privately before the public beta. That history is archived in a private repository.
 
 ---
 
@@ -144,7 +144,7 @@ If you hit something unexpected, please open an [issue](https://github.com/NX1X/
 ## Support
 
 - **Bug reports & feature requests:** [GitHub Issues](https://github.com/NX1X/yt-dlp-studio/issues)
-- **Discussion:** [GitHub Discussions](https://github.com/NX1X/yt-dlp-studio/discussions)
+- **Questions:** [GitHub Issues](https://github.com/NX1X/yt-dlp-studio/issues) (GitHub Discussions is not enabled)
 - **Log file location:** Windows `%APPDATA%\YT-DLP Studio\yt-dlp-studio.log`, Linux `~/.config/YT-DLP Studio/yt-dlp-studio.log`
 
 ---

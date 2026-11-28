@@ -1,7 +1,7 @@
 """Root conftest.py for YT-DLP Studio test suite."""
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Ensure src is importable

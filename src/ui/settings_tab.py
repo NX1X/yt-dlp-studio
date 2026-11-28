@@ -28,7 +28,7 @@ from ..backend.format_handler import FormatHandler
 from ..utils.constants import APP_VERSION, CONFIG_PATH, LOG_PATH
 from ..utils.crash_handler import get_crash_dir
 from ..utils.logger import get_logger
-from ..utils.translations import get_translation_manager, tr
+from ..utils.translations import get_translation_manager, save_language, tr
 
 logger = get_logger()
 
@@ -285,20 +285,8 @@ class SettingsTab(QWidget):
 
         # Save language preference
         if language_changed:
-            # Save to a config file or settings
-            import json
-            from pathlib import Path
-
-            config_dir = Path.home() / ".yt-dlp-studio"
-            config_dir.mkdir(exist_ok=True)
-            language_file = config_dir / "language.json"
-
-            try:
-                with open(language_file, "w", encoding="utf-8") as f:
-                    json.dump({"language": selected_lang_code}, f)
-                logger.info(f"Language preference saved: {selected_lang_code}")
-            except Exception:
-                logger.exception("Failed to save language preference")
+            # Saved in the app data folder (see utils/translations.py)
+            save_language(selected_lang_code)
 
         # Save other settings
         old_output_dir = self.config_manager.get_config().output_directory

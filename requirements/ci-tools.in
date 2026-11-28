@@ -16,7 +16,7 @@
 # --require-hashes does not fail on 3.11.
 
 pip
-ruff
+ruff>=0.16.6,<0.17
 black
 pip-audit
 zizmor

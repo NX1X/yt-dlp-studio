@@ -165,32 +165,8 @@ class DownloadTask:
         if not isinstance(data, dict):
             raise ValueError("task entry is not an object")
 
-        kwargs = {}
-        for name, expected in _PERSISTED_FIELDS.items():
-            if name not in data:
-                if name in _REQUIRED_FIELDS:
-                    raise ValueError(f"task entry has no '{name}'")
-                continue
-            value = data[name]
-            # bool is a subclass of int; do not accept True/False as a number.
-            if expected is int and isinstance(value, bool):
-                raise ValueError(f"task field '{name}' has the wrong type")
-            if not isinstance(value, expected):
-                raise ValueError(f"task field '{name}' has the wrong type")
-            kwargs[name] = value
-
-        for name in _REQUIRED_FIELDS:
-            if not kwargs[name]:
-                raise ValueError(f"task field '{name}' is empty")
-
-        subtitles = kwargs.get("selected_subtitles")
-        if subtitles is not None:
-            if not all(isinstance(item, str) for item in subtitles):
-                raise ValueError("task field 'selected_subtitles' must be a list of strings")
-            kwargs["selected_subtitles"] = list(subtitles)
-
-        if kwargs.get("retry_count", 0) < 0 or kwargs.get("speed_limit", 0) < 0:
-            raise ValueError("task has a negative number")
+        kwargs = _read_persisted_fields(data)
+        _check_field_values(kwargs)
 
         try:
             kwargs["status"] = TaskStatus(data.get("status", TaskStatus.PENDING.value))
@@ -296,3 +272,48 @@ _PERSISTED_FIELDS: dict[str, type | tuple[type, ...]] = {
 }
 
 _REQUIRED_FIELDS = ("url", "output_directory", "quality")
+
+
+def _read_persisted_fields(data: dict) -> dict:
+    """
+    Copy the persisted fields from a queue file entry, checking each type.
+
+    Raises:
+        ValueError: If a required key is missing or a value has the wrong type
+    """
+    kwargs = {}
+    for name, expected in _PERSISTED_FIELDS.items():
+        if name not in data:
+            if name in _REQUIRED_FIELDS:
+                raise ValueError(f"task entry has no '{name}'")
+            continue
+        value = data[name]
+        # bool is a subclass of int; do not accept True/False as a number.
+        if (expected is int and isinstance(value, bool)) or not isinstance(value, expected):
+            raise ValueError(f"task field '{name}' has the wrong type")
+        kwargs[name] = value
+    return kwargs
+
+
+def _check_field_values(kwargs: dict) -> None:
+    """
+    Check the values read by ``_read_persisted_fields``.
+
+    Copies ``selected_subtitles`` to a new list.
+
+    Raises:
+        ValueError: If a required field is empty, a subtitle code is not a
+            string or a number is negative
+    """
+    for name in _REQUIRED_FIELDS:
+        if not kwargs[name]:
+            raise ValueError(f"task field '{name}' is empty")
+
+    subtitles = kwargs.get("selected_subtitles")
+    if subtitles is not None:
+        if not all(isinstance(item, str) for item in subtitles):
+            raise ValueError("task field 'selected_subtitles' must be a list of strings")
+        kwargs["selected_subtitles"] = list(subtitles)
+
+    if kwargs.get("retry_count", 0) < 0 or kwargs.get("speed_limit", 0) < 0:
+        raise ValueError("task has a negative number")

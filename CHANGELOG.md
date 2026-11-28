@@ -8,10 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > **Note.** YT-DLP Studio was developed privately from October 2024 through
 > April 2026, reaching internal version 0.9.2. In May 2026 we reset the public
 > version to **0.1.0** to mark the first public beta. The earlier development
-> changelog is archived at
-> [`docs-internal/OLD_CHANGELOG.md`](docs-internal/OLD_CHANGELOG.md). Rationale and
-> the version management pipeline are documented in
-> [`docs-internal/VERSIONING.md`](docs-internal/VERSIONING.md).
+> changelog is archived in the private `docs-internal/OLD_CHANGELOG.md`.
+> Rationale and the version management pipeline are documented in the
+> private `docs-internal/VERSIONING.md`.
 
 ---
 
@@ -20,10 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Bundled yt-dlp engine 2026.10.26 -> 2026.11.23.** Tarball SHA-256 `8f757547e94c723415fd82bb5da857d8e1b24be2e34218890dfaac134907723e`, matching the `SHA2-256SUMS` file signed by the pinned yt-dlp release key (`AC0CBBE6848D6A873464AF4E57CF65933B5A7581`, GPG "Good signature"). Adds the `ios_producer` YouTube client, makes `tv` the default player JS variant, and fixes post-live streams and several site extractors. No upstream CVEs. Still uses `yt-dlp-ejs==0.8.0`, unchanged, and the Deno minimum (2.3.0) is met by the bundled Deno 2.9.8. The engine is 5 days old, inside the 7-day cooldown, taken by the maintainer's decision.
+- **Code cleanup for SonarCloud findings,** with no change in behavior: long functions split into helpers, duplicate regex ranges and string literals removed, `noqa` comments fixed, workflow errors sent to stderr.
+- **`pre-commit run --all-files` passes again.** Formatting fixes outside `src/` and `tests/`, the exec bit on the Linux install and uninstall scripts, and quoting in `release.yml`.
+- **ruff in the CI tools lock is 0.16.10** (was 0.15.13), the same 0.16 line as the pre-commit hook and `pyproject.toml`.
 
 ### Removed
 
 - **Funding links.** The Buy Me a Coffee link is gone from the About tab, the README, the release notes and the release archives, and the repository no longer shows a Sponsor button.
+- **Dead code and unused files:** `DownloadTab._start_download()`, `src/resources/styles/stylesheet.qss`, `src/resources/config/default_config.json`, and the stale `docs/RELEASE_NOTES.md` and `docs/FUTURE_FEATURES.md`.
+
+### Fixed
+
+- **F1 opens the online help.** The About tab listed F1 as a shortcut, but nothing handled it. F1 now opens the README on GitHub in your browser.
+- **The language choice is in the app data folder.** It was saved in `~/.yt-dlp-studio/language.json`, so the uninstaller purge missed it. It is now `language.json` in the app data folder. The app moves an old file there once, then deletes the old folder if it is empty.
+- **Dead links.** The issue templates and the release notes pointed to GitHub Discussions, which is not enabled; they now point to Issues. Links to the private `docs-internal/` folder are gone (the text stays).
+- **The Hebrew batch URL count** was still in English.
 
 ---
 
