@@ -36,7 +36,7 @@ from ..backend.update_checker import (
 )
 from ..utils.logger import get_logger
 from ..utils.translations import tr
-from .bidi import ltr
+from .display_format import ltr
 
 logger = get_logger()
 

@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 from ..models.video_info import VideoInfo
 from ..utils.logger import get_logger
 from ..utils.translations import tr
-from .bidi import ltr
+from .display_format import ltr
 
 logger = get_logger()
 
@@ -152,7 +152,7 @@ class VideoInfoDialog(QDialog):
         # Buttons: Close, and Download when the caller handles it
         self.button_box = QDialogButtonBox()
         self.close_button = self.button_box.addButton(tr("button_close"), QDialogButtonBox.ButtonRole.RejectRole)
-        self.download_button = QPushButton(tr("button_video_info_download"))
+        self.download_button = QPushButton(tr("button_download"))
         self.download_button.setProperty("buttonStyle", "primary")
         self.button_box.addButton(self.download_button, QDialogButtonBox.ButtonRole.AcceptRole)
         self.download_button.setVisible(False)

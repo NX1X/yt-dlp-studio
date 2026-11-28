@@ -277,8 +277,6 @@ class ErrorHandler:
 
 <hr>
 
-<p style="{detail_color}font-size: small;">
-<b>{html.escape(tr("header_error_technical_details"))}</b><br>
-<span dir="ltr">{html.escape(error_message[:300])}</span>
-</p>
+<p style="{detail_color}font-size: small;"><b>{html.escape(tr("header_error_technical_details"))}</b></p>
+<p dir="ltr" align="left" style="{detail_color}font-size: small;">{html.escape(error_message[:300])}</p>
 """

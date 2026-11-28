@@ -249,7 +249,7 @@ class SettingsTab(QWidget):
             path_field.setReadOnly(True)
             path_field.setCursorPosition(0)
             path_field.setToolTip(path_value)
-            path_field.setAccessibleName(tr(label_key).rstrip(":"))
+            path_field.setAccessibleName(tr(label_key).rstrip(":\u200f"))  # also the RLM that tr() adds in Hebrew
             copy_button = QPushButton(tr("button_copy"))
             copy_button.setToolTip(tr("tooltip_copy_path"))
             copy_button.clicked.connect(lambda _checked=False, p=path_value: self._copy_path(p))

@@ -38,7 +38,7 @@ from ..backend.yt_dlp_wrapper import YtDlpWrapper
 from ..utils.constants import APP_NAME, APP_VERSION
 from ..utils.logger import get_logger
 from ..utils.translations import get_translation_manager, tr
-from .bidi import ltr
+from .display_format import ltr
 from .status_messages import show_status
 from .theme import get_theme_manager
 
@@ -337,7 +337,7 @@ class AboutTab(QWidget):
                 ("Ctrl+V", tr("shortcut_paste_url")),
                 ("Enter", tr("shortcut_start_download")),
                 ("Ctrl+Shift+I", tr("shortcut_show_video_info")),
-                ("Ctrl+D", tr("shortcut_download_now")),
+                ("Ctrl+D", tr("button_download")),
                 ("Ctrl+Shift+Q", tr("shortcut_add_to_queue")),
             ],
         )

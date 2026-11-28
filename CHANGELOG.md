@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **New History tab layout.** One summary line, search together with a status filter, and a wider Title column. The right-click menu and double-click open the file or its folder, copy the link, or put the link back into the Download tab ("Download again"). The three clear buttons are one "Clear" menu. The Refresh button is gone; the tab updates on its own.
 - **The status bar shows the queue state** ("Downloading 2 of 5", "Queue paused, 3 waiting", "Idle"). Routine confirmations (added to the queue, link copied, history cleared or saved) show there for 4 seconds instead of in a pop-up. Errors stay dialogs.
 - **The playlist question has named buttons** ("Choose videos...", "Whole playlist", Cancel) instead of Yes and No, and writes "YouTube" with a capital Y.
+- **The video info dialog has a Download button** when it opens from the Download tab. The download starts after the dialog closes. The About tab now names Ctrl+D "Download", like the button.
 
 ### Removed
 
@@ -74,6 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **An empty or wrong link shows an error under the field** instead of a pop-up.
 - **History search keeps the status colors** and shows "No matches" instead of an empty table. Titles are no longer cut at 50 characters.
 - **Hebrew layout of numbers and links.** Speeds, sizes, times and dates read in the right order ("3.24 MB/s", not "MB/s 3.24"). Progress bars fill from the right, links are cut in the middle, and the stored quality names show translated.
+- **Hebrew labels that end with a colon or a period after English text,** such as the yt-dlp engine row on the About tab, show the colon or period on the correct side. The app adds an invisible right-to-left mark there, as it already did after a closing parenthesis. File dialog filters stay unchanged.
+- **The Download tab error dialog has "Copy details",** and its technical text keeps its left-to-right order in Hebrew.
 
 ---
 

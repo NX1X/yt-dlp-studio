@@ -46,7 +46,6 @@ from ..backend.subtitle_list_worker import SubtitleListWorker
 from ..backend.video_info_worker import VideoInfoWorker
 from ..models.download_task import DownloadTask
 from ..utils.constants import AUDIO_FORMATS, DEFAULT_AUDIO_FORMAT, DEFAULT_VIDEO_CONTAINER, VIDEO_CONTAINER_FORMATS
-from ..utils.error_handler import ErrorHandler
 from ..utils.logger import get_logger
 from ..utils.playlist_detector import PlaylistDetector
 from ..utils.site_tiers import SiteTier
@@ -54,6 +53,7 @@ from ..utils.translations import tr
 from ..utils.validators import Validators
 from .collapsible_section import CollapsibleSection
 from .display_format import ltr, open_local_path, theme_colors
+from .error_dialog import show_download_error
 from .log_widget import LogWidget
 from .now_downloading import NowDownloadingPanel
 from .playlist_dialog import PlaylistDialog
@@ -971,17 +971,18 @@ class DownloadTab(QWidget):
         self.log_widget.append_success(f"Video info fetched: {video_info.title}")
 
         dialog = VideoInfoDialog(video_info, self)
+        # The dialog shows a Download button because this is connected. The
+        # download starts after the dialog closes, so its questions (playlist,
+        # duplicate) do not open on top of it.
+        download_requested = []
+        dialog.download_requested.connect(lambda: download_requested.append(True))
         dialog.exec()
+        if download_requested:
+            self._on_download_clicked()
 
     def _show_error_dialog(self, title_key: str, error_message: str) -> None:
-        """Detailed error dialog with the friendly text and suggestions."""
-        error_dialog = QMessageBox(self)
-        error_dialog.setIcon(QMessageBox.Critical)
-        error_dialog.setWindowTitle(tr(title_key))
-        error_dialog.setTextFormat(Qt.RichText)
-        error_dialog.setText(ErrorHandler.format_error_dialog_text(error_message))
-        error_dialog.setStandardButtons(QMessageBox.Ok)
-        error_dialog.exec()
+        """Detailed error dialog with the friendly text, suggestions and Copy details."""
+        show_download_error(self, error_message, tr(title_key))
 
     def _on_info_fetch_failed(self, error_message: str) -> None:
         """Handle video info fetch failure."""

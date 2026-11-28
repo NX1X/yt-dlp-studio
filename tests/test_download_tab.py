@@ -381,6 +381,38 @@ class TestInfoPlaylistAndSubtitles:
         playlist.assert_called_once()
         assert tab._playlist_start_now is False  # videos picked after Info wait in the queue
 
+    def test_info_dialog_download_button_starts_download(self, tab):
+        from src.models.video_info import VideoInfo
+
+        def press_download(dialog_self):
+            dialog_self.download_requested.emit()
+            return 1
+
+        with (
+            patch("src.ui.video_info_dialog.VideoInfoDialog._load_thumbnail"),
+            patch("src.ui.video_info_dialog.VideoInfoDialog.exec", press_download),
+            patch.object(tab, "_on_download_clicked") as download,
+        ):
+            tab._on_info_fetched(VideoInfo(title="t", url=VIDEO))
+        download.assert_called_once()
+
+    def test_info_dialog_closed_without_download(self, tab):
+        from src.models.video_info import VideoInfo
+
+        with (
+            patch("src.ui.video_info_dialog.VideoInfoDialog._load_thumbnail"),
+            patch("src.ui.video_info_dialog.VideoInfoDialog.exec", return_value=0),
+            patch.object(tab, "_on_download_clicked") as download,
+        ):
+            tab._on_info_fetched(VideoInfo(title="t", url=VIDEO))
+        download.assert_not_called()
+
+    def test_error_dialog_has_copy_details(self, tab):
+        shown = []
+        with patch.object(QMessageBox, "exec", lambda box: shown.append(box) or 0):
+            tab._on_info_fetch_failed("HTTP Error 403: Forbidden")
+        assert any(b.text() == tr("button_copy_details") for b in shown[0].buttons())
+
     def test_info_with_bad_link_is_inline(self, tab):
         with patch.object(tab, "_fetch_video_info") as video:
             tab.show_info_button.click()

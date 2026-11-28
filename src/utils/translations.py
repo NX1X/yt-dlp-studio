@@ -558,8 +558,6 @@ TRANSLATIONS = {
         "label_license": "License:",
         # Update dialog
         "text_update_download_progress": "Downloading: {done} of {total} ({percent})",
-        # Video info dialog
-        "button_video_info_download": "Download",
         # Subtitle dialog
         "dialog_select_subtitle_languages": "Choose subtitle languages",
         "text_subtitle_dialog_help": "Check the subtitle languages to download. Some may be auto-generated.",
@@ -1243,8 +1241,6 @@ TRANSLATIONS = {
         "label_license": "רישיון:",
         # Update dialog
         "text_update_download_progress": "מוריד: {done} מתוך {total} ({percent})",
-        # Video info dialog
-        "button_video_info_download": "הורד",
         # Subtitle dialog
         "dialog_select_subtitle_languages": "בחירת שפות כתוביות",
         "text_subtitle_dialog_help": "סמן את שפות הכתוביות להורדה. חלקן עשויות להיות כתוביות שנוצרו אוטומטית.",
@@ -1637,17 +1633,20 @@ class TranslationManager:
 _translation_manager = None
 
 
-# Right-to-left mark. A ")" at the very end of a right-to-left string that
-# comes after left-to-right text, as in "(info.json)" or "(Ctrl+V)", takes
-# the direction of that text and is drawn as "(" on the wrong side. One RLM
-# after it fixes that and draws nothing. File dialog filters are left out,
-# because Qt reads the "(*.csv)" part of a filter.
+# Right-to-left mark. A ")", ":" or "." at the very end of a right-to-left
+# string that comes after left-to-right text, as in "(info.json)", "(Ctrl+V)"
+# or the Hebrew "yt-dlp engine:" label, takes the direction of that text and is
+# drawn on the wrong side. One RLM after it fixes that and draws nothing. File
+# dialog filters are left out, because Qt reads the "(*.csv)" part of a filter.
 _RLM = "\u200f"
+
+# Last characters that get the RLM
+_RTL_END_MARKS = (")", ":", ".")
 
 
 def _end_rtl_paren(key: str, text: str) -> str:
-    """Add an RLM after a closing parenthesis at the end of an RTL string."""
-    if text.endswith(")") and not key.startswith("filter_"):
+    """Add an RLM after a ")", ":" or "." at the end of an RTL string (not filter_* keys)."""
+    if text.endswith(_RTL_END_MARKS) and not key.startswith("filter_"):
         return text + _RLM
     return text
 

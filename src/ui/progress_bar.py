@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QVBoxLayout, QW
 from ..utils.file_helper import FileHelper
 from ..utils.logger import get_logger
 from ..utils.translations import tr
-from .bidi import ltr
+from .display_format import ltr
 from .theme import repolish
 
 logger = get_logger()

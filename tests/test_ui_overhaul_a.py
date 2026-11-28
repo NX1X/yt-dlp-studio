@@ -19,7 +19,7 @@ from src.backend.playlist_fetcher import PlaylistInfo, PlaylistVideoInfo
 from src.models.app_config import AppConfig
 from src.ui import theme as theme_module
 from src.ui.batch_input_dialog import BatchInputDialog, split_urls
-from src.ui.bidi import LRI, PDI, ltr
+from src.ui.display_format import LRI, PDI, ltr
 from src.ui.error_dialog import build_download_error_dialog
 from src.ui.log_widget import LogWidget
 from src.ui.playlist_dialog import PlaylistDialog

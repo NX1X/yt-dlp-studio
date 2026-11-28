@@ -24,7 +24,7 @@ from src.utils.status_labels import (
     history_status_text,
     task_status_text,
 )
-from src.utils.translations import TRANSLATIONS, get_translation_manager
+from src.utils.translations import TRANSLATIONS, _end_rtl_paren, get_translation_manager
 
 # A title with format-like characters. It must pass through
 # every notification unchanged.
@@ -103,7 +103,8 @@ class TestQueueTabStatus:
         queue_manager.queue_updated.emit()
 
         cell = tab.queue_table.item(0, 1).text()
-        assert cell == TRANSLATIONS["he"][TASK_STATUS_KEYS[status]]
+        key = TASK_STATUS_KEYS[status]
+        assert cell == _end_rtl_paren(key, TRANSLATIONS["he"][key])
         assert task.status is status  # the model value is unchanged
 
     def test_english_status_cell(self, qtbot, language, queue_manager):
@@ -216,7 +217,7 @@ class TestNotificationTexts:
         assert title == t["notif_download_complete"]
         expected = t["notif_download_complete_msg_size"].format(size="10 MB")
         if lang == "he":
-            expected += "\u200f"  # RLM after the closing ")", see translations._end_rtl_paren
+            expected = _end_rtl_paren("notif_download_complete_msg_size", expected)
         assert message == f"{VIDEO_TITLE}\n" + expected
 
     @pytest.mark.parametrize("lang", ["en", "he"])
@@ -262,7 +263,10 @@ class TestNotificationTexts:
         title, message = _shown(notifier)
         t = TRANSLATIONS[lang]
         assert title == t["notif_update_available"]
-        assert message == t["notif_update_available_msg"].format(version="9.9.9")
+        expected = t["notif_update_available_msg"].format(version="9.9.9")
+        if lang == "he":
+            expected = _end_rtl_paren("notif_update_available_msg", expected)
+        assert message == expected
 
     def test_placeholders_match_in_both_languages(self):
         import string
@@ -327,3 +331,28 @@ def test_hebrew_closing_paren_after_ltr_text_gets_an_rlm():
     assert tm.translate("filter_csv_files").endswith(")")
     tm.set_language("en")
     assert not tm.translate("tooltip_paste").endswith("‏")
+
+
+@pytest.mark.parametrize(
+    ("key", "text", "marked"),
+    [
+        ("label_yt_dlp_version", "מנוע yt-dlp:", True),
+        ("status_settings_saved", "ההגדרות נשמרו.", True),
+        ("tooltip_paste", "הדבק (Ctrl+V)", True),
+        ("filter_csv_files", "קבצי CSV (*.csv)", False),
+        ("label_videos_count", "סרטונים: 5", False),
+    ],
+)
+def test_rlm_after_final_paren_colon_or_period(key, text, marked):
+    """A final ")", ":" or "." in a Hebrew string gets one RLM; filter_* keys never do."""
+    assert _end_rtl_paren(key, text) == (text + "‏" if marked else text)
+
+
+def test_hebrew_label_colon_gets_an_rlm():
+    from src.utils.translations import TranslationManager
+
+    tm = TranslationManager()
+    tm.set_language("he")
+    assert tm.translate("label_yt_dlp_version") == TRANSLATIONS["he"]["label_yt_dlp_version"] + "‏"
+    tm.set_language("en")
+    assert tm.translate("label_yt_dlp_version") == TRANSLATIONS["en"]["label_yt_dlp_version"]

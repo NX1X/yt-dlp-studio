@@ -188,10 +188,16 @@ class TestSiteTierLabel:
         english.set_language("he")
         label = SiteTierLabel()
         label.update_for_url("https://youtu.be/abc")
-        assert label.text() == TRANSLATIONS["he"]["site_tier_tested"]
+        # tr() adds an RLM after a final ")", ":" or "." in Hebrew.
+        from src.utils.translations import _end_rtl_paren
+
+        def shown(key: str) -> str:
+            return _end_rtl_paren(key, TRANSLATIONS["he"][key])
+
+        assert label.text() == shown("site_tier_tested")
         label.update_for_url("https://vimeo.com/1")
-        assert label.text() == TRANSLATIONS["he"]["site_tier_experimental"]
-        assert label.toolTip() == TRANSLATIONS["he"]["tooltip_site_tier_experimental"]
+        assert label.text() == shown("site_tier_experimental")
+        assert label.toolTip() == shown("tooltip_site_tier_experimental")
 
     def test_follows_line_edit(self, qapp, english):
         from PySide6.QtWidgets import QLineEdit
