@@ -106,3 +106,17 @@ def test_history_title_falls_back_to_file_name(tmp_path, monkeypatch):
     manager.add_download(task, "completed")
 
     assert manager.get_history()[0].title == "clip.mp4"
+
+
+def test_short_ytdlp_reason_keeps_the_readable_part():
+    from src.backend.download_worker import short_ytdlp_reason
+
+    raw = (
+        "yt-dlp finished without writing a file: ERROR: [youtube] b-VAxGJdJeQ: "
+        "The uploader has not made this video available in your country"
+    )
+    assert short_ytdlp_reason(raw) == "The uploader has not made this video available in your country"
+    assert short_ytdlp_reason("ERROR: Unsupported URL: https://example.com") == "Unsupported URL: https://example.com"
+    assert short_ytdlp_reason("") is None
+    assert short_ytdlp_reason(None) is None
+    assert short_ytdlp_reason("yt-dlp finished without writing a file: no error was reported") is None

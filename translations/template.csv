@@ -127,7 +127,7 @@ label_yt_dlp_version,yt-dlp engine:,,missing
 label_ffmpeg_version,FFmpeg:,,missing
 label_python_version,Python runtime:,,missing
 label_pyside_version,PySide6 (Qt):,,missing
-text_about_developer_intro,This tool is part of <b>NXtools</b> - a collection of productivity tools.,,missing
+text_about_developer_intro,This tool is part of <b>NXTools</b> - a collection of productivity tools.,,missing
 label_website,Website:,,missing
 tooltip_view_on_github,Open the project repository in your browser,,missing
 header_credits_core_deps,Core dependencies,,missing
