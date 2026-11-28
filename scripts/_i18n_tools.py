@@ -37,9 +37,6 @@ def checked_csv_path(path: Path) -> Path:
     return resolved
 
 
-LANGUAGES = ("en", "he")
-
-
 @dataclass(frozen=True)
 class Entry:
     """One translation value: its text and where it sits in the source."""
@@ -50,14 +47,38 @@ class Entry:
     span: tuple[int, int, int, int]
 
 
-def _translations_node(tree: ast.Module) -> ast.Dict:
+def _named_dict(tree: ast.Module, name: str) -> ast.Dict:
     for node in tree.body:
         targets = node.targets if isinstance(node, ast.Assign) else [getattr(node, "target", None)]
-        if any(isinstance(t, ast.Name) and t.id == "TRANSLATIONS" for t in targets) and isinstance(
-            node.value, ast.Dict
+        if any(isinstance(t, ast.Name) and t.id == name for t in targets) and isinstance(
+            getattr(node, "value", None), ast.Dict
         ):
             return node.value
-    raise ValueError("TRANSLATIONS dict not found")
+    raise ValueError(f"{name} dict not found")
+
+
+def _translations_node(tree: ast.Module) -> ast.Dict:
+    return _named_dict(tree, "TRANSLATIONS")
+
+
+def dict_end_line(path: Path, name: str) -> int:
+    """Line number of the closing brace of the top-level dict ``name``."""
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    return _named_dict(tree, name).end_lineno or 0
+
+
+def read_language_info(path: Path = TRANSLATIONS_PATH) -> dict[str, tuple[str, str, bool]]:
+    """The LANGUAGE_INFO table (code -> native name, English name, right-to-left)."""
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    return ast.literal_eval(_named_dict(tree, "LANGUAGE_INFO"))
+
+
+def insert_lines(path: Path, before_line: int, new_lines: list[str]) -> None:
+    """Insert whole lines before line ``before_line`` (1-based). Other lines stay as they are."""
+    lines = path.read_bytes().splitlines(keepends=True)
+    block = [(text + "\n").encode("utf-8") for text in new_lines]
+    lines[before_line - 1 : before_line - 1] = block
+    path.write_bytes(b"".join(lines))
 
 
 def read_translations(path: Path = TRANSLATIONS_PATH) -> dict[str, dict[str, Entry]]:

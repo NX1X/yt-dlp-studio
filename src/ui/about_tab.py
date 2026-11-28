@@ -384,7 +384,7 @@ class AboutTab(QWidget):
 
     @staticmethod
     def _is_rtl() -> bool:
-        return get_translation_manager().get_language() == "he"
+        return get_translation_manager().is_rtl()
 
     def _wrap_html(self, body_html: str) -> str:
         """Wrap a body in a ``<div>`` with the reading direction of the UI language."""

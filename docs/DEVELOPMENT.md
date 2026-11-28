@@ -186,12 +186,14 @@ Two checks fail the tests when English text skips `tr()`:
 
 #### Translate or update texts without editing Python
 
-1. Run `python scripts/i18n_export.py`. It writes `translations.csv` (columns key, en, he, status) in the project folder. The file is not committed.
+1. Run `python scripts/i18n_export.py --lang he` (use another code for another language). It writes `translations.csv` (columns key, en, he, status) in the project folder. The file is not committed.
 2. Open the file in Excel or LibreOffice and edit the `he` column. Rows with status `missing` have no Hebrew text yet, or the Hebrew text equals the English text.
-3. Run `python scripts/i18n_import.py --dry-run` to see the changes. Then run `python scripts/i18n_import.py` to write them into `src/utils/translations.py`.
+3. Run `python scripts/i18n_import.py --lang he --dry-run` to see the changes. Then run the same command without `--dry-run` to write them into `src/utils/translations.py`.
 4. Start the app in Hebrew and check the screens. Then run `pytest tests/test_translation_keys_used.py tests/test_translations.py`, and commit `src/utils/translations.py`.
 
-The import changes only the `he` values and keeps the order and formatting of the file. It stops and changes nothing for a key that does not exist, a repeated key, or a text with other `{placeholders}` than the English text. Add `--update-en` to apply the `en` column too. New keys are added in the code first, not in the spreadsheet.
+The import changes only the values of the `--lang` language (default `he`) and keeps the order and formatting of the file. It stops and changes nothing for a key that does not exist, a repeated key, or a text with other `{placeholders}` than the English text. Add `--update-en` to apply the `en` column too. New keys are added in the code first, not in the spreadsheet.
+
+To add a new language, use `--new` (see [TRANSLATING.md](TRANSLATING.md)). The Settings language list comes from the language blocks in `TRANSLATIONS` and the names in `LANGUAGE_INFO`, so no other code changes. After every change to a text, run `python scripts/i18n_export.py --repo-files` to refresh the files in `translations/`. A test fails when they are out of date.
 
 ## Logging
 
