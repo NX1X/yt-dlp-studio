@@ -15,7 +15,8 @@ from typing import Any
 
 from ..models.video_info import VideoInfo
 from ..utils.logger import get_logger
-from .download_options import DownloadOptions, build_ydl_opts
+from .download_options import DownloadOptions, build_ydl_opts, mask_proxy_url, redact_ydl_opts
+from .download_preferences import DownloadPreferences, explain_download_error, get_download_preferences
 from .side_files import write_side_files
 
 logger = get_logger()
@@ -74,6 +75,12 @@ _QUIET_WARNING_MARKERS = (
     # available. ..."
     "no impersonate target is available",
 )
+
+# Secrets and the log: yt-dlp writes request headers (cookies included) and
+# its debug lines (for example the path of a browser's cookie database) only
+# when "verbose" or "print_traffic" is set. The app sets neither. Its own
+# option dump goes through redact_ydl_opts, which masks the proxy password
+# and keeps only the browser name of the cookie source.
 
 
 class _YtDlpLogBridge:
@@ -270,6 +277,59 @@ class _DuplicateNumberingPP(PostProcessor):
         return [], info
 
 
+def _drop_cookie_fields(value: Any) -> tuple[Any, bool]:
+    """Return ``value`` without any ``"cookies"`` keys, and whether one was found."""
+    if isinstance(value, dict):
+        found = "cookies" in value
+        cleaned = {}
+        for key, item in value.items():
+            if key == "cookies":
+                continue
+            cleaned[key], item_found = _drop_cookie_fields(item)
+            found = found or item_found
+        return cleaned, found
+    if isinstance(value, list):
+        results = [_drop_cookie_fields(item) for item in value]
+        return [item for item, _ in results], any(found for _, found in results)
+    return value, False
+
+
+def strip_cookies_from_info_json(path: str) -> bool:
+    """Remove every ``"cookies"`` field from the info JSON at ``path``.
+
+    Returns:
+        True if the file held cookies and was rewritten.
+    """
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    cleaned, found = _drop_cookie_fields(data)
+    if found:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(cleaned, f, ensure_ascii=False)
+    return found
+
+
+class _StripInfoJsonCookiesPP(PostProcessor):
+    """Keep browser cookies out of the ``.info.json`` next to the download.
+
+    yt-dlp stores the cookies sent for each format URL in a ``cookies``
+    field and writes it into the info JSON. With browser cookies on, that
+    could put a signed-in session into a file the user may share. Registered
+    at yt-dlp's ``before_dl`` stage, which runs after the JSON is written and
+    before FFmpegMetadata can attach it to an MKV file.
+    """
+
+    def run(self, info: dict[str, Any]) -> tuple[list[str], dict[str, Any]]:
+        path = info.get("infojson_filename")
+        if path and os.path.exists(path):
+            try:
+                if strip_cookies_from_info_json(path):
+                    logger.info("✓ Removed browser cookies from the info JSON")
+            except Exception:
+                logger.exception("Could not remove cookies from the info JSON")
+        return [], info
+
+
 # ---------- download flow helpers ----------
 
 
@@ -293,6 +353,12 @@ def _log_download_start(options: DownloadOptions) -> None:
     logger.info(f"Download Subtitles: {options.download_subtitles}")
     logger.info(f"Subtitle Languages: {options.subtitle_languages}")
     logger.info(f"Speed Limit: {options.speed_limit}KB/s")
+    # Browser name only; yt-dlp reads the cookies itself and they are never logged.
+    logger.info(f"Cookies From Browser: {options.cookies_browser or 'none'}")
+    logger.info(f"Proxy: {mask_proxy_url(options.proxy) or 'none'}")
+    logger.info(f"Video Codec: {options.video_codec}, Audio Codec: {options.audio_codec}")
+    if options.custom_format:
+        logger.info(f"Custom Format: {options.custom_format}")
     logger.info("=" * 80)
 
 
@@ -312,6 +378,10 @@ def _log_enabled_options(options: DownloadOptions, ydl_opts: dict[str, Any]) -> 
         (o.download_comments, "Comments download enabled (will be saved as .txt file)"),
         ("sleep_interval_requests" in ydl_opts, "Inter-request spacing: 1s (subtitles + comments/metadata combo)"),
         (o.audio_only, f"Audio extraction enabled ({o.audio_format.upper()}, {_audio_quality_label(o.audio_quality)})"),
+        ("format_sort" in ydl_opts, f"Codec preference: {ydl_opts.get('format_sort')}"),
+        (bool(o.custom_format), "Custom format string replaces the quality and codec presets"),
+        ("proxy" in ydl_opts, "Proxy enabled (also for info look-ups)"),
+        ("cookiesfrombrowser" in ydl_opts, f"Cookies read from browser: {o.cookies_browser}"),
     ]
     for enabled, text in lines:
         if enabled:
@@ -320,7 +390,10 @@ def _log_enabled_options(options: DownloadOptions, ydl_opts: dict[str, Any]) -> 
 
 
 def _configure_ydl(ydl: Any, options: DownloadOptions, reserved_outputs: list[str]) -> None:
-    """Add the duplicate-numbering hook and make subtitle failures non-fatal."""
+    """Add the duplicate-numbering and cookie hooks; make subtitle failures non-fatal."""
+    if options.cookies_browser and options.writes_info_json:
+        ydl.add_post_processor(_StripInfoJsonCookiesPP(ydl), when="before_dl")
+
     if options.auto_number_duplicates:
         numbering_pp = _DuplicateNumberingPP(
             ydl,
@@ -366,18 +439,26 @@ class YtDlpWrapper:
     _deno_cache = None
     _deno_cache_checked = False
 
-    def __init__(self, progress_callback: Callable[[dict[str, Any]], None] | None = None):
+    def __init__(
+        self,
+        progress_callback: Callable[[dict[str, Any]], None] | None = None,
+        preferences: DownloadPreferences | None = None,
+    ):
         """
         Initialize YtDlpWrapper.
 
         Args:
             progress_callback: Function to call with progress updates
                               Receives dict with progress data from yt-dlp
+            preferences: Proxy and cookie settings for the info and subtitle
+                look-ups. None reads the current ones at each call.
         """
         self.progress_callback = progress_callback
+        self._preferences = preferences
         self._download_cancelled = False
         self._last_error = None
         self._last_error_type = None
+        self._user_error: str | None = None
         # Result of the last successful download() (reset on every call)
         self._last_output_files: list[str] = []
         self._last_title: str | None = None
@@ -387,6 +468,21 @@ class YtDlpWrapper:
     def last_error(self) -> str | None:
         """Error message of the last failed download, or None."""
         return self._last_error
+
+    @property
+    def user_error(self) -> str | None:
+        """A clear, translated reason for the last failure, or None.
+
+        Set for cookie, sign-in and proxy failures (see
+        ``download_preferences.explain_download_error``). It is then also
+        the ``last_error``.
+        """
+        return self._user_error
+
+    def _network_opts(self) -> dict[str, Any]:
+        """Proxy and cookie options for an info or subtitle look-up."""
+        preferences = self._preferences or get_download_preferences()
+        return preferences.network_opts()
 
     @property
     def last_output_files(self) -> list[str]:
@@ -587,6 +683,9 @@ class YtDlpWrapper:
         if deno_path:
             ydl_opts["js_runtimes"] = {"deno": {"path": deno_path}}
 
+        # Same proxy and browser cookies as the download itself.
+        ydl_opts.update(self._network_opts())
+
         try:
             with YoutubeDL(ydl_opts) as ydl:
                 info_dict = ydl.extract_info(url, download=False)
@@ -639,6 +738,9 @@ class YtDlpWrapper:
         deno_path = self._get_deno_location()
         if deno_path:
             ydl_opts["js_runtimes"] = {"deno": {"path": deno_path}}
+
+        # Same proxy and browser cookies as the download itself.
+        ydl_opts.update(self._network_opts())
 
         try:
             with YoutubeDL(ydl_opts) as ydl:
@@ -769,7 +871,7 @@ class YtDlpWrapper:
         try:
             return self._run_download(options, ydl_opts, log_bridge, reserved_outputs)
         except Exception as e:
-            self._record_failure(e)
+            self._record_failure(e, log_bridge, options)
             return False
         finally:
             # The file exists now (or the download failed), so the
@@ -781,6 +883,7 @@ class YtDlpWrapper:
         self._download_cancelled = False
         self._last_error = None
         self._last_error_type = None
+        self._user_error = None
         self._last_output_files = []
         self._last_title = None
 
@@ -805,8 +908,7 @@ class YtDlpWrapper:
         _log_enabled_options(options, ydl_opts)
 
         logger.info("\n[STEP 4/5] Final yt-dlp configuration:")
-        ydl_opts_log = {k: v for k, v in ydl_opts.items() if k != "progress_hooks"}
-        logger.info(json.dumps(ydl_opts_log, indent=2, default=str))
+        logger.info(json.dumps(redact_ydl_opts(ydl_opts), indent=2, default=str))
         return ydl_opts
 
     def _run_download(
@@ -853,9 +955,19 @@ class YtDlpWrapper:
         title = info_dict.get("title")
         self._last_title = title if isinstance(title, str) and title else None
 
-    def _record_failure(self, error: Exception) -> None:
-        """Store the error for the UI and log it with its traceback."""
-        self._last_error = str(error)
+    def _record_failure(self, error: Exception, log_bridge: _YtDlpLogBridge, options: DownloadOptions) -> None:
+        """Store the error for the UI and log it with its traceback.
+
+        A cookie, sign-in or proxy failure gets a clear, translated reason
+        (``user_error``) instead of yt-dlp's text, which names command-line
+        options the app does not have. The yt-dlp text stays in the log.
+        """
+        self._user_error = explain_download_error(
+            [str(error), log_bridge.last_error],
+            cookies_browser=options.cookies_browser,
+            proxy=options.proxy,
+        )
+        self._last_error = self._user_error or str(error)
         self._last_error_type = type(error).__name__
 
         # logger.exception() records the error type, message, and full
@@ -876,76 +988,6 @@ class YtDlpWrapper:
         logger.info("Download cancellation requested")
         self._download_cancelled = True
 
-    def _postprocess_metadata_files(self, output_dir: str, info_dict: dict[str, Any]) -> None:
-        """
-        Post-process metadata files to make them more readable.
-
-        Changes:
-        1. Format .info.json with proper indentation (instead of single line)
-        2. Rename .description to .txt (more user-friendly extension)
-
-        Args:
-            output_dir: Directory where files were downloaded
-            info_dict: Video info dictionary from yt-dlp
-        """
-        try:
-            import glob
-
-            # yt-dlp sanitizes filenames (windowsfilenames=True), so locate the
-            # written files by their height suffix rather than the title.
-            height = info_dict.get("height", "NA")
-            matching_files = glob.glob(os.path.join(output_dir, f"*{height}p.*"))
-
-            base_filename = self._find_metadata_base(matching_files)
-            if not base_filename:
-                logger.debug("Could not find base filename for metadata post-processing")
-                return
-
-            self._format_info_json(f"{base_filename}.info.json")
-            self._rename_description_to_txt(base_filename)
-        except Exception:
-            logger.exception("Error during metadata post-processing")
-
-    @staticmethod
-    def _find_metadata_base(matching_files: list[str]) -> str | None:
-        """Return the common base path of the downloaded metadata files."""
-        for file_path in matching_files:
-            if file_path.endswith(".info.json"):
-                return os.path.splitext(file_path)[0]
-        for file_path in matching_files:
-            if file_path.endswith((".description", ".webp", ".jpg")):
-                return os.path.splitext(file_path)[0]
-        return None
-
-    @staticmethod
-    def _format_info_json(json_file: str) -> None:
-        """Rewrite the .info.json with human-readable indentation."""
-        if not os.path.exists(json_file):
-            return
-        try:
-            with open(json_file, encoding="utf-8") as f:
-                data = json.load(f)
-            with open(json_file, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-            logger.info("✓ Formatted JSON file with proper indentation")
-        except Exception:
-            logger.exception("Could not format JSON file")
-
-    @staticmethod
-    def _rename_description_to_txt(base_filename: str) -> None:
-        """Rename the .description sidecar to .txt for readability."""
-        desc_file = f"{base_filename}.description"
-        txt_file = f"{base_filename}.txt"
-        if not os.path.exists(desc_file):
-            return
-        try:
-            if os.path.exists(txt_file):
-                os.remove(txt_file)
-            os.rename(desc_file, txt_file)
-            logger.info("✓ Renamed .description to .txt for better readability")
-        except Exception:
-            logger.exception("Could not rename description file")
-
     def _progress_hook(self, d: dict[str, Any]) -> None:
         """
         Internal progress hook called by yt-dlp.
@@ -965,6 +1007,20 @@ class YtDlpWrapper:
                 self.progress_callback(d)
             except Exception:
                 logger.exception("Error in progress callback")
+
+    @staticmethod
+    def format_selector_error(format_spec: str) -> str | None:
+        """Parse a format string with yt-dlp, without any network access.
+
+        Returns:
+            yt-dlp's syntax error message, or None if the string parses.
+        """
+        try:
+            with YoutubeDL({"quiet": True, "logger": _YtDlpLogBridge()}) as ydl:
+                ydl.build_format_selector(format_spec)
+        except SyntaxError as e:
+            return str(e)
+        return None
 
     @staticmethod
     def get_ytdlp_version() -> str:

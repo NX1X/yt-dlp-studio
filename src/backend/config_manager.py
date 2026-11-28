@@ -10,8 +10,22 @@ from pathlib import Path
 from ..models.app_config import AppConfig
 from ..utils.constants import CONFIG_PATH, DEFAULT_OUTPUT_DIR
 from ..utils.logger import get_logger
+from .download_options import mask_proxy_url
+from .download_preferences import DownloadPreferences, set_download_preferences
 
 logger = get_logger()
+
+
+def _loggable(key: str, value: object) -> object:
+    """The value to write to the log for a config field (proxy credentials masked)."""
+    if key == "proxy_url" and isinstance(value, str):
+        return mask_proxy_url(value)
+    return value
+
+
+def _publish(config: AppConfig) -> None:
+    """Make the advanced download settings of ``config`` the current ones."""
+    set_download_preferences(DownloadPreferences.from_config(config))
 
 
 class ConfigManager:
@@ -77,6 +91,7 @@ class ConfigManager:
             self.config = self._create_default_config()
             self.save_config(self.config)
 
+        _publish(self.config)
         return self.config
 
     def save_config(self, config: AppConfig) -> bool:
@@ -109,6 +124,7 @@ class ConfigManager:
                 json.dump(config.to_dict(), f, indent=4)
 
             self.config = config
+            _publish(config)
             logger.info("Configuration saved successfully")
             return True
 
@@ -137,7 +153,7 @@ class ConfigManager:
         for key, value in kwargs.items():
             if hasattr(self.config, key):
                 setattr(self.config, key, value)
-                logger.debug(f"Updated config: {key} = {value}")
+                logger.debug(f"Updated config: {key} = {_loggable(key, value)}")
             else:
                 logger.warning(f"Unknown config field: {key}")
 

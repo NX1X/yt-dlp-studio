@@ -9,10 +9,11 @@ the video. These helpers turn it into text files people can read:
 - comments: ``<base> Comments.txt``. The JSON is removed again if metadata
   is off.
 
-``<base>`` is the JSON path without its last extension, so it ends in
-``.info`` (``name.info_metadata.txt``). That is how it has always worked; the
-description file is therefore only renamed if ``name.info.description``
-exists.
+``<base>`` is the JSON path without ``.info.json``, the same base yt-dlp
+uses for the video and its ``.description`` file. So ``name.info.json`` gives
+``name_metadata.txt``, ``name Comments.txt`` and ``name_description.txt``.
+Up to 0.4.1 the base kept ``.info`` (``name.info_metadata.txt``), so the
+description file was never found and never renamed.
 
 A failure here is logged and never fails the download.
 """
@@ -34,6 +35,7 @@ _RULE = "=" * 80
 # How recent an .info.json must be to belong to this download, in seconds.
 _METADATA_MAX_AGE = 60
 _COMMENTS_MAX_AGE = 120
+_INFO_JSON_SUFFIX = ".info.json"
 
 
 def write_side_files(output_dir: str, info_dict: dict[str, Any] | None, *, metadata: bool, comments: bool) -> None:
@@ -58,6 +60,13 @@ def _newest_info_json(output_dir: str, max_age: float) -> str | None:
     return max(recent, key=os.path.getmtime) if recent else None
 
 
+def _base_of(json_file: str) -> str:
+    """The download's base path: ``name.info.json`` gives ``name``."""
+    if json_file.endswith(_INFO_JSON_SUFFIX):
+        return json_file[: -len(_INFO_JSON_SUFFIX)]
+    return os.path.splitext(json_file)[0]
+
+
 def _read_json(path: str) -> dict[str, Any]:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
@@ -72,7 +81,7 @@ def write_metadata_files(output_dir: str) -> None:
     if not json_file:
         logger.warning("Could not find recently created JSON metadata file")
         return
-    base_filename = os.path.splitext(json_file)[0]
+    base_filename = _base_of(json_file)
     logger.info(f"Post-processing metadata files for: {os.path.basename(base_filename)}")
 
     data = _read_json(json_file)
@@ -86,7 +95,7 @@ def write_metadata_files(output_dir: str) -> None:
     desc_file = f"{base_filename}.description"
     desc_txt_file = f"{base_filename}_description.txt"
     if os.path.exists(desc_file):
-        os.rename(desc_file, desc_txt_file)
+        os.replace(desc_file, desc_txt_file)
         logger.info(f"✓ Renamed description file to: {os.path.basename(desc_txt_file)}")
 
     # Keep the JSON for technical users, but make it readable.
@@ -184,7 +193,7 @@ def write_comments_file(output_dir: str, remove_json: bool) -> None:
         logger.warning("Could not find recently created JSON file for comments")
         return
     logger.info(f"Found JSON file: {os.path.basename(json_file)}")
-    base_filename = os.path.splitext(json_file)[0]
+    base_filename = _base_of(json_file)
 
     data = _read_json(json_file)
     comments_list = data.get("comments", [])

@@ -20,11 +20,49 @@ import os
 from collections.abc import Callable, Sequence
 from dataclasses import KW_ONLY, dataclass
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 # Output file names. The quality part keeps different qualities of one video
 # apart. Duplicate numbering adds " (1)" before ".%(ext)s".
 VIDEO_FILENAME_TEMPLATE = "%(title)s_%(height)sp.%(ext)s"
 AUDIO_FILENAME_TEMPLATE = "%(title)s_%(quality)s.%(ext)s"
+UPLOADER_TITLE_TEMPLATE = "%(uploader)s - %(title)s.%(ext)s"
+DATE_TITLE_TEMPLATE = "%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s"
+
+# File name presets. "title_quality" is the template the app always used.
+FILENAME_PRESET_TITLE_QUALITY = "title_quality"
+FILENAME_PRESET_UPLOADER_TITLE = "uploader_title"
+FILENAME_PRESET_DATE_TITLE = "date_title"
+FILENAME_PRESET_CUSTOM = "custom"
+FILENAME_PRESETS = (
+    FILENAME_PRESET_TITLE_QUALITY,
+    FILENAME_PRESET_UPLOADER_TITLE,
+    FILENAME_PRESET_DATE_TITLE,
+    FILENAME_PRESET_CUSTOM,
+)
+_FIXED_PRESET_TEMPLATES = {
+    FILENAME_PRESET_UPLOADER_TITLE: UPLOADER_TITLE_TEMPLATE,
+    FILENAME_PRESET_DATE_TITLE: DATE_TITLE_TEMPLATE,
+}
+
+# Codec preferences, mapped to yt-dlp ``format_sort`` fields. A "codec:x"
+# entry prefers x (and codecs that yt-dlp ranks below it) over the others,
+# so a format with that codec wins when one exists, and the download still
+# works when none does.
+CODEC_ANY = "any"
+VIDEO_CODEC_SORT = {
+    CODEC_ANY: None,
+    "h264": "vcodec:h264",
+    "h265": "vcodec:h265",
+    "vp9": "vcodec:vp9",
+    "av1": "vcodec:av01",
+}
+AUDIO_CODEC_SORT = {
+    CODEC_ANY: None,
+    "aac": "acodec:aac",
+    "opus": "acodec:opus",
+    "vorbis": "acodec:vorbis",
+}
 
 # YouTube rate-limits subtitle requests. A 2 s gap between subtitle downloads
 # avoids the HTTP 429 cascade that would otherwise abort the video download.
@@ -34,6 +72,9 @@ SUBTITLE_SLEEP_SECONDS = 2
 # goes out. A 1 s gap between all requests lets the subtitles land. It costs
 # about 10-30 s extra during the comment phase.
 REQUEST_SLEEP_SECONDS = 1
+
+# Text that replaces a secret in the logged options.
+MASK = "***"
 
 
 @dataclass(frozen=True)
@@ -45,7 +86,7 @@ class DownloadOptions:
         output_dir: Folder for the downloaded files.
         format_string: yt-dlp format selector, for example
             ``"bestvideo+bestaudio/best"``. Not used for audio-only downloads,
-            which always use ``"bestaudio"``.
+            which always use ``"bestaudio"``, or when ``custom_format`` is set.
         audio_only: Extract the audio track only.
         audio_quality: Audio bitrate in kbps (``"128"`` ... ``"320"``), or
             ``"0"`` for the best VBR quality.
@@ -60,12 +101,27 @@ class DownloadOptions:
         selected_subtitles: Language codes picked in the UI. A non-empty list
             wins over ``subtitle_languages``.
         download_metadata: Save the info JSON, the description and a readable
-            metadata text file.
+            metadata text file, and embed the metadata in the file.
         download_comments: Save the comments as a text file.
         speed_limit: Download speed limit in KB/s. 0 or less means unlimited.
         auto_number_duplicates: If the final file exists, save the new one as
             "name (1).ext", "name (2).ext" and so on. If False, yt-dlp skips a
             file that exists. An existing file is never overwritten.
+        cookies_browser: Browser to read cookies from (yt-dlp's
+            ``cookiesfrombrowser``), for example ``"firefox"``. Empty means
+            no cookies.
+        cookies_profile: Browser profile name or folder. Empty means the
+            browser's default profile.
+        proxy: Proxy URL (http, https or socks5). Empty means no proxy.
+        filename_preset: One of ``FILENAME_PRESETS``.
+        custom_filename_template: The template for the "custom" preset.
+            It must pass ``download_preferences.validate_filename_template``.
+        video_codec: Preferred video codec, a key of ``VIDEO_CODEC_SORT``.
+            Not used for audio-only downloads.
+        audio_codec: Preferred audio codec for video downloads, a key of
+            ``AUDIO_CODEC_SORT``. Not used for audio-only downloads.
+        custom_format: A yt-dlp format string. When set, it is used instead
+            of the quality preset and the codec preferences.
     """
 
     url: str
@@ -84,10 +140,27 @@ class DownloadOptions:
     download_comments: bool = False
     speed_limit: int = 0
     auto_number_duplicates: bool = True
+    cookies_browser: str = ""
+    cookies_profile: str = ""
+    proxy: str = ""
+    filename_preset: str = FILENAME_PRESET_TITLE_QUALITY
+    custom_filename_template: str = ""
+    video_codec: str = CODEC_ANY
+    audio_codec: str = CODEC_ANY
+    custom_format: str = ""
 
     @property
     def filename_template(self) -> str:
-        """File name template, without the folder."""
+        """File name template, without the folder.
+
+        An unknown preset, or the custom preset without a template, gives
+        the default template.
+        """
+        if self.filename_preset == FILENAME_PRESET_CUSTOM and self.custom_filename_template:
+            return self.custom_filename_template
+        fixed = _FIXED_PRESET_TEMPLATES.get(self.filename_preset)
+        if fixed:
+            return fixed
         return AUDIO_FILENAME_TEMPLATE if self.audio_only else VIDEO_FILENAME_TEMPLATE
 
     @property
@@ -107,6 +180,11 @@ class DownloadOptions:
             return self.selected_subtitles
         return [lang.strip() for lang in self.subtitle_languages.split(",") if lang.strip()]
 
+    @property
+    def writes_info_json(self) -> bool:
+        """True if yt-dlp writes a ``.info.json`` file next to the download."""
+        return self.download_metadata or self.download_comments
+
 
 def build_ydl_opts(
     options: DownloadOptions,
@@ -117,7 +195,8 @@ def build_ydl_opts(
 ) -> dict[str, Any]:
     """Return the ``YoutubeDL`` options for ``options``.
 
-    The key order is stable, because the dict is written to the log as JSON.
+    The key order is stable, because the dict is written to the log as JSON
+    (through ``redact_ydl_opts``, which hides the secrets).
 
     Args:
         options: The user's choices for this download.
@@ -135,9 +214,10 @@ def build_ydl_opts(
     ydl_opts.update(_comment_opts(options))
     ydl_opts.update(_request_spacing_opts(options))
     ydl_opts.update(_audio_opts(options))
+    ydl_opts.update(_format_sort_opts(options))
+    ydl_opts.update(network_opts(options.proxy, options.cookies_browser, options.cookies_profile))
     postprocessors = build_postprocessors(options)
     if postprocessors:
-        # Replaces the list _metadata_opts set (behavior kept as it was).
         ydl_opts["postprocessors"] = postprocessors
     return ydl_opts
 
@@ -158,13 +238,58 @@ def build_postprocessors(options: DownloadOptions) -> list[dict[str, Any]]:
         postprocessors.append({"key": "FFmpegThumbnailsConvertor", "format": "jpg"})
     if options.download_subtitles and not options.audio_only:
         postprocessors.append({"key": "FFmpegEmbedSubtitle"})
+    if options.download_metadata:
+        # Last, so the tags go into the final file (after audio extraction).
+        postprocessors.append({"key": "FFmpegMetadata", "add_infojson": "if_exists"})
     return postprocessors
+
+
+def network_opts(proxy: str, cookies_browser: str, cookies_profile: str = "") -> dict[str, Any]:
+    """Return the proxy and browser-cookie options for any ``YoutubeDL`` call.
+
+    Used for downloads and for the info, subtitle and playlist look-ups, so
+    every request goes through the same proxy with the same cookies.
+    """
+    opts: dict[str, Any] = {}
+    if proxy:
+        opts["proxy"] = proxy
+    if cookies_browser:
+        # (browser, profile, keyring, container). None picks yt-dlp's default.
+        opts["cookiesfrombrowser"] = (cookies_browser, cookies_profile or None, None, None)
+    return opts
+
+
+def mask_proxy_url(proxy: str) -> str:
+    """Return ``proxy`` with any user name and password replaced by ``***``."""
+    if not proxy or "@" not in proxy:
+        return proxy
+    try:
+        parts = urlsplit(proxy)
+    except ValueError:
+        return MASK
+    host = parts.netloc.rpartition("@")[2]
+    return urlunsplit((parts.scheme, f"{MASK}@{host}", parts.path, parts.query, parts.fragment))
+
+
+def redact_ydl_opts(ydl_opts: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy of ``ydl_opts`` that is safe to write to the log.
+
+    Drops the progress hooks, masks the proxy credentials and keeps only the
+    browser name of the cookie source (the profile is replaced by ``***``).
+    yt-dlp reads the cookies itself; they are never in the options.
+    """
+    safe = {k: v for k, v in ydl_opts.items() if k != "progress_hooks"}
+    if "proxy" in safe:
+        safe["proxy"] = mask_proxy_url(safe["proxy"])
+    if "cookiesfrombrowser" in safe:
+        browser, profile = safe["cookiesfrombrowser"][:2]
+        safe["cookiesfrombrowser"] = [browser, MASK if profile else None]
+    return safe
 
 
 def _base_opts(options: DownloadOptions, progress_hooks: Sequence[Callable]) -> dict[str, Any]:
     return {
-        # Audio-only downloads always take the best audio stream.
-        "format": "bestaudio" if options.audio_only else options.format_string,
+        "format": _format_selector(options),
         "outtmpl": options.output_template,
         "progress_hooks": list(progress_hooks),
         "quiet": False,
@@ -184,6 +309,13 @@ def _base_opts(options: DownloadOptions, progress_hooks: Sequence[Callable]) -> 
         # files of an interrupted attempt.
         "nooverwrites": True,
     }
+
+
+def _format_selector(options: DownloadOptions) -> str:
+    if options.custom_format:
+        return options.custom_format
+    # Audio-only downloads always take the best audio stream.
+    return "bestaudio" if options.audio_only else options.format_string
 
 
 def _runtime_opts(ffmpeg_location: str | None, deno_path: str | None) -> dict[str, Any]:
@@ -227,13 +359,13 @@ def _subtitle_opts(options: DownloadOptions) -> dict[str, Any]:
 def _metadata_opts(options: DownloadOptions) -> dict[str, Any]:
     if not options.download_metadata:
         return {}
+    # The FFmpegMetadata post-processor is added by build_postprocessors.
     return {
         "writeinfojson": True,  # Save video metadata as JSON
         "clean_infojson": False,  # Keep all fields in JSON
         "writedescription": True,  # Save video description as separate file
         "writeannotations": True,  # Save annotations if available
         "getcomments": True,  # Download comments (can be slow for popular videos)
-        "postprocessors": [{"key": "FFmpegMetadata", "add_infojson": "if_exists"}],
     }
 
 
@@ -254,3 +386,16 @@ def _request_spacing_opts(options: DownloadOptions) -> dict[str, Any]:
 def _audio_opts(options: DownloadOptions) -> dict[str, Any]:
     # Remove the downloaded stream after the audio is extracted.
     return {"keepvideo": False} if options.audio_only else {}
+
+
+def _format_sort_opts(options: DownloadOptions) -> dict[str, Any]:
+    # A custom format string replaces the presets, codecs included. Audio
+    # extraction converts the codec anyway, so no preference there either.
+    if options.custom_format or options.audio_only:
+        return {}
+    fields = [
+        VIDEO_CODEC_SORT.get(options.video_codec),
+        AUDIO_CODEC_SORT.get(options.audio_codec),
+    ]
+    sort = [field for field in fields if field]
+    return {"format_sort": sort} if sort else {}
