@@ -129,7 +129,7 @@ label_yt_dlp_version,yt-dlp engine:,מנוע yt-dlp:,ok
 label_ffmpeg_version,FFmpeg:,FFmpeg:,missing
 label_python_version,Python runtime:,סביבת Python:,ok
 label_pyside_version,PySide6 (Qt):,PySide6 (Qt):,missing
-text_about_developer_intro,This tool is part of <b>NXtools</b> - a collection of productivity tools.,כלי זה הוא חלק מ-<b>NXtools</b> - אוסף של כלי פרודקטיביות.,ok
+text_about_developer_intro,This tool is part of <b>NXTools</b> - a collection of productivity tools.,כלי זה הוא חלק מ-<b>NXTools</b> - אוסף של כלי פרודקטיביות.,ok
 label_website,Website:,אתר:,ok
 tooltip_view_on_github,Open the project repository in your browser,פתח את מאגר הפרויקט בדפדפן,ok
 header_credits_core_deps,Core dependencies,תלויות מרכזיות,ok
