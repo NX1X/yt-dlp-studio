@@ -162,6 +162,30 @@ class TestRowMenu:
             self._menu(tab, "Unboxing the Tiny Desk Synth")["download_again"].trigger()
         assert blocker.args == ["https://www.youtube.com/watch?v=h2"]
 
+    def test_remove_from_history_menu_item(self, window, tab, history_manager):
+        self._menu(tab, "How Rainbows Form")["remove"].trigger()
+        assert "How Rainbows Form" not in titles(tab)
+        assert len(history_manager.get_history()) == 3
+        assert window.statusBar().currentMessage() == "Removed the entry from the history."
+        assert strip_isolates(tab.stats_label.text()).startswith("3 downloads")
+
+    def test_remove_is_in_the_menu_text(self, tab):
+        row = titles(tab).index("How Rainbows Form")
+        texts = [a.text() for a in tab.build_context_menu(row).actions()]
+        assert "Remove from history" in texts
+
+    def test_delete_key_removes_the_selected_entry(self, tab):
+        row = titles(tab).index("Unboxing the Tiny Desk Synth")
+        tab.history_table.selectRow(row)
+        tab.delete_shortcut.activated.emit()
+        assert "Unboxing the Tiny Desk Synth" not in titles(tab)
+        assert len(titles(tab)) == 3
+
+    def test_delete_key_without_selection_does_nothing(self, tab):
+        tab.history_table.clearSelection()
+        tab.delete_shortcut.activated.emit()
+        assert len(titles(tab)) == 4
+
     def test_open_file_and_folder(self, tab, tmp_path):
         (tmp_path / "1.mp4").write_bytes(b"x")
         with patch.object(ht_module, "open_local_path", return_value=True) as opener:
