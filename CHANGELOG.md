@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no entries yet)_
+
+---
+
+## [0.5.0] - 2026-11-28
+
 ### Added
 
 - **Photo posts from Instagram and X.** A post with photos only, a carousel with photos and the photos of a mixed post now download as image files, next to the videos of the same post. The app saves the largest size of each photo (Instagram: up to 1080 pixels wide; X: the original). The file is named `Title [id].jpg` (a file name template that you chose is kept), and a copy gets ` (1)` as for videos. Metadata, description and comments files work for each photo, and the metadata file says "IMAGE METADATA" without video fields. No setting is needed. Photos skip the steps that only fit video: audio extraction, tag embedding and subtitle embedding. Facebook photo posts are still not supported, and a TikTok photo slideshow still gives only its audio. There is no second download engine: the photo goes through yt-dlp, so the proxy and cookie settings apply. For X, a small extractor in `src/backend/twitter_photos.py` adds the photos that the engine drops. It reads the engine's private `_extract_status`, and a fixture test on two recorded posts fails if an engine update changes that.
@@ -32,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Plain git hooks replace the `pre-commit` framework.** `scripts/install-hooks.sh` turns on two bash hooks from `scripts/git-hooks`. `pre-commit` runs `ruff check`, `ruff format --check` and `black --check` on staged Python files, checks the final newline and trailing whitespace, and refuses files over 5 MB. It never changes a file. `commit-msg` checks Conventional Commits. CONTRIBUTING.md and docs/DEVELOPMENT.md describe them.
 - **The test suite no longer writes to the real app data folder.** A new `tests/conftest.py` points the home folder and `%APPDATA%` at a temporary folder, so a test run cannot add to your real log, settings, history or queue.
 - **Docs: new User Guide and Troubleshooting guide, a corrected Installation Guide, and a roadmap update.** `docs/USER_GUIDE.md` covers every tab, the Advanced Download Options and common tasks. `docs/TROUBLESHOOTING.md` covers sign-in, cookies, HTTP 429, Deno, FFmpeg, SmartScreen, damaged files, and where the log and crash reports are. The Installation Guide now says that the Linux builds download Deno on their own. All docs now say "Tested on Windows 11. Windows 10 should work but is not tested.", and say that CI runs on Windows Server images. The 0.4.x and 0.5.0 items that are merged are marked done in `ROADMAP.md`. The old `docs/ROADMAP.md` (historical, nothing linked to it) is removed.
 - **Bundled yt-dlp engine 2026.10.26 -> 2026.11.23.** Tarball SHA-256 `8f757547e94c723415fd82bb5da857d8e1b24be2e34218890dfaac134907723e`, matching the `SHA2-256SUMS` file signed by the pinned yt-dlp release key (`AC0CBBE6848D6A873464AF4E57CF65933B5A7581`, GPG "Good signature"). Adds the `ios_producer` YouTube client, makes `tv` the default player JS variant, and fixes post-live streams and several site extractors. No upstream CVEs. Still uses `yt-dlp-ejs==0.8.0`, unchanged, and the Deno minimum (2.3.0) is met by the bundled Deno 2.9.8. The engine is 5 days old, inside the 7-day cooldown, taken by the maintainer's decision.
@@ -58,11 +65,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **The `pre-commit` framework.** `.pre-commit-config.yaml`, the `pre-commit` dev dependency, its Renovate setting and its helper packages in `requirements/dev.txt` (cfgv, distlib, filelock, identify, nodeenv, python-discovery, pyyaml, virtualenv) are gone. The local `gitleaks` and `actionlint` runs are gone too: CI checks secrets (GitGuardian) and workflows (zizmor).
 - **Funding links.** The Buy Me a Coffee link is gone from the About tab, the README, the release notes and the release archives, and the repository no longer shows a Sponsor button.
 - **Dead code and unused files:** `DownloadTab._start_download()`, `src/resources/styles/stylesheet.qss`, `src/resources/config/default_config.json`, and the stale `docs/RELEASE_NOTES.md` and `docs/FUTURE_FEATURES.md`.
 
 ### Fixed
 
+- **Section arrows no longer touch the title.** "More options", "Activity log" and the playlist "Subtitles" header used Qt's drawn arrow, which the bold title ran into at Windows display scaling. The arrow is now a character with fixed space before the title, and it sits at the start of the line in Hebrew too.
+- **A failed download shows yt-dlp's reason** (for example "The uploader has not made this video available in your country") instead of only "Download failed".
+- **The About tab spells NXTools correctly** (it said "NXtools").
 - **Posts with several videos are no longer shown as failed.** An Instagram carousel or an X post with two to four videos (a playlist result) wrote every file, but the app said "yt-dlp finished without writing a file". The app now collects the files from each item, and writes the metadata and comments files for each item.
 - **Metadata and comments files come from the paths yt-dlp reports,** not from the newest `.info.json` in the folder. Two downloads that run at once in one folder can no longer take each other's files.
 - **No `(2)` on the JSON of a whole post.** With "Skip duplicates" off, the JSON of a multi-video post was named `Post by ... (2).info.json` next to `Post by ... .info.json`. The plain name is now restored after each item.

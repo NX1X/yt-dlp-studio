@@ -207,7 +207,7 @@ TRANSLATIONS = {
         "label_ffmpeg_version": "FFmpeg:",
         "label_python_version": "Python runtime:",
         "label_pyside_version": "PySide6 (Qt):",
-        "text_about_developer_intro": "This tool is part of <b>NXtools</b> - a collection of productivity tools.",
+        "text_about_developer_intro": "This tool is part of <b>NXTools</b> - a collection of productivity tools.",
         "label_website": "Website:",
         # button_view_on_github lives lower in this dict; do not redeclare here.
         "tooltip_view_on_github": "Open the project repository in your browser",
@@ -1036,7 +1036,7 @@ TRANSLATIONS = {
         "label_ffmpeg_version": "FFmpeg:",
         "label_python_version": "סביבת Python:",
         "label_pyside_version": "PySide6 (Qt):",
-        "text_about_developer_intro": "כלי זה הוא חלק מ-<b>NXtools</b> - אוסף של כלי פרודקטיביות.",
+        "text_about_developer_intro": "כלי זה הוא חלק מ-<b>NXTools</b> - אוסף של כלי פרודקטיביות.",
         "label_website": "אתר:",
         # button_view_on_github lives lower in this dict; do not redeclare here.
         "tooltip_view_on_github": "פתח את מאגר הפרויקט בדפדפן",

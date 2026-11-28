@@ -5,11 +5,11 @@ Website: https://nx1xlab.dev/nxtools
 
 ---
 
-## Current Version: 0.4.0 released · 0.5.0 merged, not released yet (Public Beta)
+## Current Version: 0.5.0 (Public Beta)
 
 > The project is in **public beta**. The core feature set is functional but UI bugs, polish items, and additional UI options remain. We will reach **v1.0.0** when the feature set is stable and beta exit criteria are met (see below).
 >
-> Latest released: **0.4.0** (tray mode, duplicate numbering, update restart fix, Deno on Linux, 2026-11-01). Merged to main and shipping in **0.5.0** (not released yet): cookies, proxy, file name templates, format options, site tiers and versioned data files. Still open from 0.4.x: UI tests.
+> Latest released: **0.5.0** (2026-11-28): a reworked interface, Firefox cookies, proxy, file name templates, format options, site tiers, versioned data files, full Hebrew and two crash fixes. Next: **0.6.0** (photo posts, then feature freeze), then **1.0.0**. Still open from 0.4.x: UI tests.
 >
 > Earlier private development history (up through internal version 0.9.2) is archived in the private `docs-internal/OLD_CHANGELOG.md`. The reasoning behind the version reset to 0.1.0 lives in the private `docs-internal/VERSIONING.md`.
 
@@ -118,7 +118,12 @@ by hand.
 | 0.3.0 | Installable | Real installers on Windows and Linux, and updates that replace the app |
 | 0.4.0 | Reliable | Fix known bugs, simplify the download path, test the UI |
 | 0.5.0 | Complete | Add the missing basics: cookies, filename templates, format options |
-| 1.0.0 | Stable | Feature freeze and beta exit |
+| 0.6.0 | Photos | Photo posts, per-site fixes, Qt 6.12; then feature freeze |
+| 1.0.0 | Stable | Signed Windows builds and beta exit; maintenance mode after that |
+
+Plan updated on 2026-11-28: reach 1.0.0 soon. After 1.0.0 the project goes into
+maintenance mode: dependency and engine updates, security fixes and site fixes.
+New features come only by explicit decision.
 
 ### v0.3.0 - Installable  *(released 2026-10-31)*
 Ship the app the way users on each OS expect, and keep the no-install option.
@@ -141,7 +146,7 @@ Moved from 0.3.0 so the Windows installer could ship first.
 ### v0.4.0 - Reliable  *(released 2026-11-01)*
 Fix what is known to be broken, and make the download path safe to change.
 - ✅ **Delete dead code:** `src/ui/video_player_widget.py`, `src/ui/filter_dialog.py` and `src/ui/bandwidth_widget.py` (431 statements). Nothing imports them.
-- ✅ *(moved to 0.5.0, merged, ships in 0.5.0)* **Refactor `YtDlpWrapper.download()`:** split the ~500-line method (SonarCloud S3776 cognitive complexity 136, S107 with 15 parameters) into helpers plus a `DownloadOptions` object. Pin the current behaviour with tests first, and run a live download test before merging.
+- ✅ *(moved to 0.5.0, released in 0.5.0)* **Refactor `YtDlpWrapper.download()`:** split the ~500-line method (SonarCloud S3776 cognitive complexity 136, S107 with 15 parameters) into helpers plus a `DownloadOptions` object. Pin the current behaviour with tests first, and run a live download test before merging.
 - ✅ **Desktop notifications that work** on Windows and Linux. Before 0.3.0, every download logged `Could not send notification: No usable implementation found!` on Windows, and toasts fail on desktops without a tray (for example stock GNOME). Use Qt-native notifications, with `notify-send` as the Linux fallback, and a tray icon that is always available.
 - ✅ **Fix the false log line:** the code logs `Notification sent` even after a failed notification. Log success only when a notification was sent.
 - ✅ **Fix the audio-only label:** an audio-only download logs `Task N completed: video file`. Report the real output type.
@@ -149,16 +154,22 @@ Fix what is known to be broken, and make the download path safe to change.
 - ✅ **Retry failed tasks:** a Retry button, plus one automatic retry for network errors. (yt-dlp already retries up to 10 times inside one download.)
 - ✅ Also in 0.4.0: tray mode (#75), duplicate numbering (#76), no console flash and a startup Environment line (#74), Hebrew notifications and statuses (#73), the update restart fix (#78), Deno on Linux (#80).
 - ⬜ *(moved to 0.4.x)* **UI tests** for the Download tab (9% covered today), Settings (9%), History (8%) and the update dialog (0%). Target: about 70% overall coverage (41% today).
-- ✅ *(moved to 0.4.x, merged, ships in 0.5.0)* **Weekly extractor check in CI:** a weekly workflow reads one public YouTube video and one playlist (no download) and opens an `extractor-broken` issue if extraction fails. It covers YouTube only, not every tested site.
+- ✅ *(moved to 0.4.x, released in 0.5.0)* **Weekly extractor check in CI:** a weekly workflow reads one public YouTube video and one playlist (no download) and opens an `extractor-broken` issue if extraction fails. It covers YouTube only, not every tested site.
 
-### v0.5.0 - Complete  *(all items merged to main, ships in 0.5.0, not released yet)*
+### v0.5.0 - Complete  *(released 2026-11-28)*
 Add the basics users expect before 1.0.
-- ✅ **Cookies from the browser** for private and age-restricted videos (merged, ships in 0.5.0). Firefox on all systems. Chrome, Edge and Brave on Windows only. Chrome 127 and later use app-bound cookie encryption that yt-dlp cannot read, so the app shows a message. No Chromium browsers on Linux.
-- ✅ **Filename templates** (merged, ships in 0.5.0): Title_Quality (default), Uploader - Title, Date - Title, or a custom template.
-- ✅ **Format options** (merged, ships in 0.5.0): video codec (H.264, H.265, VP9, AV1), audio codec (AAC, Opus, Vorbis), and a custom format string for advanced users.
-- ✅ **Proxy setting** (merged, ships in 0.5.0): http, https, socks5 and socks5h.
-- ✅ **Site tiers** (merged, ships in 0.5.0): "Tested" for the sites checked every release (YouTube, Instagram, TikTok, Facebook, X), and "Experimental" for the other 1000+ yt-dlp sites, clearly labelled as untested.
-- ✅ **Versioned config and history files** (merged, ships in 0.5.0), with migration of older files. v1.0 promises these formats stay compatible, so they need a version field first.
+- ✅ **Cookies from the browser** for private and age-restricted videos. Firefox only, on every system. Chrome 127 and later, and Edge (seen in the Windows 11 test), use app-bound cookie encryption that yt-dlp cannot read, so Chromium browsers are not offered.
+- ✅ **Filename templates**: Title_Quality (default), Uploader - Title, Date - Title, or a custom template.
+- ✅ **Format options**: video codec (H.264, H.265, VP9, AV1), audio codec (AAC, Opus, Vorbis), and a custom format string for advanced users.
+- ✅ **Proxy setting**: http, https, socks5 and socks5h.
+- ✅ **Site tiers**: "Tested" for the sites checked every release (YouTube, Instagram, TikTok, Facebook, X), and "Experimental" for the other 1000+ yt-dlp sites, clearly labelled as untested.
+- ✅ **Versioned config and history files**, with migration of older files. v1.0 promises these formats stay compatible, so they need a version field first.
+
+### v0.6.0 - Photos, then feature freeze
+- ⬜ **Photo posts:** Instagram photos and carousels through yt-dlp (the images are already in its info), X photos through a small extractor extension, and a clear message for Facebook photo posts. TikTok slideshows need new extractor code. A second engine (gallery-dl) is not used: its GPL-2.0-only license cannot be combined with this Apache-2.0 app in one EXE.
+- ⬜ **Qt 6.12** with the smaller `PySide6-Essentials` package.
+- ⬜ Leftovers from 0.5.0: SonarCloud findings, UI details, faster CI.
+- ⬜ After 0.6.0: **feature freeze** until 1.0.0.
 
 ### v1.0.0 - Stable Release / Beta Exit
 The first non-beta release. Reached when:
@@ -168,13 +179,13 @@ The first non-beta release. Reached when:
 - ⬜ Config and history file formats stable (backwards-compatibility commitment begins here)
 - ⬜ Tested clean on Windows 11 by hand (a manual checklist). Windows 10 should work but is not tested. CI runs the tests on `windows-2025` (Windows Server 2025) and `windows-2022`. These are Windows Server images, not Windows 10 or 11, so CI does not replace the hand test.
 - ⬜ Documentation complete: [user guide](docs/USER_GUIDE.md), [troubleshooting](docs/TROUBLESHOOTING.md) and [install guide](docs/INSTALLATION_GUIDE.md) are written (in review); final check against the finished UI is open
-- ⬜ The repository is public, so users can download releases and the in-app updater can find them
+- ✅ The repository is public, so users can download releases and the in-app updater can find them
 - ⬜ Windows release executable is Authenticode code-signed via the
   [SignPath Foundation](https://signpath.org/) free OSS program (kills the
-  SmartScreen "Unknown publisher" warning). Application pending - process,
-  alternatives, and CI wiring documented in [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md).
-  Non-blocking if approval is delayed: ship v1.0.0 unsigned and roll signing
-  into the next patch release.
+  SmartScreen "Unknown publisher" warning). Required for 1.0.0 (decided
+  2026-11-28). The certificate is issued to "SignPath Foundation", which Windows
+  shows as the publisher. Process, alternatives, and CI wiring are documented
+  in [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md).
 - ⬜ Release artifacts are Sigstore-signed (cosign + keyless OIDC) so any
   user - Linux, macOS, or Windows - can cryptographically verify the
   download independent of Authenticode/SmartScreen. SLSA build provenance
@@ -266,12 +277,12 @@ We welcome contributions to YT-DLP Studio! If you have ideas for new features or
 
 ## Version History
 
-Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.4.0** (2026-11-01). Next: **0.5.0** (merged, not released yet). Earlier private development history (internal 0.1.0 to 0.9.2) is archived in the private `docs-internal/OLD_CHANGELOG.md`.
+Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.5.0** (2026-11-28). Next: **0.6.0**. Earlier private development history (internal 0.1.0 to 0.9.2) is archived in the private `docs-internal/OLD_CHANGELOG.md`.
 
 ---
 
 **Last Updated:** 2026-11-28
-**Current Version:** 0.4.0 released, 0.5.0 merged and not released yet (Public Beta)
+**Current Version:** 0.5.0 (Public Beta)
 **Status:** Active Development
 
 For more information, visit: https://nx1xlab.dev/nxtools

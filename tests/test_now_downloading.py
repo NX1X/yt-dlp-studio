@@ -19,7 +19,7 @@ import src.backend.queue_manager as qm_module
 from src.backend.queue_manager import QueueManager
 from src.models.download_task import DownloadTask, TaskStatus
 from src.ui import display_format as fmt
-from src.ui.collapsible_section import CollapsibleSection
+from src.ui.collapsible_section import ARROW_CLOSED_LTR, ARROW_CLOSED_RTL, ARROW_OPEN, CollapsibleSection
 from src.ui.now_downloading import NowDownloadingPanel
 from src.ui.status_messages import find_status_bar, show_status
 from src.ui.theme import ThemeMode, get_theme_manager
@@ -274,14 +274,14 @@ class TestCollapsibleSection:
         section = CollapsibleSection("More")
         qtbot.addWidget(section)
         section.set_summary("all off")
-        assert section.header.arrowType() == Qt.RightArrow
+        assert section.header.text().lstrip("\u200e\u200f").startswith(ARROW_CLOSED_LTR)
         with qtbot.waitSignal(section.toggled) as blocker:
             section.header.click()
         assert blocker.args == [True]
-        assert section.header.arrowType() == Qt.DownArrow
+        assert section.header.text().lstrip("\u200e\u200f").startswith(ARROW_OPEN)
         section.set_expanded(False)
         section.setLayoutDirection(Qt.RightToLeft)
-        assert section.header.arrowType() == Qt.LeftArrow
+        assert section.header.text().lstrip("\u200e\u200f").startswith(ARROW_CLOSED_RTL)
 
 
 class TestStartNow:
@@ -318,3 +318,11 @@ class TestStartNow:
         first.complete("a.mp4")
         queue_manager._on_worker_completed(fake_worker[0], "a.mp4")
         assert len(fake_worker) == 1
+
+
+def test_section_header_text_has_room_after_the_arrow():
+    from src.ui.collapsible_section import section_header_text
+
+    assert section_header_text("More options", False, False) == "\u200e\u25b8\u00a0\u00a0More options"
+    assert section_header_text("More options", True, False).startswith("\u200e\u25be\u00a0\u00a0")
+    assert section_header_text("x", False, True).startswith("\u200f\u25c2")
