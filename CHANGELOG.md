@@ -59,6 +59,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Two crashes found in the Windows 11 test** (Windows exception 0xc0000409 in Qt6Core.dll, both Qt aborting because a running thread was destroyed):
+  - Clicking Download twice on a playlist started a second fetch that replaced the running one. The app now says "Already fetching playlist info" instead, and the fetch threads stay alive until they finish.
+  - Closing the app while a download did not stop within 4 seconds crashed it at exit. The app now ends the process without destroying the running thread, after it has saved the queue, settings and log.
 - **A native crash leaves a trace.** A crash inside Qt or another native library never reached the crash handler, so it wrote no report and no log line. The app now writes the stack of every thread to `crashes/native-crash.log` when that happens.
 - **Hebrew text with a closing parenthesis after English text,** such as "(info.json)" or "(Ctrl+V)", no longer shows the parenthesis flipped on the wrong side.
 - **The .rpm installs the libraries Qt needs.** On a minimal Fedora the app failed to start with `libEGL.so.1` missing, because the package required only FFmpeg and glibc. It now requires libEGL, libGL, libxkbcommon, libdbus, libxcb-cursor, GLib and fontconfig by library name, so dnf and zypper install them. The Fedora CI test now installs only the .rpm to prove it.
