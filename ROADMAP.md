@@ -118,10 +118,12 @@ by hand.
 | 0.3.0 | Installable | Real installers on Windows and Linux, and updates that replace the app |
 | 0.4.0 | Reliable | Fix known bugs, simplify the download path, test the UI |
 | 0.5.0 | Complete | Add the missing basics: cookies, filename templates, format options |
-| 0.6.0 | Photos | Photo posts, per-site fixes, Qt 6.12; then feature freeze |
-| 1.0.0 | Stable | Signed Windows builds and beta exit; maintenance mode after that |
+| 0.6.0 | Photos | Photo posts, Qt 6.12, help links to the website guide, leftovers; then feature freeze |
+| 1.0.0 | Stable | Beta exit, unsigned Windows builds; winget as soon as Microsoft accepts it; maintenance mode after that |
 
-Plan updated on 2026-11-28: reach 1.0.0 soon. After 1.0.0 the project goes into
+Plan updated on 2026-11-28: reach 1.0.0 soon, and without code signing. The
+SignPath Foundation declined the application on 2026-11-28 (see the
+"After 1.0" list). After 1.0.0 the project goes into
 maintenance mode: dependency and engine updates, security fixes and site fixes.
 New features come only by explicit decision.
 
@@ -135,7 +137,7 @@ Ship the app the way users on each OS expect, and keep the no-install option.
 - ✅ **Hash-pin every CI install** *(done in 0.2.1)*: the `pip install -e .[dev]` steps became `--require-hashes -r requirements/dev.txt`, clearing the 6 Scorecard `PinnedDependenciesID` alerts and Sonar S8541/S8544. Whether the SonarCloud gate itself turns green is tracked in [#33](https://github.com/NX1X/yt-dlp-studio/issues/33).
 - ✅ Removed the `http://` retry adapter mount in `update_checker.py` (Sonar hotspot S5332) *(done in 0.2.1)*.
 - ✅ Also in 0.3.0, from the 0.4.0 list: the queue survives a restart and failed tasks can be retried (#63), desktop notifications work (#62), the real file name is shown and opened (#65), and the History tab records downloads (#66).
-- Note: release binaries stay **unsigned** until the signing work under v1.0.0. Sigstore provenance already lets users verify downloads.
+- Note: release binaries stay **unsigned** until code signing is available (see "After 1.0"). Sigstore provenance already lets users verify downloads.
 
 ### v0.3.1 - Linux packages and winget  *(released 2026-10-31)*
 Moved from 0.3.0 so the Windows installer could ship first.
@@ -166,27 +168,26 @@ Add the basics users expect before 1.0.
 - ✅ **Versioned config and history files**, with migration of older files. v1.0 promises these formats stay compatible, so they need a version field first.
 
 ### v0.6.0 - Photos, then feature freeze
-- ⬜ **Photo posts:** Instagram photos and carousels through yt-dlp (the images are already in its info), X photos through a small extractor extension, and a clear message for Facebook photo posts. TikTok slideshows need new extractor code. A second engine (gallery-dl) is not used: its GPL-2.0-only license cannot be combined with this Apache-2.0 app in one EXE.
+Items stay open (not done) until their pull request is merged.
+- ⬜ **Photo posts (Instagram, X):** Instagram photos and carousels through yt-dlp (the images are already in its info), and X photos through a small extractor extension. Facebook photo posts get a clear message. TikTok slideshows need new extractor code. A second engine (gallery-dl) is not used: its GPL-2.0-only license cannot be combined with this Apache-2.0 app in one EXE.
 - ⬜ **Qt 6.12** with the smaller `PySide6-Essentials` package.
-- ⬜ Leftovers from 0.5.0: SonarCloud findings, UI details, faster CI.
+- ⬜ **F1 and Help links to the website guide:** F1 opens the guide section of the current tab. Help links are in the About tab, the Advanced Download Options and the download error dialog.
+- ⬜ **Faster CI.**
+- ⬜ **Leftovers from 0.5.0:** the Download tab remembers which sections are open, "Remove from history" for one entry, one duplicate question for batch links, and SonarCloud findings.
 - ⬜ After 0.6.0: **feature freeze** until 1.0.0.
 
 ### v1.0.0 - Stable Release / Beta Exit
 The first non-beta release. Reached when:
-- ⬜ Every 0.3.0 to 0.5.0 item has shipped, or was moved to "After 1.0" by decision
+- ⬜ Every 0.3.0 to 0.6.0 item has shipped, or was moved to "After 1.0" by decision
 - ⬜ No known critical UI bugs
 - ⬜ Feature set frozen (no breaking changes planned for short term)
 - ⬜ Config and history file formats stable (backwards-compatibility commitment begins here)
 - ⬜ Tested clean on Windows 11 by hand (a manual checklist). Windows 10 should work but is not tested. CI runs the tests on `windows-2025` (Windows Server 2025) and `windows-2022`. These are Windows Server images, not Windows 10 or 11, so CI does not replace the hand test.
 - ⬜ Documentation complete: [user guide](docs/USER_GUIDE.md), [troubleshooting](docs/TROUBLESHOOTING.md) and [install guide](docs/INSTALLATION_GUIDE.md) are written (in review); final check against the finished UI is open
 - ✅ The repository is public, so users can download releases and the in-app updater can find them
-- ⬜ Windows release executable is Authenticode code-signed via the
-  [SignPath Foundation](https://signpath.org/) free OSS program (kills the
-  SmartScreen "Unknown publisher" warning). Required for 1.0.0 (decided
-  2026-11-28). The certificate is issued to "SignPath Foundation", which Windows
-  shows as the publisher. Process, alternatives, and CI wiring are documented
-  in [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md).
-- ⬜ Release artifacts are Sigstore-signed (cosign + keyless OIDC) so any
+- ⬜ **winget:** the package `NX1X.YTDLPStudio` is in review (`microsoft/winget-pkgs` pull request #467730, waiting for a Microsoft moderator). It is part of 1.0.0 as soon as Microsoft accepts it. After that, `release.yml` opens a winget update pull request for each release.
+- Windows release signing is **not** part of 1.0.0. The maintainer decided on 2026-11-28 to release 1.0.0 without it, and the SignPath Foundation declined the application on the same day.
+- ⬜ Optional, independent of the other 1.0.0 items: release artifacts for Linux and Windows are Sigstore-signed (cosign + keyless OIDC) so any
   user - Linux, macOS, or Windows - can cryptographically verify the
   download independent of Authenticode/SmartScreen. SLSA build provenance
   attestations are already published on every release (see
@@ -199,6 +200,7 @@ The first non-beta release. Reached when:
 
 ### After 1.0 (not scheduled)
 Kept as ideas. None of these block 1.0.
+- Windows code signing through the SignPath Foundation: reapply once the project has more public visibility (declined 2026-11-28 for that reason). See [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md).
 - Download scheduling (download at a set time)
 - Browser extension (send a link from the browser)
 - Bitrate and frame-rate control
@@ -277,7 +279,7 @@ We welcome contributions to YT-DLP Studio! If you have ideas for new features or
 
 ## Version History
 
-Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.5.0** (2026-11-28). Next: **0.6.0**. Earlier private development history (internal 0.1.0 to 0.9.2) is archived in the private `docs-internal/OLD_CHANGELOG.md`.
+Full per-release detail lives in [CHANGELOG.md](CHANGELOG.md) - that file is the source of truth for what shipped in each version. Current released version: **0.5.0** (2026-11-28). Next: **0.6.0**, then **1.0.0** (without code signing). Earlier private development history (internal 0.1.0 to 0.9.2) is archived in the private `docs-internal/OLD_CHANGELOG.md`.
 
 ---
 

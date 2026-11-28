@@ -27,6 +27,8 @@ class AppConfig:
         last_update_check: ISO timestamp of the last successful update check
         notifications_enabled: Show desktop notifications for download events
         close_to_tray: Hide the window to the system tray on close, instead of quitting
+        more_options_open: The "More options" section of the Download tab is open
+        activity_log_open: The "Activity log" section of the Download tab is open
         theme: UI theme, "dark" (default) or "light"
         cookies_browser: Browser to read cookies from for downloads ("" = none)
         cookies_profile: Browser profile name or folder ("" = default profile)
@@ -53,6 +55,9 @@ class AppConfig:
     last_update_check: str = ""
     notifications_enabled: bool = True
     close_to_tray: bool = False
+    # Download tab sections that the user left open (both closed by default)
+    more_options_open: bool = False
+    activity_log_open: bool = False
     # UI theme, "dark" or "light". Unknown values start in dark (see ThemeMode.from_value).
     theme: str = "dark"
     # Advanced download options (0.5.0)

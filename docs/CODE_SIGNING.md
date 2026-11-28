@@ -1,7 +1,6 @@
 # Code Signing - Internal Maintainer Notes
 
-Status as of 2026-05-10, still true for release 0.3.1: **release binaries
-are not Authenticode-signed.** Users see a SmartScreen "Unknown publisher"
+Status as of 2026-11-28: **release binaries are not Authenticode-signed.** Users see a SmartScreen "Unknown publisher"
 warning on the first run. This document records the plan to fix that without
 paying for a certificate.
 
@@ -169,10 +168,14 @@ short free trial, or scams. **Do not pursue.**
 
 ## Tracking
 
-The application step is tracked in [`ROADMAP.md`](../ROADMAP.md) under v1.0.0.
-Signing is **required for v1.0.0** (maintainer decision, 2026-11-28). Apply
-as soon as the website has the code signing policy and privacy policy pages
-that the SignPath terms require, so approval arrives before 1.0.0.
+**Outcome, 2026-11-28:** the SignPath Foundation declined the application for
+now, because the project does not yet have enough public visibility (stars,
+forks, contributors, external articles or discussions). They invite a new
+application once the project has broader recognition. A paid SignPath
+subscription is the other option; it is not planned.
+
+Release 1.0.0 ships unsigned. Reapplying is listed under "After 1.0" in
+[`ROADMAP.md`](../ROADMAP.md).
 
 When signing lands, update [`SECURITY.md`](../SECURITY.md). Mention the
 Authenticode signature next to the existing build provenance verification.
