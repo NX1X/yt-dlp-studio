@@ -19,7 +19,7 @@ from src.models.download_task import DownloadTask, TaskStatus
 from src.ui.display_format import strip_isolates
 from src.ui.queue_tab import COL_ETA, COL_SIZE, COL_SPEED, COL_STATUS, COL_TITLE, QueueTab
 from src.ui.table_delegates import PROGRESS_ROLE, STATUS_KIND_ROLE
-from src.utils.translations import get_translation_manager, tr
+from src.utils.translations import get_translation_manager, tr, tr_count
 
 
 @pytest.fixture(autouse=True)
@@ -454,4 +454,4 @@ class TestHebrew:
         qtbot.addWidget(tab)
         add(queue_manager, make_task(0))
         assert tab.queue_table.horizontalHeaderItem(COL_ETA).text() == tr("col_time_left")
-        assert tab.counters_label.text() == f"{tr('summary_waiting', count=1)}, {tr('summary_paused')}"
+        assert tab.counters_label.text() == f"{tr_count('summary_waiting', 1)}, {tr('summary_paused')}"

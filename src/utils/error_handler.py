@@ -7,6 +7,7 @@ Categorizes errors and provides helpful suggestions to users.
 from enum import Enum
 
 from .logger import get_logger
+from .translations import tr
 
 logger = get_logger()
 
@@ -143,105 +144,13 @@ class ErrorHandler:
         category = ErrorHandler.categorize_error(error_message)
         logger.info(f"Error categorized as: {category.value}")
 
-        if category == ErrorCategory.NETWORK:
-            return (
-                "Network Error",
-                "Unable to connect to the internet or the video server.",
-                "• Check your internet connection\n"
-                "• Verify the URL is accessible in your browser\n"
-                "• Try again in a few moments\n"
-                "• Check if a firewall or VPN is blocking access",
-            )
-
-        elif category == ErrorCategory.URL_INVALID:
-            return (
-                "Invalid URL",
-                "The URL you entered is not valid or not supported.",
-                "• Make sure you copied the complete URL\n"
-                "• Check if the URL starts with http:// or https://\n"
-                "• Verify the site is supported by yt-dlp\n"
-                "• Try clicking 'Show Info' to test the URL first",
-            )
-
-        elif category == ErrorCategory.VIDEO_UNAVAILABLE:
-            return (
-                "Video Unavailable",
-                "The video is no longer available or doesn't exist.",
-                "• The video may have been deleted by the uploader\n"
-                "• The URL might be incorrect or expired\n"
-                "• Try refreshing the page in your browser\n"
-                "• Check if the video is still accessible online",
-            )
-
-        elif category == ErrorCategory.GEO_BLOCKED:
-            return (
-                "Geo-Restricted Content",
-                "This video is not available in your region.",
-                "• The video may be restricted to certain countries\n"
-                "• You might need a VPN to access this content\n"
-                "• Check if the video is available in your browser\n"
-                "• Try a different video or source",
-            )
-
-        elif category == ErrorCategory.COPYRIGHT:
-            return (
-                "Copyright Restriction",
-                "This video has been removed due to copyright claims.",
-                "• The video violated copyright or terms of service\n"
-                "• It has been removed by the platform or uploader\n"
-                "• This content cannot be downloaded\n"
-                "• Look for alternative sources",
-            )
-
-        elif category == ErrorCategory.PRIVATE:
-            return (
-                "Private or Login Required",
-                "This video is private or requires authentication.",
-                "• The video may be set to private\n"
-                "• You might need to be logged in to access it\n"
-                "• Check if you can view it in your browser when logged in\n"
-                "• Contact the video owner for access",
-            )
-
-        elif category == ErrorCategory.FORMAT:
-            return (
-                "Format Error",
-                "There was an issue with the video or audio format.",
-                "• Try a different quality setting\n"
-                "• The video format may not be compatible\n"
-                "• Check if 'Best Quality' works better\n"
-                "• Try downloading audio only first",
-            )
-
-        elif category == ErrorCategory.DISK_SPACE:
-            return (
-                "Insufficient Disk Space",
-                "There is not enough space to download this file.",
-                "• Free up disk space on your drive\n"
-                "• Choose a different download location\n"
-                "• Delete unnecessary files\n"
-                "• Try downloading a lower quality version",
-            )
-
-        elif category == ErrorCategory.PERMISSION:
-            return (
-                "Permission Denied",
-                "Cannot write to the selected download directory.",
-                "• Choose a different download folder\n"
-                "• Check folder permissions\n"
-                "• Try saving to your Downloads folder\n"
-                "• Run the application as administrator (Windows)",
-            )
-
-        else:  # UNKNOWN
-            return (
-                "Download Failed",
-                f"An error occurred during download:\n\n{error_message[:200]}",
-                "• Try downloading again\n"
-                "• Check the log for more details\n"
-                "• Try a different quality setting\n"
-                "• Verify the URL is still valid",
-            )
+        # Texts live in src/utils/translations.py under errcat_<category>_*.
+        prefix = f"errcat_{category.value}"
+        return (
+            tr(f"{prefix}_title"),
+            tr(f"{prefix}_message", detail=error_message[:200]),
+            tr(f"{prefix}_suggestions"),
+        )
 
     @staticmethod
     def format_error_dialog_text(error_message: str, colors: dict[str, str] | None = None) -> str:
@@ -258,8 +167,6 @@ class ErrorHandler:
             Formatted HTML text for dialog
         """
         import html
-
-        from .translations import tr
 
         title, message, suggestions = ErrorHandler.get_error_info(error_message)
         colors = colors or {}

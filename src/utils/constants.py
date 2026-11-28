@@ -83,6 +83,14 @@ VIDEO_CONTAINER_FORMATS = {
     "Auto (Best Quality)": None,  # Let yt-dlp choose
 }
 DEFAULT_VIDEO_CONTAINER = "MP4 (Best Compatibility)"
+# The keys above are stable lookup keys (the Download tab stores them as combo
+# item data). The text the user sees comes from these translation keys.
+VIDEO_CONTAINER_LABEL_KEYS = {
+    "MP4 (Best Compatibility)": "format_video_mp4",
+    "MKV (Matroska)": "format_video_mkv",
+    "WebM": "format_video_webm",
+    "Auto (Best Quality)": "format_video_auto",
+}
 
 # v2.0.0: Audio Format Options
 AUDIO_FORMATS = {
@@ -94,6 +102,14 @@ AUDIO_FORMATS = {
     "Vorbis/OGG": "vorbis",
 }
 DEFAULT_AUDIO_FORMAT = "MP3 (Most Compatible)"
+AUDIO_FORMAT_LABEL_KEYS = {
+    "MP3 (Most Compatible)": "format_audio_mp3",
+    "M4A/AAC (High Quality)": "format_audio_m4a",
+    "OPUS (Best Quality/Size)": "format_audio_opus",
+    "FLAC (Lossless)": "format_audio_flac",
+    "WAV (Uncompressed)": "format_audio_wav",
+    "Vorbis/OGG": "format_audio_vorbis",
+}
 
 # Thumbnail settings (v1.7.0)
 THUMBNAIL_DOWNLOAD = False  # Thumbnail off by default; the user opts in

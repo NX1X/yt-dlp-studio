@@ -4,9 +4,11 @@ Main window for YT-DLP Studio.
 The main application window with tabs for Download and Settings.
 """
 
+import sys
 from datetime import UTC
+from pathlib import Path
 
-from PySide6.QtCore import QSize, Qt, QUrl
+from PySide6.QtCore import QLibraryInfo, QSize, Qt, QTranslator, QUrl
 from PySide6.QtGui import QDesktopServices, QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QMessageBox, QStatusBar, QTabWidget
 
@@ -15,7 +17,7 @@ from ..backend.history_manager import HistoryManager
 from ..backend.queue_manager import QueueManager
 from ..utils.constants import APP_DATA_DIR, APP_DOCS_URL, APP_NAME, WINDOW_MIN_HEIGHT, WINDOW_MIN_WIDTH
 from ..utils.logger import get_logger
-from ..utils.translations import get_translation_manager, tr
+from ..utils.translations import get_translation_manager, tr, tr_count
 from .about_tab import AboutTab
 from .download_tab import DownloadTab
 from .history_tab import HistoryTab
@@ -309,9 +311,9 @@ class MainWindow(QMainWindow):
         if active:
             return tr("status_bar_downloading", active=active, total=active + pending)
         if pending and self.queue_manager.is_paused:
-            return tr("status_bar_paused", count=pending)
+            return tr_count("status_bar_paused", pending)
         if pending:
-            return tr("summary_waiting", count=pending)
+            return tr_count("summary_waiting", pending)
         return tr("status_bar_idle")
 
     def _update_queue_status(self, *_args) -> None:
@@ -411,3 +413,39 @@ class MainWindow(QMainWindow):
             # English: Left-to-Right
             QApplication.instance().setLayoutDirection(Qt.LeftToRight)
             logger.info("LTR layout applied")
+        self._install_qt_translator(lang)
+
+    def _install_qt_translator(self, lang: str) -> None:
+        """
+        Load Qt's own Hebrew texts (OK, Cancel, Yes, No in message boxes).
+
+        Qt draws the standard buttons from its own translation files, not from
+        ours. Without this, a Hebrew message box has an English "OK" button.
+        """
+        app = QApplication.instance()
+        old = getattr(self, "_qt_translator", None)
+        if old is not None:
+            app.removeTranslator(old)
+            self._qt_translator = None
+        if lang != "he":
+            return
+
+        folders = [QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)]
+        bundle = getattr(sys, "_MEIPASS", None)
+        if bundle:
+            folders.append(str(Path(bundle) / "PySide6" / "Qt" / "translations"))
+        try:
+            import PySide6
+
+            folders.append(str(Path(PySide6.__file__).parent / "Qt" / "translations"))
+        except ImportError:
+            pass
+
+        translator = QTranslator(self)
+        for folder in folders:
+            if translator.load("qtbase_he", folder):
+                app.installTranslator(translator)
+                self._qt_translator = translator
+                logger.info(f"Qt Hebrew texts loaded from {folder}")
+                return
+        logger.warning("Qt Hebrew texts (qtbase_he.qm) not found; standard buttons stay in English")

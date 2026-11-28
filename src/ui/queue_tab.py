@@ -35,7 +35,7 @@ from ..models.download_task import DownloadTask, TaskStatus
 from ..utils.error_handler import ErrorHandler
 from ..utils.logger import get_logger
 from ..utils.status_labels import task_status_text
-from ..utils.translations import tr
+from ..utils.translations import tr, tr_count
 from .display_format import duration_text, link_text, open_local_path, quality_label, size_text, speed_text
 from .status_messages import show_status
 from .table_delegates import IS_LINK_ROLE, PROGRESS_ROLE, STATUS_KIND_ROLE, LinkAwareDelegate, StatusDelegate
@@ -375,13 +375,13 @@ class QueueTab(QWidget):
 
         parts = [] if tasks else [tr("summary_queue_empty")]
         if stats.get("active", 0):
-            parts.append(tr("summary_downloading", count=stats["active"]))
+            parts.append(tr_count("summary_downloading", stats["active"]))
         if stats.get("pending", 0):
-            parts.append(tr("summary_waiting", count=stats["pending"]))
+            parts.append(tr_count("summary_waiting", stats["pending"]))
         if stats.get("failed", 0):
-            parts.append(tr("summary_failed", count=stats["failed"]))
+            parts.append(tr_count("summary_failed", stats["failed"]))
         if stats.get("completed", 0):
-            parts.append(tr("summary_done", count=stats["completed"]))
+            parts.append(tr_count("summary_done", stats["completed"]))
         if paused:
             parts.append(tr("summary_paused"))
         self.counters_label.setText(", ".join(parts))
@@ -631,12 +631,12 @@ class QueueTab(QWidget):
     def _on_clear_completed_clicked(self) -> None:
         count = self.queue_manager.clear_completed()
         logger.info(f"Cleared {count} completed tasks")
-        show_status(self, tr("status_cleared_tasks", count=count))
+        show_status(self, tr_count("status_cleared_tasks", count))
 
     def _on_clear_failed_clicked(self) -> None:
         count = self.queue_manager.clear_failed()
         logger.info(f"Cleared {count} failed tasks")
-        show_status(self, tr("status_cleared_tasks", count=count))
+        show_status(self, tr_count("status_cleared_tasks", count))
 
     def _on_clear_cancelled_clicked(self) -> None:
         count = 0
@@ -645,12 +645,12 @@ class QueueTab(QWidget):
             if index >= 0 and self.queue_manager.remove_task(index):
                 count += 1
         logger.info(f"Cleared {count} cancelled tasks")
-        show_status(self, tr("status_cleared_tasks", count=count))
+        show_status(self, tr_count("status_cleared_tasks", count))
 
     def _on_retry_all_failed_clicked(self) -> None:
         count = self.queue_manager.retry_all_failed()
         logger.info(f"Retrying {count} failed tasks")
-        show_status(self, tr("status_retrying", count=count))
+        show_status(self, tr_count("status_retrying", count))
 
     def _on_open_file_clicked(self) -> None:
         """Open the downloaded file of the selected task."""

@@ -188,21 +188,21 @@ class FormatHandler:
             >>> desc = FormatHandler.get_quality_description("1080p (Full HD)")
             >>> print(desc)  # "Full HD quality (1920x1080) - Recommended for most devices"
         """
-        descriptions = {
-            # Video Quality Descriptions
-            _Q_BEST: "Best available quality (video+audio or VBR audio) - No limits",
-            _Q_8K: "Ultra HD 8K (7680x4320) - Extreme quality, very large files",
-            _Q_4K: "Ultra HD 4K (3840x2160) - Excellent quality, large files",
-            _Q_2K: "Quad HD (2560x1440) - Great quality, moderate file size",
-            _Q_1080P: "Full HD (1920x1080) - Recommended for most devices",
-            _Q_720P: "HD (1280x720) - Good quality, smaller file size",
-            _Q_480P: "Standard definition (854x480) - Faster downloads",
-            "360p": "Low resolution (640x360) - Smallest file size",
-            # Audio Quality Descriptions
-            "Audio 320kbps": "Highest fixed quality - Near CD quality (320kbps)",
-            "Audio 256kbps": "Very high quality - Excellent for music (256kbps)",
-            "Audio 192kbps": "High quality - Good balance (192kbps)",
-            "Audio 128kbps": "Standard quality - Smaller file size (128kbps)",
+        # Texts live in src/utils/translations.py under quality_desc_*.
+        description_keys = {
+            _Q_BEST: "quality_desc_best",
+            _Q_8K: "quality_desc_8k",
+            _Q_4K: "quality_desc_4k",
+            _Q_2K: "quality_desc_2k",
+            _Q_1080P: "quality_desc_1080p",
+            _Q_720P: "quality_desc_720p",
+            _Q_480P: "quality_desc_480p",
+            "360p": "quality_desc_360p",
+            "Audio 320kbps": "quality_desc_audio_320",
+            "Audio 256kbps": "quality_desc_audio_256",
+            "Audio 192kbps": "quality_desc_audio_192",
+            "Audio 128kbps": "quality_desc_audio_128",
         }
 
-        return descriptions.get(quality_name, "No description available")
+        key = description_keys.get(quality_name)
+        return tr(key) if key else tr("quality_desc_none")

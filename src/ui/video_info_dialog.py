@@ -108,7 +108,14 @@ class VideoInfoDialog(QDialog):
 
         rows: list[tuple[str, str]] = [
             ("label_channel", self.video_info.uploader or tr("text_unknown")),
-            ("label_duration", ltr(self.video_info.get_duration_formatted())),
+            (
+                "label_duration",
+                (
+                    ltr(self.video_info.get_duration_formatted())
+                    if self.video_info.duration > 0
+                    else tr("text_unknown_label")
+                ),
+            ),
         ]
         if self.video_info.upload_date:
             rows.append(("label_uploaded", ltr(self._format_upload_date(self.video_info.upload_date))))

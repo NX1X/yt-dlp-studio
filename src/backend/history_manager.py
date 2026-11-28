@@ -12,6 +12,7 @@ from ..models.download_task import DownloadTask
 from ..utils.constants import APP_DATA_DIR
 from ..utils.file_formats import HISTORY_FORMAT, FileState, keep_bad_copy, load_json_file, save_json_file
 from ..utils.logger import get_logger
+from ..utils.translations import tr
 
 logger = get_logger()
 
@@ -46,7 +47,7 @@ class HistoryManager:
         """
         entry = HistoryEntry(
             url=task.url,
-            title=task.title or task.filename or "Unknown",
+            title=task.title or task.filename or tr("text_unknown_label"),
             quality=task.quality,
             output_directory=task.output_directory,
             filename=task.filename or "",
