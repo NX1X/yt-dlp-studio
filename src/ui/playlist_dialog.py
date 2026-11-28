@@ -4,13 +4,16 @@ Playlist viewer dialog for YT-DLP Studio.
 This module provides a dialog to view and select videos from a playlist.
 """
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
     QCheckBox,
     QComboBox,
     QDialog,
+    QDialogButtonBox,
     QGridLayout,
-    QGroupBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -19,13 +22,15 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
+    QToolButton,
     QVBoxLayout,
-    QWidget,  # needed for thumbnail display
+    QWidget,
 )
 
 from ..backend.playlist_fetcher import PlaylistInfo
 from ..utils.logger import get_logger
 from ..utils.translations import tr
+from .bidi import ltr
 
 logger = get_logger()
 
@@ -43,6 +48,9 @@ _SUBTITLE_LANGUAGE_CHOICES: list[tuple[str, str, tuple[str, ...]]] = [
     ("ru", "checkbox_subtitle_lang_ru", ("ru",)),
     ("de", "checkbox_subtitle_lang_de", ("de",)),
 ]
+
+# Language check boxes per row in the subtitle section
+_LANGUAGE_COLUMNS = 4
 
 
 def _parse_extra_subtitle_codes(raw: str) -> list[str]:
@@ -105,6 +113,9 @@ class PlaylistDialog(QDialog):
 
     videos_selected = Signal(list, str, list)  # (urls, quality, subtitle_langs)
 
+    # Table columns. The first column holds the check box and the number.
+    COL_CHECK, COL_TITLE, COL_DURATION, COL_UPLOADER = range(4)
+
     def __init__(self, playlist_info: PlaylistInfo, parent=None):
         """
         Initialize playlist dialog.
@@ -115,10 +126,11 @@ class PlaylistDialog(QDialog):
         """
         super().__init__(parent)
         self.playlist_info = playlist_info
-        self.checkboxes = []  # Store checkboxes for select all/none
         # Per-language subtitle checkboxes, keyed by the language key
         # ("he", "en", ...). Populated by _setup_subtitle_section.
         self.subtitle_lang_checkboxes: dict[str, QCheckBox] = {}
+        # Row whose check state Qt changed during the current click
+        self._changed_in_click: int | None = None
         self._setup_ui()
         self._populate_videos()
         logger.debug(f"PlaylistDialog created for: {playlist_info.title}")
@@ -126,38 +138,29 @@ class PlaylistDialog(QDialog):
     def _setup_ui(self) -> None:
         """Set up the dialog UI."""
         self.setWindowTitle(tr("dialog_playlist_viewer"))
-        self.setMinimumSize(QSize(900, 600))
-        self.setMaximumSize(QSize(1200, 800))
+        self.setMinimumSize(QSize(820, 560))
 
         main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setSpacing(8)
 
-        # Playlist info section
-        info_group = QGroupBox(tr("group_playlist_information"))
-        info_layout = QVBoxLayout()
-
-        # Title. The inline `color: #ffffff` was invisible in light theme and
-        # bypassed the QSS theme system. Rely on the default palette and use
-        # an object name so the theme can target it.
-        title_label = QLabel(f"<b>{self.playlist_info.title}</b>")
+        # Playlist info: the title and one line of facts (no group box)
+        title_label = QLabel(self.playlist_info.title)
         title_label.setWordWrap(True)
         title_label.setObjectName("playlistTitleLabel")
-        title_label.setStyleSheet("font-size: 14px;")
-        info_layout.addWidget(title_label)
+        title_label.setProperty("labelStyle", "title")
+        main_layout.addWidget(title_label)
 
-        # Stats row
-        stats_layout = QHBoxLayout()
-        stats_layout.addWidget(QLabel(tr("label_videos_count", count=self.playlist_info.video_count)))
+        facts = [tr("label_videos_count", count=self.playlist_info.video_count)]
         if self.playlist_info.uploader:
-            stats_layout.addWidget(QLabel(f"| {tr('label_uploader')}: {self.playlist_info.uploader}"))
-        stats_layout.addStretch()
-        info_layout.addLayout(stats_layout)
+            facts.append(f"{tr('label_uploader')}: {self.playlist_info.uploader}")
+        stats_label = QLabel("   |   ".join(facts))
+        stats_label.setProperty("labelStyle", "secondary")
+        main_layout.addWidget(stats_label)
+        main_layout.addSpacing(4)
 
-        info_group.setLayout(info_layout)
-        main_layout.addWidget(info_group)
-
-        # Selection controls
+        # Toolbar: selection, count and quality
         controls_layout = QHBoxLayout()
-
         select_all_btn = QPushButton(tr("button_select_all"))
         select_all_btn.clicked.connect(self._select_all)
         controls_layout.addWidget(select_all_btn)
@@ -166,79 +169,82 @@ class PlaylistDialog(QDialog):
         select_none_btn.clicked.connect(self._select_none)
         controls_layout.addWidget(select_none_btn)
 
+        self.selected_count_label = QLabel()
+        self.selected_count_label.setProperty("labelStyle", "secondary")
+        controls_layout.addSpacing(8)
+        controls_layout.addWidget(self.selected_count_label)
         controls_layout.addStretch()
 
-        # Quality selector
-        controls_layout.addWidget(QLabel(tr("label_quality_playlist")))
+        quality_label = QLabel(tr("label_quality_playlist"))
+        controls_layout.addWidget(quality_label)
         self.quality_combo = QComboBox()
         self.quality_combo.addItems(
             [tr("quality_best"), tr("quality_1080p"), tr("quality_720p"), tr("quality_480p"), tr("quality_audio_only")]
         )
+        quality_label.setBuddy(self.quality_combo)
         controls_layout.addWidget(self.quality_combo)
-
         main_layout.addLayout(controls_layout)
 
-        # Videos table
+        # Videos table: it gets all the free space
         self.videos_table = QTableWidget()
-        self.videos_table.setColumnCount(5)
+        self.videos_table.setColumnCount(4)
         self.videos_table.setHorizontalHeaderLabels(
-            [
-                tr("col_select"),
-                tr("col_index"),
-                tr("col_title"),
-                tr("col_duration"),
-                tr("col_uploader"),
-            ]
+            [tr("col_index"), tr("col_title"), tr("col_duration"), tr("col_uploader")]
         )
-
-        # Set column widths
         header = self.videos_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Fixed)  # Select checkbox
-        header.setSectionResizeMode(1, QHeaderView.Fixed)  # Index
-        header.setSectionResizeMode(2, QHeaderView.Stretch)  # Title
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Duration
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Uploader
-
-        self.videos_table.setColumnWidth(0, 60)
-        self.videos_table.setColumnWidth(1, 50)
-
-        # Enable row selection
-        self.videos_table.setSelectionBehavior(QTableWidget.SelectRows)
+        # Fixed: the size hint leaves out the check box and the cell padding.
+        header.setSectionResizeMode(self.COL_CHECK, QHeaderView.Fixed)
+        self.videos_table.setColumnWidth(self.COL_CHECK, 72)
+        header.setSectionResizeMode(self.COL_TITLE, QHeaderView.Stretch)
+        header.setSectionResizeMode(self.COL_DURATION, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(self.COL_UPLOADER, QHeaderView.ResizeToContents)
+        self.videos_table.verticalHeader().setVisible(False)
+        self.videos_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.videos_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.videos_table.setAlternatingRowColors(True)
+        self.videos_table.setWordWrap(False)
+        self.videos_table.itemChanged.connect(self._on_item_changed)
+        self.videos_table.cellClicked.connect(self._on_cell_clicked)
+        # Space checks or unchecks the selected rows.
+        toggle = QShortcut(QKeySequence(Qt.Key.Key_Space), self.videos_table)
+        toggle.setContext(Qt.ShortcutContext.WidgetShortcut)
+        toggle.activated.connect(self._toggle_selected_rows)
+        main_layout.addWidget(self.videos_table, 1)
 
-        main_layout.addWidget(self.videos_table)
-
-        # Subtitles section (per-playlist override)
+        # Subtitles section (per-playlist override), closed by default
         self._setup_subtitle_section(main_layout)
 
-        # Button section
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
-
-        cancel_button = QPushButton(tr("cancel"))
-        cancel_button.setMinimumWidth(100)
-        cancel_button.clicked.connect(self.reject)
-        button_layout.addWidget(cancel_button)
-
-        # Object name ties this button to the primary-button QSS selector in
-        # the theme, replacing the inline blue stylesheet that duplicated
-        # rules already defined globally.
-        download_button = QPushButton(tr("button_add_to_queue"))
-        download_button.setMinimumWidth(150)
-        download_button.setObjectName("primaryButton")
-        download_button.clicked.connect(self._on_download_clicked)
-        button_layout.addWidget(download_button)
-
-        main_layout.addLayout(button_layout)
+        # Buttons
+        self.button_box = QDialogButtonBox()
+        self.add_button = QPushButton()
+        self.add_button.setProperty("buttonStyle", "primary")
+        self.add_button.setDefault(True)
+        self.button_box.addButton(self.add_button, QDialogButtonBox.ButtonRole.AcceptRole)
+        self.button_box.addButton(tr("cancel"), QDialogButtonBox.ButtonRole.RejectRole)
+        self.button_box.accepted.connect(self._on_download_clicked)
+        self.button_box.rejected.connect(self.reject)
+        main_layout.addWidget(self.button_box)
 
     def _setup_subtitle_section(self, parent_layout: QVBoxLayout) -> None:
         """Build the per-playlist subtitle picker.
 
-        The whole group is collapsed (disabled) until the parent checkbox is
-        ticked, so the playlist downloads the same as before by default.
+        A header button opens the section; it is closed by default. Inside,
+        the languages stay disabled until the master check box is ticked, so
+        the playlist downloads the same as before by default.
         """
-        group = QGroupBox(tr("group_playlist_subtitles"))
-        group_layout = QVBoxLayout(group)
+        self.subtitle_header = QToolButton()
+        self.subtitle_header.setText(tr("group_playlist_subtitles"))
+        self.subtitle_header.setCheckable(True)
+        self.subtitle_header.setChecked(False)
+        self.subtitle_header.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.subtitle_header.setProperty("sectionHeader", True)
+        self.subtitle_header.toggled.connect(self._set_subtitles_expanded)
+        parent_layout.addWidget(self.subtitle_header)
+
+        self.subtitle_section = QWidget()
+        group_layout = QVBoxLayout(self.subtitle_section)
+        group_layout.setContentsMargins(24, 0, 0, 0)
+        group_layout.setSpacing(6)
 
         # Master toggle for the whole section. Off by default.
         self.subtitles_enabled_checkbox = QCheckBox(tr("checkbox_playlist_download_subtitles"))
@@ -252,21 +258,22 @@ class PlaylistDialog(QDialog):
         hint_label = QLabel(tr("label_playlist_subtitle_override_hint"))
         hint_label.setWordWrap(True)
         hint_label.setObjectName("hintLabel")
-        hint_label.setStyleSheet("color: palette(mid); font-style: italic;")
+        hint_label.setProperty("labelStyle", "secondary")
         group_layout.addWidget(hint_label)
 
-        # Language picker - 2-column grid keeps the dialog compact.
-        langs_label = QLabel(tr("label_playlist_subtitle_languages"))
-        group_layout.addWidget(langs_label)
-
+        # Languages in one compact grid
         langs_grid = QGridLayout()
+        langs_grid.setHorizontalSpacing(16)
+        langs_grid.setVerticalSpacing(4)
+        langs_grid.addWidget(QLabel(tr("label_playlist_subtitle_languages")), 0, 0)
         for idx, (key, tr_key, _codes) in enumerate(_SUBTITLE_LANGUAGE_CHOICES):
             checkbox = QCheckBox(tr(tr_key))
             checkbox.setChecked(False)
             checkbox.setEnabled(False)  # gated by the master toggle
-            row, col = divmod(idx, 2)
-            langs_grid.addWidget(checkbox, row, col)
+            row, col = divmod(idx, _LANGUAGE_COLUMNS)
+            langs_grid.addWidget(checkbox, row, col + 1)
             self.subtitle_lang_checkboxes[key] = checkbox
+        langs_grid.setColumnStretch(_LANGUAGE_COLUMNS + 1, 1)
         group_layout.addLayout(langs_grid)
 
         # Free-form override for any code not in the preset list.
@@ -277,8 +284,11 @@ class PlaylistDialog(QDialog):
         self.subtitle_other_input.setPlaceholderText(tr("placeholder_playlist_subtitle_other"))
         self.subtitle_other_input.setToolTip(tr("tooltip_playlist_subtitle_other"))
         self.subtitle_other_input.setEnabled(False)
+        self.subtitle_other_input.setMaximumWidth(320)
+        other_label.setBuddy(self.subtitle_other_input)
         other_row.addWidget(other_label)
         other_row.addWidget(self.subtitle_other_input)
+        other_row.addStretch()
         group_layout.addLayout(other_row)
 
         # Keep references so the master toggle can enable/disable them later.
@@ -288,7 +298,19 @@ class PlaylistDialog(QDialog):
             self.subtitle_other_input,
         ]
 
-        parent_layout.addWidget(group)
+        parent_layout.addWidget(self.subtitle_section)
+        self._set_subtitles_expanded(False)
+
+    def _set_subtitles_expanded(self, expanded: bool) -> None:
+        """Open or close the subtitle section (the arrow points at the text when closed)."""
+        self.subtitle_section.setVisible(expanded)
+        if expanded:
+            arrow = Qt.ArrowType.DownArrow
+        elif QApplication.layoutDirection() == Qt.LayoutDirection.RightToLeft:
+            arrow = Qt.ArrowType.LeftArrow
+        else:
+            arrow = Qt.ArrowType.RightArrow
+        self.subtitle_header.setArrowType(arrow)
 
     def _on_subtitles_toggled(self, _state: int) -> None:
         """Enable or disable the language picker based on the master toggle.
@@ -316,62 +338,100 @@ class PlaylistDialog(QDialog):
         selected_keys = [key for key, checkbox in self.subtitle_lang_checkboxes.items() if checkbox.isChecked()]
         return _collect_subtitle_languages(selected_keys, self.subtitle_other_input.text())
 
+    # ---------- video list ----------
+
     def _populate_videos(self) -> None:
-        """Populate the videos table."""
+        """Populate the videos table. Every video starts checked."""
+        self.videos_table.blockSignals(True)
         self.videos_table.setRowCount(len(self.playlist_info.videos))
 
         for idx, video in enumerate(self.playlist_info.videos):
-            # Checkbox
-            checkbox = QCheckBox()
-            checkbox.setChecked(True)  # Default: all selected
-            self.checkboxes.append(checkbox)
-            checkbox_widget = QWidget()
-            checkbox_layout = QHBoxLayout(checkbox_widget)
-            checkbox_layout.addWidget(checkbox)
-            checkbox_layout.setAlignment(Qt.AlignCenter)
-            checkbox_layout.setContentsMargins(0, 0, 0, 0)
-            self.videos_table.setCellWidget(idx, 0, checkbox_widget)
+            check_item = QTableWidgetItem(str(video.index))
+            check_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsUserCheckable)
+            check_item.setCheckState(Qt.Checked)
+            self.videos_table.setItem(idx, self.COL_CHECK, check_item)
 
-            # Index
-            index_item = QTableWidgetItem(str(video.index))
-            index_item.setTextAlignment(Qt.AlignCenter)
-            self.videos_table.setItem(idx, 1, index_item)
-
-            # Title
             title_item = QTableWidgetItem(video.title)
-            self.videos_table.setItem(idx, 2, title_item)
+            title_item.setToolTip(video.title)
+            self.videos_table.setItem(idx, self.COL_TITLE, title_item)
 
-            # Duration
-            duration_item = QTableWidgetItem(video.get_duration_formatted())
+            duration_item = QTableWidgetItem(ltr(video.get_duration_formatted()))
             duration_item.setTextAlignment(Qt.AlignCenter)
-            self.videos_table.setItem(idx, 3, duration_item)
+            self.videos_table.setItem(idx, self.COL_DURATION, duration_item)
 
-            # Uploader
-            uploader_item = QTableWidgetItem(video.uploader or "-")
-            self.videos_table.setItem(idx, 4, uploader_item)
+            self.videos_table.setItem(idx, self.COL_UPLOADER, QTableWidgetItem(video.uploader or "-"))
 
+        self.videos_table.blockSignals(False)
+        self._update_selection_count()
         logger.debug(f"Populated {len(self.playlist_info.videos)} videos in table")
+
+    def is_row_checked(self, row: int) -> bool:
+        """True if the video in ``row`` will be added."""
+        return self.videos_table.item(row, self.COL_CHECK).checkState() == Qt.Checked
+
+    def set_row_checked(self, row: int, checked: bool) -> None:
+        """Check or uncheck the video in ``row``."""
+        self.videos_table.item(row, self.COL_CHECK).setCheckState(Qt.Checked if checked else Qt.Unchecked)
+
+    def selected_video_count(self) -> int:
+        """Number of checked videos."""
+        return sum(self.is_row_checked(row) for row in range(self.videos_table.rowCount()))
+
+    def _update_selection_count(self) -> None:
+        selected = self.selected_video_count()
+        total = self.videos_table.rowCount()
+        self.selected_count_label.setText(tr("label_selected_count", selected=selected, total=total))
+        self.add_button.setText(tr("button_add_videos_to_queue", count=selected))
+        self.add_button.setEnabled(selected > 0)
+
+    def _on_item_changed(self, item: QTableWidgetItem) -> None:
+        if item.column() != self.COL_CHECK:
+            return
+        self._changed_in_click = item.row()
+        QTimer.singleShot(0, self._clear_changed_in_click)
+        self._update_selection_count()
+
+    def _clear_changed_in_click(self) -> None:
+        self._changed_in_click = None
+
+    def _on_cell_clicked(self, row: int, _column: int) -> None:
+        """A click anywhere in a row checks or unchecks it.
+
+        A click on the check box itself is already handled by Qt (it changes
+        the item first), so it is not toggled a second time.
+        """
+        if self._changed_in_click == row:
+            return
+        self.set_row_checked(row, not self.is_row_checked(row))
+
+    def _toggle_selected_rows(self) -> None:
+        rows = sorted({index.row() for index in self.videos_table.selectionModel().selectedRows()})
+        if not rows:
+            return
+        # All checked -> uncheck them; otherwise check them all.
+        check = not all(self.is_row_checked(row) for row in rows)
+        for row in rows:
+            self.set_row_checked(row, check)
 
     def _select_all(self) -> None:
         """Select all videos."""
-        for checkbox in self.checkboxes:
-            checkbox.setChecked(True)
+        for row in range(self.videos_table.rowCount()):
+            self.set_row_checked(row, True)
         logger.debug("Selected all videos")
 
     def _select_none(self) -> None:
         """Deselect all videos."""
-        for checkbox in self.checkboxes:
-            checkbox.setChecked(False)
+        for row in range(self.videos_table.rowCount()):
+            self.set_row_checked(row, False)
         logger.debug("Deselected all videos")
 
     def _on_download_clicked(self) -> None:
         """Handle download button click."""
-        # Get selected video URLs
-        selected_urls = []
-        for idx, checkbox in enumerate(self.checkboxes):
-            if checkbox.isChecked():
-                video = self.playlist_info.videos[idx]
-                selected_urls.append(video.url)
+        selected_urls = [
+            self.playlist_info.videos[row].url
+            for row in range(self.videos_table.rowCount())
+            if self.is_row_checked(row)
+        ]
 
         if not selected_urls:
             QMessageBox.warning(self, tr("dialog_no_videos_selected"), tr("msg_select_at_least_one_video"))
@@ -384,6 +444,7 @@ class PlaylistDialog(QDialog):
         # the download tab then falls back to its own subtitle settings).
         subtitle_langs = self.get_selected_subtitle_languages()
         if self.subtitles_enabled_checkbox.isChecked() and not subtitle_langs:
+            self.subtitle_header.setChecked(True)
             QMessageBox.warning(
                 self,
                 tr("group_playlist_subtitles"),

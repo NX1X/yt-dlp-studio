@@ -1,17 +1,22 @@
 """
 Settings tab UI for YT-DLP Studio.
 
-Provides interface for configuring application settings.
+Provides interface for configuring application settings. The groups sit in a
+scroll area; the Reset and Save buttons sit in a bar below it that never
+scrolls away.
 """
 
 from datetime import UTC, datetime
+from pathlib import Path
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
     QFileDialog,
+    QFormLayout,
     QFrame,
     QGroupBox,
     QHBoxLayout,
@@ -27,11 +32,13 @@ from PySide6.QtWidgets import (
 
 from ..backend.config_manager import ConfigManager
 from ..backend.format_handler import FormatHandler
-from ..utils.constants import APP_VERSION, CONFIG_PATH, LOG_PATH
+from ..utils.constants import APP_VERSION, CONFIG_PATH, LOG_PATH, QUALITY_NAMES
 from ..utils.crash_handler import get_crash_dir
 from ..utils.logger import get_logger
 from ..utils.translations import get_translation_manager, save_language, tr
 from .advanced_download_options import AdvancedDownloadOptions
+from .status_messages import show_status
+from .theme import ThemeMode, get_theme_manager
 
 logger = get_logger()
 
@@ -41,9 +48,11 @@ class SettingsTab(QWidget):
     Settings tab widget.
 
     Allows users to configure:
-    - Default output directory
-    - Default quality setting
-    - View application info
+    - Default output directory and quality
+    - Theme and language
+    - Notifications, tray and update checks
+    - Advanced download options
+    It also shows the files a bug report needs.
 
     Example:
         >>> tab = SettingsTab(config_manager)
@@ -70,107 +79,135 @@ class SettingsTab(QWidget):
         """
         super().__init__(parent)
         self.config_manager = config_manager
+        # Labels of all forms, so the label columns of the groups line up.
+        self._form_labels: list[QLabel] = []
         self._setup_ui()
         self._load_settings()
         logger.info("SettingsTab initialized")
 
+    # ------------------------------------------------------------------ UI
+
     def _setup_ui(self) -> None:
         """Set up the UI layout."""
-        # The groups sit in a scroll area, so the advanced download options
-        # still fit when they are open on a small window.
         outer_layout = QVBoxLayout(self)
         outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setSpacing(0)
+
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setFrameShape(QFrame.Shape.NoFrame)
         content = QWidget()
         scroll_area.setWidget(content)
-        outer_layout.addWidget(scroll_area)
+        outer_layout.addWidget(scroll_area, 1)
+
         main_layout = QVBoxLayout(content)
+        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setSpacing(12)
 
-        # General settings group
-        general_group = QGroupBox(tr("settings_general"))
-        general_layout = QVBoxLayout()
+        main_layout.addWidget(self._build_downloads_group())
+        main_layout.addWidget(self._build_appearance_group())
+        main_layout.addWidget(self._build_behavior_group())
 
-        # Default output directory
-        output_layout = QHBoxLayout()
-        output_label = QLabel(tr("label_default_folder"))
-        output_label.setMinimumWidth(180)
+        # Advanced download options (0.5.0): cookies, proxy, file names, formats
+        self.advanced_options = AdvancedDownloadOptions()
+        main_layout.addWidget(self.advanced_options)
+
+        main_layout.addWidget(self._build_bug_report_files_group())
+        main_layout.addStretch()
+
+        self._align_form_labels()
+        outer_layout.addWidget(self._build_button_bar())
+
+    def _form(self, group: QGroupBox) -> QFormLayout:
+        form = QFormLayout(group)
+        form.setContentsMargins(12, 8, 12, 12)
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(8)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignLeading | Qt.AlignmentFlag.AlignVCenter)
+        return form
+
+    def _add_row(self, form: QFormLayout, label_text: str, field: QWidget, buddy: QWidget | None = None) -> QLabel:
+        label = QLabel(label_text)
+        label.setBuddy(buddy or field)
+        self._form_labels.append(label)
+        form.addRow(label, field)
+        return label
+
+    @staticmethod
+    def _row(*widgets: QWidget, stretch: bool = False) -> QWidget:
+        """Put widgets side by side in one form field."""
+        row = QWidget()
+        # The theme keeps #formRow transparent, so the group color shows through.
+        row.setObjectName("formRow")
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        for widget in widgets:
+            layout.addWidget(widget)
+        if stretch:
+            layout.addStretch()
+        return row
+
+    def _build_downloads_group(self) -> QGroupBox:
+        group = QGroupBox(tr("settings_downloads"))
+        form = self._form(group)
+
         self.output_input = QLineEdit()
         self.output_input.setReadOnly(True)
+        self.output_input.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
         self.browse_button = QPushButton(tr("button_browse"))
         self.browse_button.clicked.connect(self._browse_directory)
-        output_layout.addWidget(output_label)
-        output_layout.addWidget(self.output_input)
-        output_layout.addWidget(self.browse_button)
-        general_layout.addLayout(output_layout)
+        self._add_row(
+            form, tr("label_default_folder"), self._row(self.output_input, self.browse_button), self.browse_button
+        )
 
-        # Default quality
-        quality_layout = QHBoxLayout()
-        quality_label = QLabel(tr("label_default_quality"))
-        quality_label.setMinimumWidth(180)
+        # Items carry the stable quality key; the text is translated.
         self.quality_combo = QComboBox()
-        self.quality_combo.addItems(FormatHandler.get_available_qualities())
-        quality_layout.addWidget(quality_label)
-        quality_layout.addWidget(self.quality_combo)
-        quality_layout.addStretch()
-        general_layout.addLayout(quality_layout)
+        for key, label in zip(QUALITY_NAMES, FormatHandler.get_available_qualities(), strict=True):
+            self.quality_combo.addItem(label, key)
+        self._add_row(
+            form, tr("label_default_quality"), self._row(self.quality_combo, stretch=True), self.quality_combo
+        )
+        return group
 
-        # Language selector (v1.7.0)
-        language_layout = QHBoxLayout()
-        language_label = QLabel(tr("label_language"))
-        language_label.setMinimumWidth(180)
+    def _build_appearance_group(self) -> QGroupBox:
+        group = QGroupBox(tr("settings_appearance"))
+        form = self._form(group)
+
+        # The theme applies at once and is saved at once.
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItem(tr("theme_dark"), ThemeMode.DARK.value)
+        self.theme_combo.addItem(tr("theme_light"), ThemeMode.LIGHT.value)
+        self.theme_combo.setToolTip(tr("tooltip_theme_combo"))
+        self.theme_combo.currentIndexChanged.connect(self._on_theme_selected)
+        self._add_row(form, tr("label_theme"), self._row(self.theme_combo, stretch=True), self.theme_combo)
+
         self.language_combo = QComboBox()
         tm = get_translation_manager()
-        languages = tm.get_available_languages()
-        for code, name in languages.items():
+        for code, name in tm.get_available_languages().items():
             self.language_combo.addItem(name, code)
-        # Set current language
-        current_lang = tm.get_language()
-        index = self.language_combo.findData(current_lang)
+        index = self.language_combo.findData(tm.get_language())
         if index >= 0:
             self.language_combo.setCurrentIndex(index)
-        language_layout.addWidget(language_label)
-        language_layout.addWidget(self.language_combo)
-        language_layout.addStretch()
-        general_layout.addLayout(language_layout)
+        self._add_row(form, tr("label_language"), self._row(self.language_combo, stretch=True), self.language_combo)
+        # The restart note sits under the field, in the field column.
+        language_hint = QLabel(tr("label_language_restart_hint"))
+        language_hint.setProperty("labelStyle", "secondary")
+        language_hint.setWordWrap(True)
+        form.addRow("", language_hint)
+        return group
 
-        general_group.setLayout(general_layout)
-        main_layout.addWidget(general_group)
+    def _build_behavior_group(self) -> QGroupBox:
+        group = QGroupBox(tr("settings_behavior"))
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(12, 8, 12, 12)
+        layout.setSpacing(8)
 
-        # Appearance settings (v2.0.0 - moved from menu bar)
-        appearance_group = QGroupBox(tr("settings_appearance"))
-        appearance_layout = QVBoxLayout()
-
-        # Theme toggle button. Inline `background-color: #4a4a4a` was
-        # hardcoded dark-theme grey and bypassed the theme manager - replaced
-        # with the buttonStyle="secondary" property so the QSS in theme.py
-        # picks the right shade for both light and dark.
-        theme_button_layout = QHBoxLayout()
-        theme_label = QLabel(tr("label_theme"))
-        theme_label.setMinimumWidth(180)
-        self.toggle_theme_button = QPushButton(tr("button_toggle_theme"))
-        self.toggle_theme_button.setMinimumWidth(180)
-        self.toggle_theme_button.setToolTip(tr("tooltip_toggle_theme"))
-        self.toggle_theme_button.setProperty("buttonStyle", "secondary")
-        self.toggle_theme_button.clicked.connect(self._toggle_theme)
-        theme_button_layout.addWidget(theme_label)
-        theme_button_layout.addWidget(self.toggle_theme_button)
-        theme_button_layout.addStretch()
-        appearance_layout.addLayout(theme_button_layout)
-
-        appearance_group.setLayout(appearance_layout)
-        main_layout.addWidget(appearance_group)
-
-        # Notifications & Updates (v1.7.0)
-        features_group = QGroupBox(tr("settings_features"))
-        features_layout = QVBoxLayout()
-
-        # Enable notifications checkbox
         self.notifications_checkbox = QCheckBox(tr("checkbox_notifications"))
         self.notifications_checkbox.setChecked(True)
         self.notifications_checkbox.setToolTip(tr("tooltip_notifications"))
-        features_layout.addWidget(self.notifications_checkbox)
+        layout.addWidget(self.notifications_checkbox)
 
         # Keep running in the tray on close. Without a system tray (for
         # example stock GNOME) the window could not come back, so the
@@ -182,91 +219,87 @@ class SettingsTab(QWidget):
         else:
             self.close_to_tray_checkbox.setEnabled(False)
             self.close_to_tray_checkbox.setToolTip(tr("tooltip_close_to_tray_unavailable"))
-        features_layout.addWidget(self.close_to_tray_checkbox)
+        layout.addWidget(self.close_to_tray_checkbox)
 
-        # Auto-check updates checkbox
+        # Update check on startup, with the manual check next to it
         self.auto_update_checkbox = QCheckBox(tr("checkbox_auto_update"))
         self.auto_update_checkbox.setChecked(True)
         self.auto_update_checkbox.setToolTip(tr("tooltip_auto_update"))
-        features_layout.addWidget(self.auto_update_checkbox)
-
-        # Check-for-updates button uses the secondary style for the same
-        # palette-aware reason as the theme toggle above.
-        update_button_layout = QHBoxLayout()
-        self.check_update_button = QPushButton(tr("button_check_update"))
-        self.check_update_button.setMinimumWidth(180)
-        self.check_update_button.setProperty("buttonStyle", "secondary")
+        self.check_update_button = QPushButton(tr("button_check_for_updates_now"))
         self.check_update_button.clicked.connect(self._check_for_updates)
-        update_button_layout.addWidget(self.check_update_button)
-        update_button_layout.addStretch()
-        features_layout.addLayout(update_button_layout)
+        update_row = QHBoxLayout()
+        update_row.setSpacing(16)
+        update_row.addWidget(self.auto_update_checkbox)
+        update_row.addWidget(self.check_update_button)
+        update_row.addStretch()
+        layout.addLayout(update_row)
+        return group
 
-        features_group.setLayout(features_layout)
-        main_layout.addWidget(features_group)
+    def _build_bug_report_files_group(self) -> QGroupBox:
+        """The paths a bug report needs, each with Copy and Open folder."""
+        group = QGroupBox(tr("settings_bug_report_files"))
+        form = self._form(group)
 
-        # Advanced download options (0.5.0): cookies, proxy, file names, formats
-        self.advanced_options = AdvancedDownloadOptions()
-        main_layout.addWidget(self.advanced_options)
-
-        # Storage group: surfaces the paths a user would typically need to
-        # share when filing a bug report (log file, crash reports directory,
-        # config file). Each row has a Copy button so the user can paste
-        # the path straight into a GitHub issue without hunting for it.
-        # Replaces the old "Version Information" group, which duplicated
-        # content that now lives on the About tab.
-        storage_group = QGroupBox(tr("settings_storage"))
-        storage_layout = QVBoxLayout()
-
-        for label_key, path_value in (
-            (tr("label_log_file_path"), str(LOG_PATH)),
-            (tr("label_crash_dir_path"), str(get_crash_dir())),
-            (tr("label_config_file_path"), str(CONFIG_PATH)),
+        for label_key, path_value, folder in (
+            ("label_log_file_path", str(LOG_PATH), Path(LOG_PATH).parent),
+            ("label_crash_dir_path", str(get_crash_dir()), Path(get_crash_dir())),
+            ("label_config_file_path", str(CONFIG_PATH), Path(CONFIG_PATH).parent),
         ):
-            row = QHBoxLayout()
-            label = QLabel(label_key)
-            label.setMinimumWidth(180)
             path_field = QLineEdit(path_value)
             path_field.setReadOnly(True)
+            path_field.setCursorPosition(0)
+            path_field.setToolTip(path_value)
+            path_field.setAccessibleName(tr(label_key).rstrip(":"))
             copy_button = QPushButton(tr("button_copy"))
             copy_button.setToolTip(tr("tooltip_copy_path"))
-            copy_button.setProperty("buttonStyle", "secondary")
             copy_button.clicked.connect(lambda _checked=False, p=path_value: self._copy_path(p))
-            row.addWidget(label)
-            row.addWidget(path_field)
-            row.addWidget(copy_button)
-            storage_layout.addLayout(row)
+            open_button = QPushButton(tr("button_settings_open_folder"))
+            open_button.setToolTip(tr("tooltip_settings_open_folder"))
+            open_button.clicked.connect(lambda _checked=False, f=folder: self._open_folder(f))
+            self._add_row(form, tr(label_key), self._row(path_field, copy_button, open_button), path_field)
+        return group
 
-        storage_group.setLayout(storage_layout)
-        main_layout.addWidget(storage_group)
-
-        # Buttons
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
+    def _build_button_bar(self) -> QWidget:
+        """Reset (start side) and Save (end side), outside the scroll area."""
+        bar = QFrame()
+        bar.setObjectName("settingsButtonBar")
+        bar.setFrameShape(QFrame.Shape.NoFrame)
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(16, 8, 16, 8)
 
         self.reset_button = QPushButton(tr("button_reset_defaults"))
-        self.reset_button.setMinimumWidth(140)
         self.reset_button.clicked.connect(self._reset_defaults)
-        button_layout.addWidget(self.reset_button)
+        layout.addWidget(self.reset_button)
+        layout.addStretch()
 
-        # Save button uses the default QPushButton style (primary blue
-        # already defined in theme.py); the inline stylesheet here was a
-        # straight duplicate that the theme manager could not override
-        # when switching to light mode.
         self.save_button = QPushButton(tr("button_save_settings"))
-        self.save_button.setMinimumWidth(140)
+        self.save_button.setProperty("buttonStyle", "primary")
+        self.save_button.setDefault(True)
         self.save_button.clicked.connect(self._save_settings)
-        button_layout.addWidget(self.save_button)
+        layout.addWidget(self.save_button)
+        return bar
 
-        main_layout.addLayout(button_layout)
+    def _align_form_labels(self) -> None:
+        """Give all form labels the width of the widest, so fields line up."""
+        width = max((label.sizeHint().width() for label in self._form_labels), default=0)
+        for label in self._form_labels:
+            label.setMinimumWidth(width)
 
-        # Add stretch at bottom
-        main_layout.addStretch()
+    # ---------------------------------------------------------------- data
 
     def _load_settings(self) -> None:
         """Load current settings from config."""
         config = self.config_manager.get_config()
         self.output_input.setText(config.output_directory)
-        self.quality_combo.setCurrentText(config.default_quality)
+        self.output_input.setCursorPosition(0)
+        index = self.quality_combo.findData(config.default_quality)
+        if index < 0:
+            # Older versions saved the translated label.
+            index = max(self.quality_combo.findText(config.default_quality), 0)
+        self.quality_combo.setCurrentIndex(index)
+        self.theme_combo.blockSignals(True)
+        self.theme_combo.setCurrentIndex(max(self.theme_combo.findData(ThemeMode.from_value(config.theme).value), 0))
+        self.theme_combo.blockSignals(False)
         self.auto_update_checkbox.setChecked(config.check_updates_on_startup)
         self.notifications_checkbox.setChecked(config.notifications_enabled)
         self.close_to_tray_checkbox.setChecked(config.close_to_tray)
@@ -285,7 +318,7 @@ class SettingsTab(QWidget):
     def _save_settings(self) -> None:
         """Save settings to config."""
         output_dir = self.output_input.text()
-        default_quality = self.quality_combo.currentText()
+        default_quality = self.quality_combo.currentData() or QUALITY_NAMES[0]
 
         # Get selected language
         selected_lang_code = self.language_combo.currentData()
@@ -333,14 +366,14 @@ class SettingsTab(QWidget):
                 logger.info(f"Default folder changed signal emitted: {output_dir}")
 
             if language_changed:
-                # Show restart required message
+                # A restart is needed, so this one stays a message box.
                 QMessageBox.information(
                     self,
                     tr("dialog_settings_saved_restart_required"),
                     tr("msg_language_changed_restart_required", language=self.language_combo.currentText()),
                 )
             else:
-                QMessageBox.information(self, tr("dialog_settings_saved"), tr("msg_settings_saved"))
+                show_status(self, tr("status_settings_saved"))
         else:
             logger.error("Failed to save settings")
             QMessageBox.critical(self, tr("error_generic"), tr("msg_failed_save_settings"))
@@ -358,10 +391,11 @@ class SettingsTab(QWidget):
         if reply == QMessageBox.Yes:
             self.config_manager.reset_to_defaults()
             self._load_settings()
+            self._apply_theme(self.config_manager.get_config().theme)
             self.notifications_enabled_changed.emit(self.notifications_checkbox.isChecked())
             self.close_to_tray_changed.emit(self.close_to_tray_checkbox.isChecked())
             logger.info("Settings reset to defaults")
-            QMessageBox.information(self, tr("dialog_settings_reset"), tr("msg_all_settings_reset"))
+            show_status(self, tr("msg_all_settings_reset"))
 
     def _check_for_updates(self) -> None:
         """Check for application updates without blocking the UI thread."""
@@ -409,31 +443,42 @@ class SettingsTab(QWidget):
                 self, tr("dialog_no_updates"), tr("msg_already_latest_version", version=APP_VERSION)
             )
 
-    def _toggle_theme(self) -> None:
-        """Toggle between dark and light themes (v2.0.0 - moved from menu bar)."""
-        from ..ui.theme import ThemeMode, get_theme_manager
+    # --------------------------------------------------------------- theme
 
+    def _on_theme_selected(self, _index: int) -> None:
+        """Apply the chosen theme at once and save it."""
+        mode = self.theme_combo.currentData()
+        self._apply_theme(mode)
+        self.config_manager.update_config(theme=mode)
+
+    @staticmethod
+    def _apply_theme(value: str) -> None:
         theme_manager = get_theme_manager()
-        stylesheet = theme_manager.toggle_theme()
+        mode = ThemeMode.from_value(value)
+        if mode != theme_manager.get_current_mode():
+            theme_manager.apply_theme(mode)
+            logger.info(f"Theme changed to: {mode.value}")
 
-        # Apply to main window
-        main_window = self.window()
-        if main_window:
-            main_window.setStyleSheet(stylesheet)
+    def _toggle_theme(self) -> None:
+        """Switch between the dark and the light theme (saved at once)."""
+        self.theme_combo.setCurrentIndex(1 - self.theme_combo.currentIndex())
 
-        current_mode = theme_manager.get_current_mode()
-        theme_name = tr("theme_dark") if current_mode == ThemeMode.DARK else tr("theme_light")
-
-        QMessageBox.information(self, tr("dialog_theme_switched"), tr("msg_theme_switched", theme=theme_name))
-        logger.info(f"Theme toggled to: {theme_name}")
+    # --------------------------------------------------------------- files
 
     def _copy_path(self, path: str) -> None:
-        """Copy a path to the clipboard and show a brief confirmation."""
+        """Copy a path to the clipboard and confirm it in the status bar."""
         clipboard = QApplication.clipboard()
         if clipboard is None:
             return
         clipboard.setText(path)
         logger.debug(f"Copied path to clipboard: {path}")
-        # Lightweight feedback - we use the status-bar style hint message so
-        # the user gets confirmation without blocking the workflow.
-        QMessageBox.information(self, tr("button_copy"), tr("msg_path_copied"))
+        show_status(self, tr("msg_path_copied"))
+
+    def _open_folder(self, folder: Path) -> None:
+        """Open a folder in the file manager (it may not exist yet)."""
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            logger.warning(f"Could not create {folder}: {e}")
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder))):
+            logger.warning(f"Could not open folder: {folder}")

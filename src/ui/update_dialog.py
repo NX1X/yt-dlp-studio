@@ -7,19 +7,22 @@ background QThreads so the UI never freezes.
 """
 
 import hmac
+import html
 import os
 import subprocess
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import Qt, QThread, QUrl, Signal
+from PySide6.QtGui import QDesktopServices, QTextDocument
 from PySide6.QtWidgets import (
     QDialog,
-    QHBoxLayout,
+    QDialogButtonBox,
+    QFormLayout,
     QLabel,
     QMessageBox,
     QProgressBar,
     QPushButton,
-    QTextEdit,
+    QTextBrowser,
     QVBoxLayout,
 )
 
@@ -33,8 +36,35 @@ from ..backend.update_checker import (
 )
 from ..utils.logger import get_logger
 from ..utils.translations import tr
+from .bidi import ltr
 
 logger = get_logger()
+
+WEBSITE_URL = "https://studio.nx1xlab.dev"
+
+# Release notes are scrollable, so show most of them.
+RELEASE_NOTES_MAX_LENGTH = 6000
+
+# GitHub flavored Markdown without raw HTML: the notes come from the network.
+MARKDOWN_FEATURES = QTextDocument.MarkdownFeature.MarkdownDialectGitHub | QTextDocument.MarkdownFeature.MarkdownNoHTML
+
+
+def is_web_url(url: str) -> bool:
+    """True for an http(s) link; other schemes (file:, javascript:) never open."""
+    return QUrl(url).scheme().lower() in ("http", "https")
+
+
+def open_web_link(url: str) -> None:
+    """Open an http(s) link from the release notes in the browser; ignore anything else."""
+    if is_web_url(url):
+        QDesktopServices.openUrl(QUrl(url))
+        logger.info(f"Opened link: {url}")
+    else:
+        logger.warning(f"Ignored a non-web link in the update dialog: {url!r}")
+
+
+def _link(url: str, text: str) -> str:
+    return f'<a href="{html.escape(url, quote=True)}">{html.escape(text)}</a>'
 
 
 def child_process_env() -> dict[str, str]:
@@ -128,37 +158,55 @@ class UpdateDialog(QDialog):
     def _setup_ui(self):
         """Setup the dialog UI."""
         self.setWindowTitle(tr("dialog_update_available"))
-        self.setMinimumWidth(550)
-        self.setMinimumHeight(450)
+        self.setMinimumWidth(560)
+        self.setMinimumHeight(460)
 
-        layout = QVBoxLayout()
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(8)
 
-        version_label = QLabel(f"<h2>{tr('text_version_available', version=self.release_info['version'])}</h2>")
+        version = self.release_info["version"]
+        version_label = QLabel(tr("text_version_available", version=ltr(version)))
+        version_label.setProperty("labelStyle", "title")
+        version_label.setWordWrap(True)
         layout.addWidget(version_label)
 
         checker = UpdateChecker()
-        current_label = QLabel(f"<b>{tr('label_current_version')}</b> {checker.get_current_version()}")
-        layout.addWidget(current_label)
+        versions = QFormLayout()
+        versions.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.FieldsStayAtSizeHint)
+        versions.setHorizontalSpacing(12)
+        versions.addRow(self._secondary(tr("label_current_version")), QLabel(ltr(checker.get_current_version())))
+        versions.addRow(self._secondary(tr("label_new_version")), QLabel(ltr(version)))
+        layout.addLayout(versions)
 
-        new_label = QLabel(f"<b>{tr('label_new_version')}</b> {self.release_info['version']}")
-        layout.addWidget(new_label)
+        # Links in the text, not as buttons (GitHub release page, website)
+        links = []
+        release_url = self.release_info.get("html_url", "")
+        if is_web_url(release_url):
+            links.append(_link(release_url, tr("button_view_on_github")))
+        links.append(f"{html.escape(tr('label_website'))} {_link(WEBSITE_URL, 'studio.nx1xlab.dev')}")
+        self.links_label = QLabel(" &nbsp;&nbsp;|&nbsp;&nbsp; ".join(links))
+        self.links_label.setTextFormat(Qt.RichText)
+        self.links_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.links_label.setOpenExternalLinks(False)
+        self.links_label.linkActivated.connect(open_web_link)
+        layout.addWidget(self.links_label)
 
-        website_label = QLabel('<b>Website:</b> <a href="https://studio.nx1xlab.dev">studio.nx1xlab.dev</a>')
-        website_label.setOpenExternalLinks(True)
-        website_label.setTextFormat(Qt.RichText)
-        layout.addWidget(website_label)
-
-        notes_label = QLabel(f"<b>{tr('label_release_notes')}</b>")
+        layout.addSpacing(4)
+        notes_label = QLabel(tr("label_release_notes"))
+        notes_label.setProperty("labelStyle", "subtitle")
         layout.addWidget(notes_label)
 
-        self.notes_text = QTextEdit()
-        self.notes_text.setReadOnly(True)
-        self.notes_text.setMaximumHeight(200)
-        formatted_notes = UpdateChecker.format_release_notes(
-            self.release_info.get("body", tr("text_no_release_notes")), max_length=1000
+        # Release notes are Markdown on GitHub. Raw HTML is not rendered and
+        # only http(s) links open (in the browser).
+        self.notes_text = QTextBrowser()
+        self.notes_text.setOpenLinks(False)
+        self.notes_text.anchorClicked.connect(lambda url: open_web_link(url.toString()))
+        body = self.release_info.get("body") or tr("text_no_release_notes")
+        self.notes_text.document().setMarkdown(
+            UpdateChecker.format_release_notes(body, max_length=RELEASE_NOTES_MAX_LENGTH), MARKDOWN_FEATURES
         )
-        self.notes_text.setPlainText(formatted_notes)
-        layout.addWidget(self.notes_text)
+        layout.addWidget(self.notes_text, 1)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
@@ -166,60 +214,36 @@ class UpdateDialog(QDialog):
 
         self.status_label = QLabel("")
         self.status_label.setVisible(False)
+        self.status_label.setProperty("labelStyle", "secondary")
         layout.addWidget(self.status_label)
 
-        layout.addStretch()
-
-        button_layout = QHBoxLayout()
-
-        self.view_online_btn = QPushButton(tr("button_view_on_github"))
-        self.view_online_btn.setMinimumWidth(140)
-        self.view_online_btn.clicked.connect(self._view_online)
-        button_layout.addWidget(self.view_online_btn)
-
-        self.website_btn = QPushButton(tr("button_visit_website"))
-        self.website_btn.setMinimumWidth(140)
-        self.website_btn.clicked.connect(self._open_website)
-        button_layout.addWidget(self.website_btn)
-
-        button_layout.addStretch()
-
+        # Buttons: the platform decides the order. One primary button.
+        self.button_box = QDialogButtonBox()
         self.download_btn = QPushButton(tr("button_download_update"))
-        self.download_btn.setMinimumWidth(160)
-        self.download_btn.clicked.connect(self._download_update)
+        self.download_btn.setProperty("buttonStyle", "primary")
         self.download_btn.setDefault(True)
-        button_layout.addWidget(self.download_btn)
+        self.download_btn.clicked.connect(self._download_update)
+        self.button_box.addButton(self.download_btn, QDialogButtonBox.ButtonRole.AcceptRole)
 
         self.skip_btn = QPushButton(tr("button_skip_version"))
-        self.skip_btn.setMinimumWidth(140)
         self.skip_btn.clicked.connect(self._skip_version)
-        button_layout.addWidget(self.skip_btn)
+        self.button_box.addButton(self.skip_btn, QDialogButtonBox.ButtonRole.ActionRole)
 
         self.later_btn = QPushButton(tr("button_remind_me_later"))
-        self.later_btn.setMinimumWidth(140)
         self.later_btn.clicked.connect(self.reject)
-        button_layout.addWidget(self.later_btn)
+        self.button_box.addButton(self.later_btn, QDialogButtonBox.ButtonRole.RejectRole)
+        layout.addWidget(self.button_box)
 
-        layout.addLayout(button_layout)
+    @staticmethod
+    def _secondary(text: str) -> QLabel:
+        label = QLabel(text)
+        label.setProperty("labelStyle", "secondary")
+        return label
 
-        self.setLayout(layout)
-
-    def _view_online(self):
-        """Open the release page in browser."""
-        import webbrowser
-
-        url = self.release_info.get("html_url", "")
-        if url:
-            webbrowser.open(url)
-            logger.info(f"Opened release page: {url}")
-
-    def _open_website(self):
-        """Open the project website in browser."""
-        import webbrowser
-
-        website_url = "https://studio.nx1xlab.dev"
-        webbrowser.open(website_url)
-        logger.info(f"Opened website: {website_url}")
+    def _set_buttons_enabled(self, enabled: bool) -> None:
+        for button in (self.download_btn, self.skip_btn, self.later_btn):
+            button.setEnabled(enabled)
+        self.links_label.setEnabled(enabled)
 
     def _skip_version(self):
         """Persist a 'skip this version' choice so startup checks stay quiet."""
@@ -271,11 +295,7 @@ class UpdateDialog(QDialog):
             logger.info("User cancelled update download")
             return
 
-        self.download_btn.setEnabled(False)
-        self.view_online_btn.setEnabled(False)
-        self.website_btn.setEnabled(False)
-        self.skip_btn.setEnabled(False)
-        self.later_btn.setEnabled(False)
+        self._set_buttons_enabled(False)
 
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
@@ -301,7 +321,14 @@ class UpdateDialog(QDialog):
 
             downloaded_mb = downloaded / (1024 * 1024)
             total_mb = total / (1024 * 1024)
-            self.status_label.setText(f"Downloading: {downloaded_mb:.1f} MB / {total_mb:.1f} MB ({progress}%)")
+            self.status_label.setText(
+                tr(
+                    "text_update_download_progress",
+                    done=ltr(f"{downloaded_mb:.1f} MB"),
+                    total=ltr(f"{total_mb:.1f} MB"),
+                    percent=ltr(f"{progress}%"),
+                )
+            )
 
     def _on_download_finished(self, result: DownloadResult):
         """
@@ -310,11 +337,7 @@ class UpdateDialog(QDialog):
         Args:
             result: DownloadResult from the download thread.
         """
-        self.download_btn.setEnabled(True)
-        self.view_online_btn.setEnabled(True)
-        self.website_btn.setEnabled(True)
-        self.skip_btn.setEnabled(True)
-        self.later_btn.setEnabled(True)
+        self._set_buttons_enabled(True)
 
         if result.success:
             self.status_label.setText(tr("text_download_verified"))

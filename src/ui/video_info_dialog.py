@@ -7,15 +7,39 @@ thumbnail, title, duration, uploader, and other information.
 
 import urllib.request
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QMetaMethod, QSize, Qt, Signal
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QDialog, QGroupBox, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTextBrowser,
+    QVBoxLayout,
+)
 
 from ..models.video_info import VideoInfo
 from ..utils.logger import get_logger
 from ..utils.translations import tr
+from .bidi import ltr
 
 logger = get_logger()
+
+# Thumbnail size in the dialog (16:9)
+THUMBNAIL_SIZE = QSize(320, 180)
+
+# Site names that str.capitalize() gets wrong
+_PLATFORM_NAMES = {"youtube": "YouTube", "tiktok": "TikTok", "soundcloud": "SoundCloud", "twitter": "X (Twitter)"}
+
+
+def platform_name(extractor: str) -> str:
+    """Return a display name for a yt-dlp extractor key ("youtube:tab" -> "YouTube")."""
+    key = (extractor or "").split(":")[0].strip()
+    return _PLATFORM_NAMES.get(key.lower(), key.capitalize())
 
 
 class VideoInfoDialog(QDialog):
@@ -24,7 +48,13 @@ class VideoInfoDialog(QDialog):
 
     Shows video metadata in a nice formatted dialog with thumbnail,
     title, duration, uploader, views, upload date, and description.
+
+    Signals:
+        download_requested: The user clicked Download. The button shows only
+            when something is connected to this signal.
     """
+
+    download_requested = Signal()
 
     def __init__(self, video_info: VideoInfo, parent=None):
         """
@@ -43,200 +73,104 @@ class VideoInfoDialog(QDialog):
     def _setup_ui(self) -> None:
         """Set up the dialog UI."""
         self.setWindowTitle(tr("dialog_video_information"))
-        self.setMinimumSize(QSize(600, 500))
-        self.setMaximumSize(QSize(800, 700))
+        self.setMinimumSize(QSize(640, 420))
 
         main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setSpacing(12)
 
-        # Title section
         title_label = QLabel(self.video_info.title)
         title_label.setWordWrap(True)
-        title_label.setStyleSheet("""
-            QLabel {
-                font-size: 16px;
-                font-weight: bold;
-                color: #ffffff;
-                padding: 10px;
-                background-color: #2d2d2d;
-                border-radius: 5px;
-            }
-        """)
+        title_label.setProperty("labelStyle", "title")
+        title_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         main_layout.addWidget(title_label)
 
-        # Content layout (thumbnail + info)
         content_layout = QHBoxLayout()
+        content_layout.setSpacing(12)
 
-        # Thumbnail section
+        # Thumbnail
         thumbnail_group = QGroupBox(tr("group_thumbnail"))
-        thumbnail_layout = QVBoxLayout()
+        thumbnail_layout = QVBoxLayout(thumbnail_group)
         self.thumbnail_label = QLabel()
         self.thumbnail_label.setAlignment(Qt.AlignCenter)
-        self.thumbnail_label.setMinimumSize(QSize(320, 180))
-        self.thumbnail_label.setMaximumSize(QSize(480, 270))
-        self.thumbnail_label.setScaledContents(False)
-        self.thumbnail_label.setStyleSheet("""
-            QLabel {
-                background-color: #1e1e1e;
-                border: 2px solid #3e3e3e;
-                border-radius: 5px;
-            }
-        """)
+        self.thumbnail_label.setFixedSize(THUMBNAIL_SIZE)
+        self.thumbnail_label.setProperty("labelStyle", "secondary")
         self.thumbnail_label.setText(tr("text_loading_thumbnail"))
-        thumbnail_layout.addWidget(self.thumbnail_label)
-        thumbnail_group.setLayout(thumbnail_layout)
-        content_layout.addWidget(thumbnail_group)
+        thumbnail_layout.addWidget(self.thumbnail_label, 0, Qt.AlignCenter)
+        content_layout.addWidget(thumbnail_group, 0)
 
-        # Info section
+        # Details
         info_group = QGroupBox(tr("group_details"))
-        info_layout = QVBoxLayout()
+        form = QFormLayout(info_group)
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(8)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
 
-        # Uploader
-        uploader_layout = QHBoxLayout()
-        uploader_layout.addWidget(self._create_label_bold(tr("label_channel")))
-        uploader_layout.addWidget(self._create_label_value(self.video_info.uploader or "Unknown"))
-        uploader_layout.addStretch()
-        info_layout.addLayout(uploader_layout)
-
-        # Duration
-        duration_layout = QHBoxLayout()
-        duration_layout.addWidget(self._create_label_bold(tr("label_duration")))
-        duration_layout.addWidget(self._create_label_value(self.video_info.get_duration_formatted()))
-        duration_layout.addStretch()
-        info_layout.addLayout(duration_layout)
-
-        # Upload date
+        rows: list[tuple[str, str]] = [
+            ("label_channel", self.video_info.uploader or tr("text_unknown")),
+            ("label_duration", ltr(self.video_info.get_duration_formatted())),
+        ]
         if self.video_info.upload_date:
-            upload_date_formatted = self._format_upload_date(self.video_info.upload_date)
-            upload_layout = QHBoxLayout()
-            upload_layout.addWidget(self._create_label_bold(tr("label_uploaded")))
-            upload_layout.addWidget(self._create_label_value(upload_date_formatted))
-            upload_layout.addStretch()
-            info_layout.addLayout(upload_layout)
-
-        # View count
+            rows.append(("label_uploaded", ltr(self._format_upload_date(self.video_info.upload_date))))
         if self.video_info.view_count > 0:
-            views_layout = QHBoxLayout()
-            views_layout.addWidget(self._create_label_bold(tr("label_views")))
-            views_layout.addWidget(self._create_label_value(f"{self.video_info.view_count:,}"))
-            views_layout.addStretch()
-            info_layout.addLayout(views_layout)
-
-        # Like count
+            rows.append(("label_views", ltr(f"{self.video_info.view_count:,}")))
         if self.video_info.like_count > 0:
-            likes_layout = QHBoxLayout()
-            likes_layout.addWidget(self._create_label_bold(tr("label_likes")))
-            likes_layout.addWidget(self._create_label_value(f"{self.video_info.like_count:,}"))
-            likes_layout.addStretch()
-            info_layout.addLayout(likes_layout)
-
-        # Extractor/Platform
+            rows.append(("label_likes", ltr(f"{self.video_info.like_count:,}")))
         if self.video_info.extractor:
-            platform_layout = QHBoxLayout()
-            platform_layout.addWidget(self._create_label_bold(tr("label_platform")))
-            platform_layout.addWidget(self._create_label_value(self.video_info.extractor.capitalize()))
-            platform_layout.addStretch()
-            info_layout.addLayout(platform_layout)
+            rows.append(("label_platform", platform_name(self.video_info.extractor)))
 
-        info_layout.addStretch()
-        info_group.setLayout(info_layout)
-        content_layout.addWidget(info_group)
+        rtl = QApplication.layoutDirection() == Qt.LayoutDirection.RightToLeft
+        start_side = (Qt.AlignRight | Qt.AlignAbsolute) if rtl else Qt.AlignLeft
+        for key, value in rows:
+            name = QLabel(tr(key))
+            name.setProperty("labelStyle", "secondary")
+            value_label = QLabel(value)
+            # Start side of the UI, also for English values in the Hebrew UI
+            # (Qt would align English text to the left there).
+            value_label.setAlignment(start_side | Qt.AlignVCenter)
+            value_label.setWordWrap(True)
+            value_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+            form.addRow(name, value_label)
+        content_layout.addWidget(info_group, 1)
 
         main_layout.addLayout(content_layout)
 
-        # Description section
+        # Description
         if self.video_info.description:
             desc_group = QGroupBox(tr("group_description"))
-            desc_layout = QVBoxLayout()
+            desc_layout = QVBoxLayout(desc_group)
+            self.description_view = QTextBrowser()
+            self.description_view.setOpenLinks(False)
+            self.description_view.setPlainText(self._get_truncated_description())
+            self.description_view.setMinimumHeight(90)
+            self.description_view.setFocusPolicy(Qt.ClickFocus)
+            desc_layout.addWidget(self.description_view)
+            main_layout.addWidget(desc_group, 1)
+        else:
+            main_layout.addStretch(1)
 
-            # Create scrollable description
-            scroll_area = QScrollArea()
-            scroll_area.setWidgetResizable(True)
-            scroll_area.setMaximumHeight(150)
+        # Buttons: Close, and Download when the caller handles it
+        self.button_box = QDialogButtonBox()
+        self.close_button = self.button_box.addButton(tr("button_close"), QDialogButtonBox.ButtonRole.RejectRole)
+        self.download_button = QPushButton(tr("button_video_info_download"))
+        self.download_button.setProperty("buttonStyle", "primary")
+        self.button_box.addButton(self.download_button, QDialogButtonBox.ButtonRole.AcceptRole)
+        self.download_button.setVisible(False)
+        self.button_box.rejected.connect(self.reject)
+        self.button_box.accepted.connect(self._on_download)
+        main_layout.addWidget(self.button_box)
 
-            desc_widget = QWidget()
-            desc_widget_layout = QVBoxLayout(desc_widget)
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt override
+        """Show the Download button only if a caller listens for it."""
+        connected = self.isSignalConnected(QMetaMethod.fromSignal(self.download_requested))
+        self.download_button.setVisible(connected)
+        if connected:
+            self.download_button.setDefault(True)
+        super().showEvent(event)
 
-            desc_label = QLabel(self._get_truncated_description())
-            desc_label.setWordWrap(True)
-            desc_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-            desc_label.setStyleSheet("""
-                QLabel {
-                    color: #cccccc;
-                    padding: 5px;
-                }
-            """)
-            desc_widget_layout.addWidget(desc_label)
-            desc_widget_layout.addStretch()
-
-            scroll_area.setWidget(desc_widget)
-            desc_layout.addWidget(scroll_area)
-            desc_group.setLayout(desc_layout)
-            main_layout.addWidget(desc_group)
-
-        # Button section
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
-
-        close_button = QPushButton(tr("button_close"))
-        close_button.setMinimumWidth(100)
-        close_button.clicked.connect(self.accept)
-        close_button.setStyleSheet("""
-            QPushButton {
-                background-color: #0e639c;
-                color: white;
-                border: none;
-                border-radius: 3px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #1177bb;
-            }
-            QPushButton:pressed {
-                background-color: #0d5689;
-            }
-        """)
-        button_layout.addWidget(close_button)
-
-        main_layout.addLayout(button_layout)
-
-    def _create_label_bold(self, text: str) -> QLabel:
-        """
-        Create a bold label for field names.
-
-        Args:
-            text: Label text
-
-        Returns:
-            QLabel with bold styling
-        """
-        label = QLabel(text)
-        label.setStyleSheet("""
-            QLabel {
-                font-weight: bold;
-                color: #4ec9b0;
-                min-width: 80px;
-            }
-        """)
-        return label
-
-    def _create_label_value(self, text: str) -> QLabel:
-        """
-        Create a label for field values.
-
-        Args:
-            text: Label text
-
-        Returns:
-            QLabel with value styling
-        """
-        label = QLabel(text)
-        label.setStyleSheet("""
-            QLabel {
-                color: #ffffff;
-            }
-        """)
-        return label
+    def _on_download(self) -> None:
+        self.download_requested.emit()
+        self.accept()
 
     def _format_upload_date(self, date_str: str) -> str:
         """
@@ -259,7 +193,7 @@ class VideoInfoDialog(QDialog):
         except Exception:
             return date_str
 
-    def _get_truncated_description(self, max_length: int = 500) -> str:
+    def _get_truncated_description(self, max_length: int = 2000) -> str:
         """
         Get truncated description.
 
@@ -296,7 +230,6 @@ class VideoInfoDialog(QDialog):
             with urllib.request.urlopen(thumbnail_url, timeout=10) as response:  # noqa: S310
                 image_data = response.read()
 
-            # Load into pixmap
             pixmap = QPixmap()
             pixmap.loadFromData(image_data)
 
@@ -305,12 +238,13 @@ class VideoInfoDialog(QDialog):
                 logger.error("Failed to load thumbnail image")
                 return
 
-            # Scale to fit label while maintaining aspect ratio
-            scaled_pixmap = pixmap.scaled(self.thumbnail_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
-
-            self.thumbnail_label.setPixmap(scaled_pixmap)
+            self.set_thumbnail(pixmap)
             logger.info("Thumbnail loaded successfully")
 
         except Exception:
             self.thumbnail_label.setText(tr("text_failed_load_thumbnail"))
             logger.exception("Error loading thumbnail")
+
+    def set_thumbnail(self, pixmap: QPixmap) -> None:
+        """Show ``pixmap`` scaled to fit the thumbnail area, keeping its aspect ratio."""
+        self.thumbnail_label.setPixmap(pixmap.scaled(THUMBNAIL_SIZE, Qt.KeepAspectRatio, Qt.SmoothTransformation))

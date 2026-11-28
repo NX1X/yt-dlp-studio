@@ -4,10 +4,10 @@ Subtitle selection dialog for YT-DLP Studio.
 Allows users to select which subtitle languages to download from available options.
 """
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QDialog,
+    QDialogButtonBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (
 )
 
 from ..utils.logger import get_logger
+from ..utils.translations import tr
+from .bidi import ltr
 
 logger = get_logger()
 
@@ -48,122 +50,110 @@ class SubtitleSelectionDialog(QDialog):
         self._setup_ui()
         logger.debug(f"SubtitleSelectionDialog initialized with {len(self.available_subtitles)} languages")
 
+    @staticmethod
+    def _item_text(lang_code: str, lang_info) -> str:
+        """Row text such as "German (de) - auto-generated", with the name and code kept left-to-right."""
+        if isinstance(lang_info, dict):
+            name = lang_info.get("name", lang_code)
+            is_auto = lang_info.get("auto", False)
+        else:
+            name, is_auto = lang_info, False
+        text = ltr(f"{name} ({lang_code})")
+        if is_auto:
+            text += f" - {tr('text_auto_generated')}"
+        return text
+
     def _setup_ui(self):
         """Set up the dialog UI."""
-        self.setWindowTitle("Select Subtitle Languages")
-        self.setMinimumWidth(500)
-        self.setMinimumHeight(400)
+        self.setWindowTitle(tr("dialog_select_subtitle_languages"))
+        self.setMinimumWidth(480)
+        self.setMinimumHeight(420)
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(15)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
 
-        # Title
-        title_label = QLabel("Available Subtitle Languages")
-        title_font = QFont()
-        title_font.setPointSize(12)
-        title_font.setBold(True)
-        title_label.setFont(title_font)
-        layout.addWidget(title_label)
-
-        # Description
-        desc_label = QLabel(
-            "Select the subtitle languages you want to download.\nNote: Some languages may be auto-generated."
-        )
+        desc_label = QLabel(tr("text_subtitle_dialog_help"))
         desc_label.setWordWrap(True)
-        desc_label.setStyleSheet("color: #888;")
+        desc_label.setProperty("labelStyle", "secondary")
         layout.addWidget(desc_label)
 
-        # Search box
-        search_layout = QHBoxLayout()
-        search_label = QLabel("Search:")
-        search_label.setStyleSheet("color: #aaa;")
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Type to filter languages...")
-        self.search_input.textChanged.connect(self._on_search_changed)
-        search_layout.addWidget(search_label)
-        search_layout.addWidget(self.search_input)
-        layout.addLayout(search_layout)
-
         # Subtitle list group
-        list_group = QGroupBox("Subtitle Languages")
-        list_layout = QVBoxLayout()
+        list_group = QGroupBox(tr("group_subtitle_languages"))
+        list_layout = QVBoxLayout(list_group)
 
-        # List widget with checkboxes
         self.subtitle_list = QListWidget()
-        self.subtitle_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
+        # Rows are checked, not selected: the check box is the only state.
+        self.subtitle_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
+        # A click on the row text toggles the row, too. A click on the box
+        # itself is toggled by Qt; _changed_in_click stops a second toggle.
+        self._changed_in_click: QListWidgetItem | None = None
+        self.subtitle_list.itemChanged.connect(self._on_item_changed)
+        self.subtitle_list.itemClicked.connect(self._toggle_item)
 
-        # Populate list
         if self.available_subtitles:
-            for lang_code, lang_info in self.available_subtitles.items():
-                # lang_info might be a dict with 'name' or just a string
-                if isinstance(lang_info, dict):
-                    lang_name = lang_info.get("name", lang_code)
-                    is_auto = lang_info.get("auto", False)
-                    display_text = f"{lang_name} ({lang_code})" + (" [Auto-generated]" if is_auto else "")
-                else:
-                    display_text = f"{lang_info} ({lang_code})"
+            search_layout = QHBoxLayout()
+            search_label = QLabel(tr("label_search"))
+            self.search_input = QLineEdit()
+            self.search_input.setPlaceholderText(tr("placeholder_filter_languages"))
+            self.search_input.setClearButtonEnabled(True)
+            self.search_input.textChanged.connect(self._on_search_changed)
+            search_label.setBuddy(self.search_input)
+            search_layout.addWidget(search_label)
+            search_layout.addWidget(self.search_input)
+            list_layout.addLayout(search_layout)
 
-                item = QListWidgetItem(display_text)
+            for lang_code, lang_info in self.available_subtitles.items():
+                item = QListWidgetItem(self._item_text(lang_code, lang_info))
                 item.setData(Qt.ItemDataRole.UserRole, lang_code)
+                item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable)
                 item.setCheckState(Qt.CheckState.Unchecked)
                 self.subtitle_list.addItem(item)
-        else:
-            # No subtitles available
-            no_subs_label = QLabel("No subtitles available for this video.")
-            no_subs_label.setStyleSheet("color: #888; font-style: italic;")
-            no_subs_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            list_layout.addWidget(no_subs_label)
-
-        if self.available_subtitles:
             list_layout.addWidget(self.subtitle_list)
 
-            # Select/Deselect all buttons
             select_buttons_layout = QHBoxLayout()
-
-            select_all_btn = QPushButton("Select All")
+            select_all_btn = QPushButton(tr("button_select_all"))
             select_all_btn.clicked.connect(self._select_all)
             select_buttons_layout.addWidget(select_all_btn)
-
-            deselect_all_btn = QPushButton("Deselect All")
+            deselect_all_btn = QPushButton(tr("button_select_none"))
             deselect_all_btn.clicked.connect(self._deselect_all)
             select_buttons_layout.addWidget(deselect_all_btn)
-
             select_buttons_layout.addStretch()
             list_layout.addLayout(select_buttons_layout)
+        else:
+            self.search_input = QLineEdit()  # kept for callers; not shown
+            no_subs_label = QLabel(tr("msg_no_subs_available"))
+            no_subs_label.setProperty("labelStyle", "secondary")
+            no_subs_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            no_subs_label.setWordWrap(True)
+            list_layout.addWidget(no_subs_label)
 
-        list_group.setLayout(list_layout)
-        layout.addWidget(list_group)
+        layout.addWidget(list_group, 1)
 
-        # Dialog buttons
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
-
-        cancel_btn = QPushButton("Cancel")
-        cancel_btn.clicked.connect(self.reject)
-        button_layout.addWidget(cancel_btn)
-
-        ok_btn = QPushButton("Download Selected")
-        ok_btn.clicked.connect(self._on_ok_clicked)
+        button_box = QDialogButtonBox()
+        ok_btn = QPushButton(tr("button_use_selected_languages"))
+        ok_btn.setProperty("buttonStyle", "primary")
         ok_btn.setDefault(True)
-        ok_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #0e639c;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #1177bb;
-            }
-            QPushButton:pressed {
-                background-color: #0d5689;
-            }
-        """)
-        button_layout.addWidget(ok_btn)
+        ok_btn.setEnabled(bool(self.available_subtitles))
+        button_box.addButton(ok_btn, QDialogButtonBox.ButtonRole.AcceptRole)
+        button_box.addButton(tr("cancel"), QDialogButtonBox.ButtonRole.RejectRole)
+        button_box.accepted.connect(self._on_ok_clicked)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
 
-        layout.addLayout(button_layout)
+    def _on_item_changed(self, item: QListWidgetItem) -> None:
+        self._changed_in_click = item
+        QTimer.singleShot(0, self._clear_changed_in_click)
+
+    def _clear_changed_in_click(self) -> None:
+        self._changed_in_click = None
+
+    def _toggle_item(self, item: QListWidgetItem) -> None:
+        """A click on the row text checks or unchecks it."""
+        if self._changed_in_click is item:
+            return
+        checked = item.checkState() == Qt.CheckState.Checked
+        item.setCheckState(Qt.CheckState.Unchecked if checked else Qt.CheckState.Checked)
 
     def _select_all(self):
         """Select all subtitle languages."""
@@ -179,20 +169,17 @@ class SubtitleSelectionDialog(QDialog):
 
     def _on_ok_clicked(self):
         """Handle OK button click."""
-        # Collect selected language codes
         selected = []
         for i in range(self.subtitle_list.count()):
             item = self.subtitle_list.item(i)
             if item.checkState() == Qt.CheckState.Checked:
-                lang_code = item.data(Qt.ItemDataRole.UserRole)
-                selected.append(lang_code)
+                selected.append(item.data(Qt.ItemDataRole.UserRole))
 
         if not selected:
             reply = QMessageBox.question(
                 self,
-                "No Subtitles Selected",
-                "You haven't selected any subtitle languages.\n\n"
-                "Do you want to continue without downloading subtitles?",
+                tr("dialog_no_subtitles_selected"),
+                tr("msg_continue_without_subtitles"),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No,
             )
@@ -217,17 +204,6 @@ class SubtitleSelectionDialog(QDialog):
     def _on_search_changed(self, text: str):
         """Filter subtitle list based on search text."""
         search_text = text.lower().strip()
-
-        # Show all items if search is empty
-        if not search_text:
-            for i in range(self.subtitle_list.count()):
-                self.subtitle_list.item(i).setHidden(False)
-            return
-
-        # Filter items
         for i in range(self.subtitle_list.count()):
             item = self.subtitle_list.item(i)
-            item_text = item.text().lower()
-
-            # Show if matches search
-            item.setHidden(search_text not in item_text)
+            item.setHidden(bool(search_text) and search_text not in item.text().lower())

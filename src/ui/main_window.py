@@ -356,10 +356,10 @@ class MainWindow(QMainWindow):
             QApplication.quit()
 
     def _apply_theme(self) -> None:
-        """Apply modern theme to application (v1.8.0)."""
-        stylesheet = self.theme_manager.set_theme(ThemeMode.DARK)
-        self.setStyleSheet(stylesheet)
-        logger.info("Modern theme applied")
+        """Apply the saved theme (dark or light) to the whole application."""
+        mode = ThemeMode.from_value(getattr(self.config_manager.get_config(), "theme", ThemeMode.DARK.value))
+        self.theme_manager.apply_theme(mode)
+        logger.info(f"Theme applied: {mode.value}")
 
     def _apply_rtl_layout(self) -> None:
         """Apply RTL (Right-to-Left) layout for Hebrew (v1.9.0)."""

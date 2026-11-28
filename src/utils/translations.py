@@ -540,6 +540,54 @@ TRANSLATIONS = {
         "tooltip_comments": "Download video comments to a separate .txt file (may be slow for popular videos)",
         "button_cancel": "Cancel",
         "button_retry": "Retry",
+        # --- UI overhaul A ---
+        # Settings tab
+        "settings_downloads": "Downloads",
+        "settings_behavior": "Behavior",
+        "settings_bug_report_files": "Files for bug reports",
+        "label_language_restart_hint": "Restart the app to apply a language change.",
+        "tooltip_theme_combo": "Applies at once and is saved",
+        "button_settings_open_folder": "Open folder",
+        "tooltip_settings_open_folder": "Open the folder in the file manager",
+        "status_settings_saved": "Settings saved.",
+        # About tab
+        "about_tagline": "A desktop app for yt-dlp: download video and audio from YouTube and many other sites.",
+        "button_copy_bug_report": "Copy for bug report",
+        "tooltip_copy_bug_report": "Copy the versions above and your system details, to paste into a bug report",
+        "msg_bug_report_copied": "System information copied. Paste it into your bug report.",
+        "label_license": "License:",
+        # Update dialog
+        "text_update_download_progress": "Downloading: {done} of {total} ({percent})",
+        # Video info dialog
+        "button_video_info_download": "Download",
+        # Subtitle dialog
+        "dialog_select_subtitle_languages": "Choose subtitle languages",
+        "text_subtitle_dialog_help": "Check the subtitle languages to download. Some may be auto-generated.",
+        "group_subtitle_languages": "Subtitle languages",
+        "placeholder_filter_languages": "Type to filter languages...",
+        "text_auto_generated": "auto-generated",
+        "button_use_selected_languages": "Use selected languages",
+        "dialog_no_subtitles_selected": "No subtitles selected",
+        "msg_continue_without_subtitles": "You did not select a subtitle language.\n\nContinue without subtitles?",
+        # Batch dialog
+        "button_clear": "Clear",
+        "dialog_no_urls": "No URLs",
+        "label_batch_counts": "Valid URLs: {valid}    Invalid lines: {invalid}",
+        "msg_validation_invalid_lines": "{valid} valid URLs, {invalid} invalid lines:",
+        "text_line_number": "Line {line}: {text}",
+        "text_and_more": "... and {count} more",
+        "msg_all_urls_valid": "All {count} URLs are valid.",
+        "msg_proceed_with_valid_urls": "Found {valid} valid URLs and {invalid} invalid lines.\n\nAdd only the valid URLs?",
+        # Playlist dialog
+        "label_uploader": "Uploader",
+        "label_selected_count": "{selected} of {total} selected",
+        "button_add_videos_to_queue": "Add to queue ({count})",
+        # Download error dialog
+        "header_error_suggestions": "Suggestions:",
+        "header_error_technical_details": "Technical details:",
+        "button_copy_details": "Copy details",
+        "text_copied": "Copied",
+        # --- end UI overhaul A ---
     },
     "he": {
         # Tabs
@@ -1054,6 +1102,54 @@ TRANSLATIONS = {
         "tooltip_comments": "הורד תגובות הסרטון לקובץ .txt נפרד (עשוי להיות איטי עבור סרטונים פופולריים)",
         "button_cancel": "ביטול",
         "button_retry": "נסה שוב",
+        # --- UI overhaul A ---
+        # Settings tab
+        "settings_downloads": "הורדות",
+        "settings_behavior": "התנהגות",
+        "settings_bug_report_files": "קבצים לדיווח על באג",
+        "label_language_restart_hint": "שינוי השפה ייכנס לתוקף אחרי הפעלה מחדש של האפליקציה.",
+        "tooltip_theme_combo": "מוחל מיד ונשמר",
+        "button_settings_open_folder": "פתח תיקייה",
+        "tooltip_settings_open_folder": "פתח את התיקייה במנהל הקבצים",
+        "status_settings_saved": "ההגדרות נשמרו.",
+        # About tab
+        "about_tagline": "אפליקציית שולחן עבודה ל-yt-dlp: הורדת וידאו ואודיו מ-YouTube ומאתרים רבים אחרים.",
+        "button_copy_bug_report": "העתק לדיווח על באג",
+        "tooltip_copy_bug_report": "העתק את הגרסאות שלמעלה ואת פרטי המערכת, כדי להדביק אותם בדיווח על באג",
+        "msg_bug_report_copied": "פרטי המערכת הועתקו. הדבק אותם בדיווח על הבאג.",
+        "label_license": "רישיון:",
+        # Update dialog
+        "text_update_download_progress": "מוריד: {done} מתוך {total} ({percent})",
+        # Video info dialog
+        "button_video_info_download": "הורד",
+        # Subtitle dialog
+        "dialog_select_subtitle_languages": "בחירת שפות כתוביות",
+        "text_subtitle_dialog_help": "סמן את שפות הכתוביות להורדה. חלקן עשויות להיות כתוביות שנוצרו אוטומטית.",
+        "group_subtitle_languages": "שפות כתוביות",
+        "placeholder_filter_languages": "הקלד כדי לסנן שפות...",
+        "text_auto_generated": "נוצרו אוטומטית",
+        "button_use_selected_languages": "השתמש בשפות שנבחרו",
+        "dialog_no_subtitles_selected": "לא נבחרו כתוביות",
+        "msg_continue_without_subtitles": "לא בחרת שפת כתוביות.\n\nלהמשיך בלי כתוביות?",
+        # Batch dialog
+        "button_clear": "נקה",
+        "dialog_no_urls": "אין כתובות URL",
+        "label_batch_counts": "כתובות URL תקינות: {valid}    שורות לא תקינות: {invalid}",
+        "msg_validation_invalid_lines": "{valid} כתובות URL תקינות, {invalid} שורות לא תקינות:",
+        "text_line_number": "שורה {line}: {text}",
+        "text_and_more": "... ועוד {count}",
+        "msg_all_urls_valid": "כל {count} כתובות ה-URL תקינות.",
+        "msg_proceed_with_valid_urls": "נמצאו {valid} כתובות URL תקינות ו-{invalid} שורות לא תקינות.\n\nלהוסיף רק את הכתובות התקינות?",
+        # Playlist dialog
+        "label_uploader": "מעלה",
+        "label_selected_count": "{selected} מתוך {total} נבחרו",
+        "button_add_videos_to_queue": "הוסף לתור ({count})",
+        # Download error dialog
+        "header_error_suggestions": "הצעות:",
+        "header_error_technical_details": "פרטים טכניים:",
+        "button_copy_details": "העתק פרטים",
+        "text_copied": "הועתק",
+        # --- end UI overhaul A ---
     },
 }
 

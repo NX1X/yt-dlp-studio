@@ -222,7 +222,7 @@ class TestTranslationsAndTheme:
 
     @pytest.mark.parametrize(
         ("mode", "tested", "experimental"),
-        [(ThemeMode.DARK, "#4ec9b0", "#dcdcaa"), (ThemeMode.LIGHT, "#10b981", "#f59e0b")],
+        [(ThemeMode.DARK, "#4ec9b0", "#dcdcaa"), (ThemeMode.LIGHT, "#047857", "#b45309")],
     )
     def test_theme_colors(self, mode, tested, experimental):
         qss = ModernTheme.get_stylesheet(mode)

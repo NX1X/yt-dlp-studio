@@ -244,31 +244,41 @@ class ErrorHandler:
             )
 
     @staticmethod
-    def format_error_dialog_text(error_message: str) -> str:
+    def format_error_dialog_text(error_message: str, colors: dict[str, str] | None = None) -> str:
         """
         Format error message for display in dialog.
 
         Args:
             error_message: Raw error message
+            colors: Optional theme colors ("error", "text_secondary"). Without
+                them the text uses the dialog's own colors, which read in
+                both themes.
 
         Returns:
             Formatted HTML text for dialog
         """
+        import html
+
+        from .translations import tr
+
         title, message, suggestions = ErrorHandler.get_error_info(error_message)
+        colors = colors or {}
+        title_style = f' style="color: {colors["error"]};"' if "error" in colors else ""
+        detail_color = f"color: {colors['text_secondary']}; " if "text_secondary" in colors else ""
+        suggestions_html = html.escape(suggestions).replace(chr(10), "<br>")
 
-        html = f"""
-<h3 style="color: #f48771;">{title}</h3>
+        return f"""
+<h3{title_style}>{html.escape(title)}</h3>
 
-<p><b>{message}</b></p>
+<p><b>{html.escape(message)}</b></p>
 
-<h4>Suggestions:</h4>
-<p style="color: #cccccc;">{suggestions.replace(chr(10), "<br>")}</p>
+<h4>{html.escape(tr("header_error_suggestions"))}</h4>
+<p>{suggestions_html}</p>
 
 <hr>
 
-<p style="color: #858585; font-size: small;">
-<b>Technical Details:</b><br>
-{error_message[:300]}
+<p style="{detail_color}font-size: small;">
+<b>{html.escape(tr("header_error_technical_details"))}</b><br>
+<span dir="ltr">{html.escape(error_message[:300])}</span>
 </p>
 """
-        return html
