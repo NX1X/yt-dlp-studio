@@ -297,7 +297,7 @@ def _no_comments_reason(provided: bool, expected: int | None) -> str:
         return "This site does not provide comments for this post"
     if not expected:
         return "No comments found: the post has none, or comments are turned off"
-    return f"The site returned none of the {expected:,} comments of this post"
+    return f"The site returned none of the {int(expected):,} comments of this post"
 
 
 def _write_comments_header(f: IO[str], data: dict[str, Any], count: int, expected: int | None) -> None:
