@@ -5,7 +5,7 @@ This guide lists common problems and their fixes. For how to use the app, see th
 ## Contents
 
 - [A video needs you to sign in](#a-video-needs-you-to-sign-in)
-- [Chrome cookies do not work on Windows](#chrome-cookies-do-not-work-on-windows)
+- [Cookies work only with Firefox](#cookies-work-only-with-firefox)
 - [Subtitles are missing or HTTP 429 appears](#subtitles-are-missing-or-http-429-appears)
 - [YouTube downloads fail or offer few formats on Linux](#youtube-downloads-fail-or-offer-few-formats-on-linux)
 - [FFmpeg is missing](#ffmpeg-is-missing)
@@ -23,7 +23,7 @@ This guide lists common problems and their fixes. For how to use the app, see th
 
 **Fix:**
 
-1. Sign in to the site in Firefox. On Windows, you can use Edge or Brave.
+1. Sign in to the site in Firefox.
 2. Close the browser completely.
 3. Open the **Settings** tab, then click **Show Advanced Download Options**.
 4. Set **Use cookies from** to that browser. If you use more than one profile, enter it in **Browser profile**.
@@ -34,20 +34,19 @@ If the message still appears, the site does not see a signed-in session in that 
 
 Cookies stay on your computer. The app does not save them and does not write them to the log.
 
-## Chrome cookies do not work on Windows
+## Cookies work only with Firefox
 
-**Symptom:** the app says it could not read the cookies from Chrome, and mentions app-bound encryption.
+**Symptom:** **Use cookies from** offers only Firefox. Or the app says it could not read the cookies, and mentions app-bound encryption.
 
-**Cause:** Chrome 127 and later protect their cookies with app-bound encryption. yt-dlp cannot read them. Some other Chromium-based browsers do the same.
+**Cause:** Chrome 127 and later protect their cookies with app-bound encryption. yt-dlp cannot read them. Microsoft Edge does the same on Windows 11. On Linux, reading Chromium cookies needs a package that the project does not use. So the app offers only Firefox.
 
-**Fix:** use Firefox for cookies, or set **Use cookies from** to **None**.
+**Fix:** sign in to the site in Firefox and set **Use cookies from** to **Firefox**. A setting from an older test build that named Chrome, Edge or Brave becomes **None**.
 
 Other cookie messages:
 
 - **"keeps its cookie database locked":** close the browser completely, then try again.
 - **"No cookies from ... were found":** check that the browser is installed. Check the **Browser profile** setting.
 
-On Linux, the app offers only Firefox. Chrome, Edge and Brave are not offered on Linux.
 
 ## Subtitles are missing or HTTP 429 appears
 
@@ -166,6 +165,7 @@ The app data folder holds both. Open the **Settings** tab to see the exact paths
 
 - The log file is at most 5 MB. The app keeps 3 older log files next to it.
 - Each crash is a file named `crash-<time>.json`. The app keeps the 20 newest.
+- A crash inside Qt or another native library does not make a `.json` report. It writes the stack of every thread to `native-crash.log` in the same folder. Each app start adds one "session" line there, so the file also shows which run crashed.
 - A crash report has the app and engine versions, the Python and system versions, the error, and the last 200 log lines.
 - The app removes passwords, tokens and similar secrets from the log and from crash reports. Read a file before you share it.
 - Each start writes an "Environment" line to the log, with the app, engine, FFmpeg and Deno versions. Include it in a bug report.

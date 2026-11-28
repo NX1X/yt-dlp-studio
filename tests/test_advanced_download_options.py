@@ -87,7 +87,7 @@ def test_profile_without_browser_is_ignored():
     ("platform", "expected"),
     [
         ("linux", ("firefox",)),
-        ("win32", ("firefox", "chrome", "edge", "brave")),
+        ("win32", ("firefox",)),  # Chromium browsers fail with app-bound encryption
         ("darwin", ("firefox",)),
     ],
 )
@@ -99,7 +99,8 @@ def test_no_banned_or_unreadable_browsers_offered():
     """Opera (owner from a banned country) and Chromium on Linux (needs secretstorage) stay out."""
     for platform in ("linux", "win32"):
         assert "opera" not in cookie_browsers(platform)
-    assert not set(cookie_browsers("linux")) & {"chrome", "chromium", "edge", "brave", "vivaldi"}
+    for platform in ("linux", "win32"):
+        assert not set(cookie_browsers(platform)) & {"chrome", "chromium", "edge", "brave", "vivaldi"}
 
 
 # ---------- proxy ----------

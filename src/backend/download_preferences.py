@@ -44,9 +44,13 @@ logger = get_logger()
 #   cookies and says nothing clear, so the browsers are not offered.
 # - Opera: owned by a company from a banned country (origin policy).
 # - Safari: macOS only, and the app does not ship for macOS.
-# Chrome 127 and later on Windows encrypt cookies with an app-bound key that
-# yt-dlp cannot read. The app then shows cookie_error_app_bound.
-_WINDOWS_COOKIE_BROWSERS = ("firefox", "chrome", "edge", "brave")
+# - Chrome, Edge and Brave on Windows: Chrome 127 and later encrypt cookies
+#   with an app-bound key that yt-dlp cannot read (yt-dlp issue 10927), and
+#   the Windows 11 test of 0.5.0 showed Edge failing the same way ("Failed to
+#   decrypt with DPAPI"). An option that always fails is not offered. A saved
+#   value from a build that offered them is invalid now and becomes "None".
+#   cookie_error_app_bound stays for a cookies setting from other sources.
+_WINDOWS_COOKIE_BROWSERS = ("firefox",)
 _OTHER_COOKIE_BROWSERS = ("firefox",)
 
 BROWSER_NAMES = {
