@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFormLayout,
     QGroupBox,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -34,6 +35,7 @@ from ..backend.download_preferences import (
 )
 from ..models.app_config import AppConfig
 from ..utils.translations import tr
+from .help_links import ANCHOR_ADVANCED_OPTIONS, make_help_button
 
 # Codec names are product names; only "Any" is translated.
 _VIDEO_CODECS = (("h264", "H.264"), ("h265", "H.265 / HEVC"), ("vp9", "VP9"), ("av1", "AV1"))
@@ -77,6 +79,10 @@ class AdvancedDownloadOptions(QWidget):
         applies.setWordWrap(True)
         applies.setProperty("labelStyle", "secondary")
         form.addRow(applies)
+        help_row = QHBoxLayout()
+        help_row.addStretch(1)
+        help_row.addWidget(make_help_button(ANCHOR_ADVANCED_OPTIONS))
+        form.addRow(help_row)
         self.group.setLayout(form)
         self.group.setVisible(False)
         layout.addWidget(self.group)
