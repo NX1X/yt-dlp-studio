@@ -55,20 +55,20 @@ class TestClassifier:
     @pytest.mark.parametrize(
         "url",
         [
-            "https://evil-youtube.com/watch?v=abc",
-            "https://youtube.com.evil.example/watch?v=abc",
+            "https://myyoutube.example/watch?v=abc",
+            "https://youtube.com.example.net/watch?v=abc",
             "https://notyoutube.com/watch",
             "https://youtube.co/watch",
             "https://www.youtube.com.example.org/",
             "https://fakeinstagram.com/p/abc",
-            "https://instagram.com.evil.example/p/abc",
+            "https://instagram.com.example.net/p/abc",
             "https://tiktok.co/@user",
             "https://facebook.com-video.example/watch",
             "https://xx.com/user/status/1",
             "https://twitter.co/user",
-            "https://youtube.com@evil.example/watch?v=abc",  # user info, real host is evil.example
-            "https://evil.example/?u=https://www.youtube.com/watch",
-            "https://evil.example/youtube.com",
+            "https://youtube.com@other.example/watch?v=abc",  # user info, real host is other.example
+            "https://other.example/?u=https://www.youtube.com/watch",
+            "https://other.example/youtube.com",
             "https://gaming.youtube.com/watch?v=abc",  # no subdomain matching
             "https://www.уoutube.com/watch?v=abc",  # Cyrillic "у"
         ],
@@ -114,7 +114,7 @@ class TestClassifier:
             "file:///home/user/video.mp4",
             "https://",
             "https:///watch",
-            "https://evil.example\\@youtube.com/",
+            "https://other.example\\@youtube.com/",
             "",
             "   ",
             "not a url",

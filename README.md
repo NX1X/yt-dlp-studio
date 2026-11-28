@@ -44,7 +44,7 @@ Sites are in two tiers. The Download tab shows the tier next to the URL field: "
 
 - **How the checks work:** only YouTube is covered by the automatic weekly check in CI. Instagram, TikTok, Facebook and X are checked by hand before each release. A site can change at any time, so a tested site can still break between releases.
 - **Experimental sites:** the app does not block them. The download may work, partly work or fail.
-- **How the app finds the tier:** it compares the host name of the URL with a fixed list. Only exact host names count, so `evil-youtube.com` is experimental, not YouTube.
+- **How the app finds the tier:** it compares the host name of the URL with a fixed list. Only exact host names count, so a look-alike host such as `youtube.com.example.net` is experimental, not YouTube.
 - **Tested host names:**
   - YouTube: `youtube.com`, `www.youtube.com`, `m.youtube.com`, `music.youtube.com`, `youtu.be`
   - Instagram: `instagram.com`, `www.instagram.com`
