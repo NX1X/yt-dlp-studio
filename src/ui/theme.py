@@ -160,7 +160,7 @@ class ModernTheme:
     }
 
     @staticmethod
-    def colors(mode: ThemeMode = ThemeMode.DARK) -> dict[str, str]:
+    def colors_for(mode: ThemeMode = ThemeMode.DARK) -> dict[str, str]:
         """Return the color tokens of a mode (AUTO uses the dark palette)."""
         return ModernTheme.COLORS["light" if mode == ThemeMode.LIGHT else "dark"]
 
@@ -173,7 +173,7 @@ class ModernTheme:
         placeholder text of input fields and some native parts take their
         colors from the palette.
         """
-        c = ModernTheme.colors(mode)
+        c = ModernTheme.colors_for(mode)
         palette = QPalette()
         roles = {
             QPalette.ColorRole.Window: c["bg_primary"],
@@ -1061,7 +1061,7 @@ class ThemeManager(QObject):
 
     def colors(self) -> dict[str, str]:
         """Return the color tokens of the current mode."""
-        return ModernTheme.colors(self.current_mode)
+        return ModernTheme.colors_for(self.current_mode)
 
     def toggle_theme(self) -> str:
         """

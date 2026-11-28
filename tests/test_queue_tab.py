@@ -216,7 +216,7 @@ class TestRows:
         task = make_task(0, status=TaskStatus.DOWNLOADING, download_speed=3_400_000)
         add(queue_manager, task)
         text = queue_tab.queue_table.item(0, COL_SPEED).text()
-        assert text.startswith("⁦") and text.endswith("⁩")
+        assert text.startswith("\u2066") and text.endswith("\u2069")
 
     def test_table_paints(self, queue_tab, queue_manager):
         """The delegates paint every status without errors."""

@@ -23,8 +23,8 @@ from .theme import ModernTheme, ThemeMode, get_theme_manager
 logger = get_logger()
 
 # Left-to-right isolate and pop directional isolate
-LRI = "⁦"
-PDI = "⁩"
+LRI = "\u2066"
+PDI = "\u2069"
 
 # Stored quality key -> translation key. Keys without an entry are shown as
 # stored (resolutions such as "4K (2160p)" read the same in every language).

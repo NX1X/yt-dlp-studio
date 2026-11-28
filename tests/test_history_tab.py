@@ -92,7 +92,7 @@ class TestSummaryAndTable:
 
     def test_size_is_rtl_safe(self, tab):
         text = tab.history_table.item(0, COL_SIZE).text()
-        assert text.startswith("⁦") and text.endswith("⁩")
+        assert text.startswith("\u2066") and text.endswith("\u2069")
 
     def test_empty_history(self, qtbot, tmp_path, monkeypatch):
         monkeypatch.setattr(hm_module, "APP_DATA_DIR", tmp_path / "empty")

@@ -8,6 +8,7 @@ signals the way the queue does: the worker writes the values to the task,
 then QueueManager emits ``task_progress`` on the GUI thread.
 """
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -263,7 +264,8 @@ class TestDisplayFormat:
         opened = []
         monkeypatch.setattr(fmt.QDesktopServices, "openUrl", lambda url: opened.append(url.toLocalFile()) or True)
         assert fmt.open_local_path(str(tmp_path)) is True
-        assert opened == [str(tmp_path)]
+        # QUrl.toLocalFile() uses "/" on Windows too, so compare as paths.
+        assert [Path(p) for p in opened] == [tmp_path]
         assert fmt.open_local_path("") is False
 
 

@@ -326,11 +326,11 @@ def test_hebrew_closing_paren_after_ltr_text_gets_an_rlm():
 
     tm = TranslationManager()
     tm.set_language("he")
-    assert tm.translate("tooltip_paste").endswith(")‏")
+    assert tm.translate("tooltip_paste").endswith(")\u200f")
     # Qt parses "(*.csv)" in file dialog filters, so filters stay unchanged.
     assert tm.translate("filter_csv_files").endswith(")")
     tm.set_language("en")
-    assert not tm.translate("tooltip_paste").endswith("‏")
+    assert not tm.translate("tooltip_paste").endswith("\u200f")
 
 
 @pytest.mark.parametrize(
@@ -345,7 +345,7 @@ def test_hebrew_closing_paren_after_ltr_text_gets_an_rlm():
 )
 def test_rlm_after_final_paren_colon_or_period(key, text, marked):
     """A final ")", ":" or "." in a Hebrew string gets one RLM; filter_* keys never do."""
-    assert _end_rtl_paren(key, text) == (text + "‏" if marked else text)
+    assert _end_rtl_paren(key, text) == (text + "\u200f" if marked else text)
 
 
 def test_hebrew_label_colon_gets_an_rlm():
@@ -353,6 +353,6 @@ def test_hebrew_label_colon_gets_an_rlm():
 
     tm = TranslationManager()
     tm.set_language("he")
-    assert tm.translate("label_yt_dlp_version") == TRANSLATIONS["he"]["label_yt_dlp_version"] + "‏"
+    assert tm.translate("label_yt_dlp_version") == TRANSLATIONS["he"]["label_yt_dlp_version"] + "\u200f"
     tm.set_language("en")
     assert tm.translate("label_yt_dlp_version") == TRANSLATIONS["en"]["label_yt_dlp_version"]

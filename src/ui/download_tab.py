@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
+    QDialog,
     QFileDialog,
     QGridLayout,
     QGroupBox,
@@ -974,11 +975,14 @@ class DownloadTab(QWidget):
         # The dialog shows a Download button because this is connected. The
         # download starts after the dialog closes, so its questions (playlist,
         # duplicate) do not open on top of it.
-        download_requested = []
-        dialog.download_requested.connect(lambda: download_requested.append(True))
-        dialog.exec()
-        if download_requested:
+        # Download accepts the dialog; Close rejects it.
+        dialog.download_requested.connect(self._on_info_download_requested)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             self._on_download_clicked()
+
+    def _on_info_download_requested(self) -> None:
+        """Log that the video info dialog asked for a download."""
+        logger.info("Download requested from the video info dialog")
 
     def _show_error_dialog(self, title_key: str, error_message: str) -> None:
         """Detailed error dialog with the friendly text, suggestions and Copy details."""
