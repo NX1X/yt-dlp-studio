@@ -11,7 +11,73 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request cancels the older run for that PR. Runs on
+# main, dev and manual runs get a group of their own (the run id), so they are
+# never cancelled and never replaced while they wait.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  changes:
+    name: Detect changed files
+    # Decides which jobs need to run. Two outputs:
+    #   code  - tests are needed (anything but docs-only files)
+    #   build - the Windows and Linux builds are needed (anything but docs-only
+    #           files and the translation CSV files, which are not bundled)
+    # Docs-only files: *.md, docs/, issue templates, the PR template, LICENSE
+    # and NOTICE. Push, manual and any unclear case set both outputs to true.
+    # The Lint and Tests jobs still start on every run (they are required
+    # checks), but Tests skips its steps when `code` is false.
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+      build: ${{ steps.diff.outputs.build }}
+    steps:
+    - name: Harden runner
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+      with:
+        egress-policy: block
+        disable-sudo: true
+        allowed-endpoints: >
+          api.github.com:443
+          codeload.github.com:443
+          github.com:443
+          results-receiver.actions.githubusercontent.com:443
+          *.blob.core.windows.net:443
+
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+        fetch-depth: 0   # the diff needs the base commit
+
+    - name: Compare changed files
+      id: diff
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      run: |
+        code=true
+        build=true
+        if [ "$EVENT_NAME" = "pull_request" ] && files="$(git diff --name-only "$BASE_SHA...$HEAD_SHA")" && [ -n "$files" ]; then
+          code=false
+          build=false
+          while IFS= read -r f; do
+            case "$f" in
+              *.md|docs/*|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md|LICENSE|NOTICE) ;;
+              translations/*.csv) code=true ;;
+              *) code=true; build=true ;;
+            esac
+          done <<< "$files"
+          echo "Changed files:"; echo "$files"
+        fi
+        echo "code=$code" >> "$GITHUB_OUTPUT"
+        echo "build=$build" >> "$GITHUB_OUTPUT"
+        echo "code=$code build=$build"
+
   lint:
     name: Lint & Format Check
     runs-on: ubuntu-26.04
@@ -50,6 +116,8 @@ jobs:
       uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
         python-version: '3.14.10'
+        cache: pip
+        cache-dependency-path: requirements/ci-tools.txt
 
     - name: Install linting tools
       # Hash-pinned CI tooling (see requirements/ci-tools.in).
@@ -64,6 +132,7 @@ jobs:
 
   test:
     name: Tests (${{ matrix.os }})
+    needs: [changes]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
@@ -76,10 +145,18 @@ jobs:
         os: [ubuntu-26.04, windows-2025, windows-2022]
     steps:
     - name: Harden runner
+      if: needs.changes.outputs.code == 'true'
       # See lint job for rationale. This job runs on both ubuntu and windows
       # via matrix; the same policy is applied to both. The Linux leg uses
       # apt (`sudo apt-get`), so disable-sudo MUST be false. Port-80 entries
-      # are for the Ubuntu apt mirror (HTTP-only on the Azure-backed mirror).
+      # are for the Ubuntu apt mirror (HTTP-only on the Azure-backed mirror)
+      # and, on Windows, for certificate revocation checks (crl.microsoft.com,
+      # crl.sectigo.com, ocsp.sectigo.com): harden-runner logged them as
+      # blocked on the Windows legs. The Linux leg never calls them.
+      # Every step below is skipped when only docs changed (see the changes
+      # job). The job itself must still run and report: a skipped matrix job
+      # shows an unexpanded name, which would leave the required "Tests
+      # (ubuntu-26.04)" and "Tests (windows-2025)" checks pending.
       uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: block
@@ -98,51 +175,60 @@ jobs:
           release-assets.githubusercontent.com:443
           results-receiver.actions.githubusercontent.com:443
           security.ubuntu.com:80
+          crl.microsoft.com:80
+          crl.sectigo.com:80
+          ocsp.sectigo.com:80
           *.blob.core.windows.net:443
 
     - name: Checkout code
+      if: needs.changes.outputs.code == 'true'
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false   # no job here pushes via git
 
     - name: Set up Python
+      if: needs.changes.outputs.code == 'true'
       uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
         python-version: '3.14.10'
+        cache: pip
+        cache-dependency-path: requirements/*.txt
 
     - name: Install system dependencies (Linux)
-      if: runner.os == 'Linux'
+      if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
       run: |
         sudo apt-get update
         sudo apt-get install -y xvfb libegl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0
 
     - name: Install Python dependencies
+      if: needs.changes.outputs.code == 'true'
       run: |
         python -m pip install --require-hashes -r requirements/pip.txt --only-binary :all:
         python -m pip install --require-hashes -r requirements/lock.txt --only-binary :all:
         python -m pip install --require-hashes -r requirements/dev.txt --only-binary :all:
 
     - name: Run smoke tests
+      if: needs.changes.outputs.code == 'true'
       run: bash tests/test_smoke.sh
       shell: bash
       env:
         QT_QPA_PLATFORM: offscreen
 
     - name: Run tests (Linux)
-      if: runner.os == 'Linux'
+      if: needs.changes.outputs.code == 'true' && runner.os == 'Linux'
       run: |
         xvfb-run --auto-servernum pytest tests/ -v --tb=short --junitxml=test-results.xml --cov=src --cov-report=xml
       env:
         QT_QPA_PLATFORM: offscreen
 
     - name: Run tests (Windows)
-      if: runner.os == 'Windows'
+      if: needs.changes.outputs.code == 'true' && runner.os == 'Windows'
       run: pytest tests/ -v --tb=short --junitxml=test-results.xml --cov=src --cov-report=xml
       env:
         QT_QPA_PLATFORM: offscreen
 
     - name: Upload test results
-      if: always()
+      if: always() && needs.changes.outputs.code == 'true'
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: test-results-${{ matrix.os }}
@@ -150,7 +236,7 @@ jobs:
         retention-days: 7
 
     - name: Upload coverage report
-      if: always()
+      if: always() && needs.changes.outputs.code == 'true'
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: coverage-${{ matrix.os }}
@@ -159,18 +245,23 @@ jobs:
 
   build-windows:
     name: Build Windows Executable
-    needs: [lint, test]
+    # Runs in parallel with Lint and Tests (no `needs` on them): the build
+    # takes about as long as the tests, so waiting for them doubled the time
+    # to a result. A failing test still fails the PR through its own check.
+    needs: [changes]
     runs-on: windows-2025
-    timeout-minutes: 45
+    timeout-minutes: 30
     # Run on direct pushes to main/dev AND on every pull request, so
     # PyInstaller-only regressions (missing hidden imports, broken bundle
     # paths, vendored-engine path math that only matters under _MEIPASS)
     # surface in the PR instead of after merge. PR builds upload an
     # artifact for manual smoke testing but are NOT promoted to releases.
     if: >
+      needs.changes.outputs.build == 'true' && (
       github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' ||
       github.ref == 'refs/heads/main' ||
-      github.ref == 'refs/heads/dev'
+      github.ref == 'refs/heads/dev')
     permissions:
       contents: read
       id-token: write       # OIDC token for Sigstore signing
@@ -211,6 +302,10 @@ jobs:
           results-receiver.actions.githubusercontent.com:443
           sigstore.github.com:443
           tuf-repo-cdn.sigstore.dev:443
+          crl.microsoft.com:80
+          crl.sectigo.com:80
+          ocsp.sectigo.com:80
+          www.microsoft.com:80
           *.blob.core.windows.net:443
 
     - name: Checkout code
@@ -222,6 +317,8 @@ jobs:
       uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
         python-version: '3.14.10'
+        cache: pip
+        cache-dependency-path: requirements/*.txt
 
     - name: Install dependencies
       # PyInstaller comes from its own hash-locked file (see
@@ -359,16 +456,6 @@ jobs:
         if (-not $setup) { Write-Error "installer not produced"; exit 1 }
         Write-Host "Built $($setup.Name) ($([math]::Round($setup.Length / 1MB, 1)) MB)"
 
-    - name: Test installer
-      timeout-minutes: 15
-      # Silent per-user install, launch the INSTALLED GUI headless until it logs
-      # "started successfully", silent uninstall (user data must survive), then
-      # reinstall and uninstall with /PURGEDATA=yes (user data must go).
-      run: |
-        $setup = (Get-ChildItem dist\YT-DLP-Studio-Setup-*.exe | Select-Object -First 1).FullName
-        powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test_installer.ps1 -Setup $setup
-        if ($LASTEXITCODE -ne 0) { exit 1 }
-
     - name: Generate build provenance attestation
       # Produces a Sigstore-signed SLSA provenance statement binding the
       # exe's SHA-256 to this workflow file at this commit on this runner.
@@ -393,9 +480,62 @@ jobs:
         $fileSize = (Get-Item "dist/yt-dlp-studio.exe").Length / 1MB
         Write-Host "File size: $([math]::Round($fileSize, 2)) MB"
 
+  test-installer-windows:
+    name: Test Windows installer
+    # Split from the build job: on about 1 run in 6 the runner stops answering
+    # during the installer test (no log, step timeouts do not fire), and the
+    # whole build job was cancelled after 55 minutes. Here the freeze costs
+    # at most 12 minutes, only this job fails and "Re-run failed jobs" repeats
+    # only this job, not the build.
+    needs: [build-windows]
+    runs-on: windows-2025
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+    - name: Harden runner
+      # Baseline plus the certificate revocation hosts that Windows asks when
+      # it checks the signature of the installer and the installed EXE
+      # (blocked, they may stall a launch while Windows waits for an answer).
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+      with:
+        egress-policy: block
+        disable-sudo: true                 # Windows; no sudo step
+        allowed-endpoints: >
+          api.github.com:443
+          codeload.github.com:443
+          github.com:443
+          crl.microsoft.com:80
+          crl.sectigo.com:80
+          ocsp.sectigo.com:80
+          results-receiver.actions.githubusercontent.com:443
+          www.microsoft.com:80
+          *.blob.core.windows.net:443
+
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false   # no job here pushes via git
+
+    - name: Download installer
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: YT-DLP-Studio-Windows
+        path: dist
+
+    - name: Test installer
+      timeout-minutes: 10
+      # Silent per-user install, launch the INSTALLED GUI headless until it logs
+      # "started successfully", silent uninstall (user data must survive), then
+      # reinstall and uninstall with /PURGEDATA=yes (user data must go).
+      run: |
+        $setup = (Get-ChildItem dist\YT-DLP-Studio-Setup-*.exe | Select-Object -First 1).FullName
+        powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test_installer.ps1 -Setup $setup
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+
   build-linux:
     name: Build Linux Executable
-    needs: [lint, test]
+    needs: [changes]
     # Built in an ubuntu:22.04 container (glibc 2.35) on an ubuntu-26.04
     # runner. A PyInstaller binary only runs on a glibc at least as new as the
     # build host's, so the build-host glibc IS the compatibility floor for the
@@ -413,9 +553,11 @@ jobs:
     # after merge. PR builds upload an artifact for manual smoke testing but
     # are NOT promoted to releases.
     if: >
+      needs.changes.outputs.build == 'true' && (
       github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' ||
       github.ref == 'refs/heads/main' ||
-      github.ref == 'refs/heads/dev'
+      github.ref == 'refs/heads/dev')
     permissions:
       contents: read
     env:
@@ -496,7 +638,7 @@ jobs:
 
   test-fedora-rpm:
     name: Test .rpm on Fedora
-    needs: [build-linux]
+    needs: [changes, build-linux]
     # The build-linux job only extracts the .rpm on Ubuntu. This job installs
     # it with dnf on a real Fedora system, launches the installed app and
     # removes it again (see scripts/test_fedora_rpm.sh). Fedora runs in a
@@ -505,9 +647,11 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     if: >
+      needs.changes.outputs.build == 'true' && (
       github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' ||
       github.ref == 'refs/heads/main' ||
-      github.ref == 'refs/heads/dev'
+      github.ref == 'refs/heads/dev')
     permissions:
       contents: read
     env:
