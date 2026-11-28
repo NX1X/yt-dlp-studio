@@ -1,88 +1,136 @@
 """
 Download tab UI for YT-DLP Studio.
 
-Main interface for entering URLs and downloading videos.
+One form for a link: the link field (Paste, Info, site tier, inline
+errors), one row for Get / Quality / Format, the folder, a folded "More
+options" section and the buttons. Below it, the "Now downloading" panel
+shows the running downloads, and a folded activity log.
+
+"Download" and "Add to queue" use the same code path (``submit``) with the
+same playlist and duplicate checks. The only difference:
+
+- Download (``start_now=True``) starts the download at once, also while
+  the queue is paused. If every download slot is in use, it starts next.
+- Add to queue (``start_now=False``) puts the download at the end of the
+  queue. It waits its turn and does not start while the queue is paused.
+
+The browser cookies, proxy, file name template and format options are in
+the Settings tab; this tab only links there.
 """
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtCore import QPointF, QRectF, Qt, Signal
+from PySide6.QtGui import QColor, QKeySequence, QPainter, QPainterPath, QPen, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
+    QDialog,
     QFileDialog,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QVBoxLayout,
     QWidget,
 )
 
 from ..backend.config_manager import ConfigManager
-from ..backend.download_worker import DownloadWorker
 from ..backend.format_handler import FormatHandler
 from ..backend.playlist_worker import PlaylistWorker
 from ..backend.queue_manager import QueueManager
 from ..backend.subtitle_list_worker import SubtitleListWorker
 from ..backend.video_info_worker import VideoInfoWorker
-from ..models.download_task import DownloadTask, TaskStatus
+from ..models.download_task import DownloadTask
 from ..utils.constants import AUDIO_FORMATS, DEFAULT_AUDIO_FORMAT, DEFAULT_VIDEO_CONTAINER, VIDEO_CONTAINER_FORMATS
-from ..utils.error_handler import ErrorHandler
 from ..utils.logger import get_logger
 from ..utils.playlist_detector import PlaylistDetector
+from ..utils.site_tiers import SiteTier
 from ..utils.translations import tr
 from ..utils.validators import Validators
+from .collapsible_section import CollapsibleSection
+from .display_format import ltr, open_local_path, theme_colors
+from .error_dialog import show_download_error
 from .log_widget import LogWidget
+from .now_downloading import NowDownloadingPanel
 from .playlist_dialog import PlaylistDialog
-from .progress_bar import DownloadProgressWidget
 from .site_tier_label import SiteTierLabel
+from .status_messages import show_status
 from .subtitle_selection_dialog import SubtitleSelectionDialog
 from .video_info_dialog import VideoInfoDialog
 
 logger = get_logger()
 
+# Answers of the "playlist detected" question
+PLAYLIST_CHOOSE = "choose"
+PLAYLIST_WHOLE = "whole"
+PLAYLIST_CANCEL = "cancel"
 
-_SECONDARY_BUTTON_QSS = """
-            QPushButton {
-                background-color: #4a4a4a;
-                color: white;
-                border: none;
-                border-radius: 3px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #5a5a5a;
-            }
-            QPushButton:pressed {
-                background-color: #3a3a3a;
-            }
-            QPushButton:disabled {
-                background-color: #3e3e3e;
-                color: #858585;
-            }
-        """
+# Platform names as people write them (the detector returns lower case)
+_PLATFORM_NAMES = {"youtube": "YouTube", "vimeo": "Vimeo", "dailymotion": "Dailymotion", "soundcloud": "SoundCloud"}
+
+_TIER_ICON_SIZE = 16
+
+
+def _tier_pixmap(tier: SiteTier, device_ratio: float = 1.0) -> QPixmap:
+    """
+    Small icon for the site tier, so the tier never depends on color alone.
+
+    Tested: a check mark in a circle. Experimental: an exclamation mark in a
+    triangle. Colors come from the active theme.
+    """
+    size = _TIER_ICON_SIZE
+    pixmap = QPixmap(int(size * device_ratio), int(size * device_ratio))
+    pixmap.setDevicePixelRatio(device_ratio)
+    pixmap.fill(Qt.transparent)
+    colors = theme_colors()
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.Antialiasing, True)
+    if tier == SiteTier.TESTED:
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(colors["success"]))
+        painter.drawEllipse(QRectF(1, 1, size - 2, size - 2))
+        pen = QPen(QColor(colors["bg_primary"]), 2.0)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(pen)
+        path = QPainterPath(QPointF(4.5, 8.5))
+        path.lineTo(7.0, 11.0)
+        path.lineTo(11.5, 5.5)
+        painter.setBrush(Qt.NoBrush)
+        painter.drawPath(path)
+    else:
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(colors["warning"]))
+        triangle = QPainterPath(QPointF(size / 2, 1.0))
+        triangle.lineTo(size - 1.0, size - 2.0)
+        triangle.lineTo(1.0, size - 2.0)
+        triangle.closeSubpath()
+        painter.drawPath(triangle)
+        pen = QPen(QColor("#1e1e1e"), 2.0)
+        pen.setCapStyle(Qt.RoundCap)
+        painter.setPen(pen)
+        painter.drawLine(QPointF(size / 2, 5.5), QPointF(size / 2, 9.5))
+        painter.drawPoint(QPointF(size / 2, 12.0))
+    painter.end()
+    return pixmap
 
 
 class DownloadTab(QWidget):
     """
     Download tab widget.
 
-    Provides interface for:
-    - URL input
-    - Quality selection
-    - Output directory selection
-    - Download button
-    - Progress display
-    - Log output
-
-    Example:
-        >>> tab = DownloadTab(config_manager)
-        >>> # User interacts with UI
+    Signals:
+        open_queue_requested: the user wants to see the Queue tab
+        open_settings_requested: the user wants the advanced options (Settings tab)
     """
+
+    open_queue_requested = Signal()
+    open_settings_requested = Signal()
 
     def __init__(self, config_manager: ConfigManager, queue_manager: QueueManager, parent=None):
         """
@@ -96,7 +144,6 @@ class DownloadTab(QWidget):
         super().__init__(parent)
         self.config_manager = config_manager
         self.queue_manager = queue_manager
-        self.current_worker: DownloadWorker | None = None
         self.info_worker: VideoInfoWorker | None = None
         self.playlist_worker: PlaylistWorker | None = None
         self.subtitle_list_worker: SubtitleListWorker | None = None
@@ -105,371 +152,377 @@ class DownloadTab(QWidget):
         # combo. Always update via _on_download_type_changed; consult here
         # instead of comparing currentText() against an English literal.
         self._is_audio_mode: bool = False
+        # How the videos picked in the playlist dialog are added: True when
+        # the dialog was opened from "Download", False for "Add to queue"
+        # and for "Info".
+        self._playlist_start_now: bool = False
         self._setup_ui()
         self._setup_shortcuts()
+        self._connect_queue_signals()
         self._load_config()
         logger.info("DownloadTab initialized")
 
-    def update_output_directory(self, new_directory: str) -> None:
-        """Update output directory (v1.9.0 smart folder logic)."""
-        self.output_input.setText(new_directory)
-        logger.info(f"Download tab output directory updated to: {new_directory}")
+    # ------------------------------------------------------------------
+    # Layout
+    # ------------------------------------------------------------------
 
     def _setup_ui(self) -> None:
         """Set up the UI layout."""
-        main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(12)  # Add spacing between sections
-        main_layout.setContentsMargins(8, 8, 8, 8)  # Add margins
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
 
-        # Input section
-        input_group = QGroupBox(tr("tab_download"))
-        input_layout = QVBoxLayout()
-        input_layout.setSpacing(10)  # Add spacing between input rows
+        # The content scrolls when the window is too small for it, so no row
+        # is ever squeezed.
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setObjectName("downloadScroll")
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QScrollArea.NoFrame)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        content = QWidget()
+        content.setObjectName("downloadScrollContent")
+        main_layout = QVBoxLayout(content)
+        main_layout.setContentsMargins(8, 8, 8, 8)
+        main_layout.setSpacing(12)
+        self.scroll_area.setWidget(content)
+        outer.addWidget(self.scroll_area)
 
-        # URL input
-        url_layout = QHBoxLayout()
-        url_label = QLabel(tr("label_url"))
-        url_label.setMinimumWidth(80)
+        main_layout.addWidget(self._build_form())
+
+        self.now_panel = NowDownloadingPanel(self.queue_manager)
+        self.now_panel.open_queue_requested.connect(self.open_queue_requested.emit)
+        main_layout.addWidget(self.now_panel)
+
+        main_layout.addWidget(self._build_log_section())
+        main_layout.addStretch(1)
+
+    def _build_form(self) -> QGroupBox:
+        """The link form: link, options, folder, more options and buttons."""
+        group = QGroupBox(tr("tab_download"))
+        grid = QGridLayout(group)
+        grid.setHorizontalSpacing(8)
+        grid.setVerticalSpacing(8)
+        grid.setColumnStretch(1, 1)
+        label_align = Qt.AlignLeading | Qt.AlignVCenter
+
+        # Row 0: link
+        link_label = QLabel(tr("label_link"))
         self.url_input = QLineEdit()
-        self.url_input.setPlaceholderText(tr("download_url_placeholder"))
+        self.url_input.setPlaceholderText(tr("placeholder_link"))
+        self.url_input.setAccessibleName(tr("label_link"))
+        self.url_input.setClearButtonEnabled(True)
         self.url_input.returnPressed.connect(self._on_download_clicked)  # Enter key triggers download
+        self.url_input.textChanged.connect(self._on_url_changed)
+        link_label.setBuddy(self.url_input)
 
         # Enable drag and drop
         self.url_input.setAcceptDrops(True)
         self.url_input.dragEnterEvent = self._drag_enter_event
         self.url_input.dropEvent = self._drop_event
 
-        url_layout.addWidget(url_label)
-        url_layout.addWidget(self.url_input)
-
-        # Site tier ("Tested site" / "Experimental site"), updated as the URL changes
-        self.site_tier_label = SiteTierLabel()
-        self.url_input.textChanged.connect(self.site_tier_label.update_for_url)
-        url_layout.addWidget(self.site_tier_label)
-
-        # Paste from Clipboard button
         self.paste_button = QPushButton(tr("button_paste"))
-        self.paste_button.setMinimumWidth(80)
+        self.paste_button.setProperty("buttonStyle", "secondary")
         self.paste_button.setToolTip(tr("tooltip_paste"))
         self.paste_button.clicked.connect(self._paste_from_clipboard)
-        self.paste_button.setStyleSheet("""
-            QPushButton {
-                background-color: #4a4a4a;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 6px 12px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #5a5a5a;
-                border: 1px solid #6a6a6a;
-            }
-            QPushButton:pressed {
-                background-color: #3a3a3a;
-                padding: 7px 11px 5px 13px;
-            }
-        """)
-        url_layout.addWidget(self.paste_button)
 
-        # Show Info button
-        self.show_info_button = QPushButton(tr("button_show_info"))
-        self.show_info_button.setMinimumWidth(100)
+        self.show_info_button = QPushButton(tr("button_info"))
+        self.show_info_button.setProperty("buttonStyle", "secondary")
+        self.show_info_button.setToolTip(tr("tooltip_info"))
         self.show_info_button.clicked.connect(self._on_show_info_clicked)
-        self.show_info_button.setStyleSheet(_SECONDARY_BUTTON_QSS)
-        url_layout.addWidget(self.show_info_button)
 
-        input_layout.addLayout(url_layout)
+        grid.addWidget(link_label, 0, 0, label_align)
+        grid.addWidget(self.url_input, 0, 1)
+        grid.addWidget(self.paste_button, 0, 2)
+        grid.addWidget(self.show_info_button, 0, 3)
 
-        # v3.0.0: Download Type selection (Video or Audio).
-        # We use addItem(label, userData) so the localized display string and
-        # the stable internal key ("video" / "audio") are tracked separately;
-        # downstream branches consult `currentData()`, never `currentText()`,
-        # so translating the labels cannot break audio-mode detection.
-        type_layout = QHBoxLayout()
-        type_label = QLabel(tr("label_download_type"))
-        type_label.setMinimumWidth(80)
+        # Row 1: site tier ("Tested site" / "Experimental site"), icon plus text
+        self.site_tier_icon = QLabel()
+        self.site_tier_icon.setFixedSize(_TIER_ICON_SIZE, _TIER_ICON_SIZE)
+        self.site_tier_label = SiteTierLabel()
+        self.site_tier_row = QWidget()
+        self.site_tier_row.setObjectName("siteTierRow")
+        tier_layout = QHBoxLayout(self.site_tier_row)
+        tier_layout.setContentsMargins(0, 0, 0, 0)
+        tier_layout.setSpacing(6)
+        tier_layout.addWidget(self.site_tier_icon)
+        tier_layout.addWidget(self.site_tier_label)
+        tier_layout.addStretch(1)
+        self.site_tier_row.setVisible(False)
+        grid.addWidget(self.site_tier_row, 1, 1, 1, 3)
+
+        # Row 2: inline error for the link
+        self.url_error_label = QLabel()
+        self.url_error_label.setObjectName("inlineError")
+        self.url_error_label.setWordWrap(True)
+        self.url_error_label.setVisible(False)
+        grid.addWidget(self.url_error_label, 2, 1, 1, 3)
+
+        # Row 3: Get / Quality / Format.
+        # addItem(label, userData) keeps the translated label and the stable
+        # key ("video" / "audio") apart; code reads currentData(), never
+        # currentText(), so translating the labels cannot break audio mode.
+        get_label = QLabel(tr("label_get"))
         self.download_type_combo = QComboBox()
         self.download_type_combo.addItem(tr("download_type_video"), "video")
         self.download_type_combo.addItem(tr("download_type_audio"), "audio")
-        self.download_type_combo.currentTextChanged.connect(self._on_download_type_changed)
         self.download_type_combo.setToolTip(tr("tooltip_download_type"))
-        type_layout.addWidget(type_label)
-        type_layout.addWidget(self.download_type_combo)
-        input_layout.addLayout(type_layout)
+        self.download_type_combo.setAccessibleName(tr("label_get"))
+        get_label.setBuddy(self.download_type_combo)
 
-        # Quality selection (dynamically updated based on download type)
-        quality_layout = QHBoxLayout()
-        self.quality_label = QLabel(tr("label_quality"))
-        self.quality_label.setMinimumWidth(80)
+        self.quality_label = QLabel(tr("label_quality_short"))
         self.quality_combo = QComboBox()
-        self.quality_combo.currentTextChanged.connect(self._on_quality_changed)
-        quality_layout.addWidget(self.quality_label)
-        quality_layout.addWidget(self.quality_combo)
-        input_layout.addLayout(quality_layout)
+        self.quality_combo.setAccessibleName(tr("label_quality_short"))
+        self.quality_combo.setMinimumContentsLength(10)
+        self.quality_label.setBuddy(self.quality_combo)
 
-        # v2.0.0: Video Container Format selection (only visible for video downloads).
-        # The combo items themselves stay English - they are technical container
-        # names (MP4, MKV, WebM) that international users recognize. Only the
-        # label and tooltip get translated.
-        self.container_layout = QHBoxLayout()
-        self.container_label = QLabel(tr("label_video_format"))
-        self.container_label.setMinimumWidth(80)
+        # Container and audio format names (MP4, MKV, MP3) stay English:
+        # they are technical names people know in every language.
+        self.format_label = QLabel(tr("label_format"))
         self.container_combo = QComboBox()
         self.container_combo.addItems(list(VIDEO_CONTAINER_FORMATS.keys()))
         self.container_combo.setCurrentText(DEFAULT_VIDEO_CONTAINER)
         self.container_combo.setToolTip(tr("tooltip_video_format"))
-        self.container_layout.addWidget(self.container_label)
-        self.container_layout.addWidget(self.container_combo)
-        input_layout.addLayout(self.container_layout)
-
-        # v2.0.0: Audio Format selection (only visible for audio downloads).
-        # Same English-stays-English principle as the video container combo.
-        self.audio_format_layout = QHBoxLayout()
-        self.audio_format_label = QLabel(tr("label_audio_format"))
-        self.audio_format_label.setMinimumWidth(80)
+        self.container_combo.setAccessibleName(tr("label_format"))
         self.audio_format_combo = QComboBox()
         self.audio_format_combo.addItems(list(AUDIO_FORMATS.keys()))
         self.audio_format_combo.setCurrentText(DEFAULT_AUDIO_FORMAT)
         self.audio_format_combo.setToolTip(tr("tooltip_audio_format"))
-        self.audio_format_layout.addWidget(self.audio_format_label)
-        self.audio_format_layout.addWidget(self.audio_format_combo)
-        input_layout.addLayout(self.audio_format_layout)
+        self.audio_format_combo.setAccessibleName(tr("label_format"))
+        self.format_label.setBuddy(self.container_combo)
+        # Old names, kept for code that still refers to them
+        self.container_label = self.format_label
+        self.audio_format_label = self.format_label
 
-        # Initialize UI based on default download type (Video)
+        options_row = QHBoxLayout()
+        options_row.setSpacing(8)
+        options_row.addWidget(self.download_type_combo)
+        options_row.addSpacing(8)
+        options_row.addWidget(self.quality_label)
+        options_row.addWidget(self.quality_combo)
+        options_row.addSpacing(8)
+        options_row.addWidget(self.format_label)
+        options_row.addWidget(self.container_combo)
+        options_row.addWidget(self.audio_format_combo)
+        options_row.addStretch(1)
+        grid.addWidget(get_label, 3, 0, label_align)
+        grid.addLayout(options_row, 3, 1, 1, 3)
+
+        self.quality_combo.currentIndexChanged.connect(self._on_quality_changed)
+        self.download_type_combo.currentIndexChanged.connect(self._on_download_type_changed)
         self._update_quality_options()
 
-        # Output directory
-        output_layout = QHBoxLayout()
-        output_label = QLabel(tr("label_save_to"))
-        output_label.setMinimumWidth(80)
+        # Row 4: folder
+        save_label = QLabel(tr("label_save_to_short"))
         self.output_input = QLineEdit()
         self.output_input.setReadOnly(True)
+        self.output_input.setFocusPolicy(Qt.ClickFocus)  # read-only: no Tab stop
+        self.output_input.setAccessibleName(tr("label_save_to_short"))
+        save_label.setBuddy(self.output_input)
         self.browse_button = QPushButton(tr("button_browse"))
+        self.browse_button.setProperty("buttonStyle", "secondary")
         self.browse_button.clicked.connect(self._browse_directory)
-
-        # Open Directory button (v1.7.0)
-        self.open_dir_button = QPushButton(tr("button_open_dir"))
+        self.open_dir_button = QPushButton(tr("action_open_folder"))
+        self.open_dir_button.setProperty("buttonStyle", "secondary")
         self.open_dir_button.setToolTip(tr("tooltip_open_dir"))
         self.open_dir_button.clicked.connect(self._open_directory)
-        self.open_dir_button.setStyleSheet("""
-            QPushButton {
-                background-color: #4a4a4a;
-                color: white;
-                border: none;
-                border-radius: 3px;
-                padding: 6px 12px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #5a5a5a;
-            }
-            QPushButton:pressed {
-                background-color: #3a3a3a;
-            }
-        """)
+        grid.addWidget(save_label, 4, 0, label_align)
+        grid.addWidget(self.output_input, 4, 1)
+        grid.addWidget(self.browse_button, 4, 2)
+        grid.addWidget(self.open_dir_button, 4, 3)
 
-        output_layout.addWidget(output_label)
-        output_layout.addWidget(self.output_input)
-        output_layout.addWidget(self.browse_button)
-        output_layout.addWidget(self.open_dir_button)
-        input_layout.addLayout(output_layout)
+        # Row 5: inline error for the folder
+        self.folder_error_label = QLabel()
+        self.folder_error_label.setObjectName("inlineError")
+        self.folder_error_label.setWordWrap(True)
+        self.folder_error_label.setVisible(False)
+        grid.addWidget(self.folder_error_label, 5, 1, 1, 3)
 
-        # v1.7.0 features: Download options
-        options_layout = QHBoxLayout()
+        # Row 6: more options (folded)
+        self.more_section = CollapsibleSection(tr("section_more_options"))
+        self.more_section.set_content_widget(self._build_more_options())
+        grid.addWidget(self.more_section, 6, 0, 1, 4)
+        self._update_more_summary()
 
-        # Thumbnail checkbox
-        self.thumbnail_checkbox = QCheckBox(tr("checkbox_thumbnail"))
-        self.thumbnail_checkbox.setChecked(False)
-        self.thumbnail_checkbox.setToolTip(tr("tooltip_thumbnail"))
-        options_layout.addWidget(self.thumbnail_checkbox)
+        # Row 7: buttons. "Download" is the only primary button.
+        self.batch_button = QPushButton(tr("button_batch_links"))
+        self.batch_button.setProperty("buttonStyle", "secondary")
+        self.batch_button.setToolTip(tr("tooltip_batch"))
+        self.batch_button.clicked.connect(self._on_batch_input_clicked)
 
-        # Subtitles checkbox
-        self.subtitles_checkbox = QCheckBox(tr("checkbox_subtitles"))
-        self.subtitles_checkbox.setChecked(False)
-        self.subtitles_checkbox.stateChanged.connect(self._on_subtitles_toggled)
+        self.add_to_queue_button = QPushButton(tr("button_add_to_queue_short"))
+        self.add_to_queue_button.setProperty("buttonStyle", "secondary")
+        self.add_to_queue_button.setToolTip(tr("tooltip_add_to_queue_button"))
+        self.add_to_queue_button.clicked.connect(self._on_add_to_queue_clicked)
+
+        self.download_button = QPushButton(tr("button_download"))
+        self.download_button.setProperty("buttonStyle", "primary")
+        self.download_button.setToolTip(tr("tooltip_download_button"))
+        self.download_button.clicked.connect(self._on_download_clicked)
+
+        buttons = QHBoxLayout()
+        buttons.setSpacing(8)
+        buttons.addWidget(self.batch_button)
+        buttons.addStretch(1)
+        buttons.addWidget(self.add_to_queue_button)
+        buttons.addWidget(self.download_button)
+        grid.addLayout(buttons, 7, 0, 1, 4)
+        return group
+
+    def _build_more_options(self) -> QWidget:
+        """Subtitles, thumbnail, metadata, comments and speed limit."""
+        widget = QWidget()
+        widget.setObjectName("moreOptions")
+        grid = QGridLayout(widget)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(8)
+        grid.setVerticalSpacing(8)
+
+        # Subtitles
+        self.subtitles_checkbox = QCheckBox(tr("checkbox_subtitles_short"))
         self.subtitles_checkbox.setToolTip(tr("tooltip_subtitles"))
-        options_layout.addWidget(self.subtitles_checkbox)
-
-        # Subtitle languages input
-        self.subtitle_langs_label = QLabel(tr("label_subtitle_langs"))
-        self.subtitle_langs_label.setEnabled(False)
-        options_layout.addWidget(self.subtitle_langs_label)
-
+        self.subtitles_checkbox.toggled.connect(self._on_subtitles_toggled)
+        self.subtitle_langs_label = QLabel(tr("label_languages"))
         self.subtitle_langs_input = QLineEdit()
         self.subtitle_langs_input.setText("en")
         self.subtitle_langs_input.setPlaceholderText(tr("placeholder_subtitle_langs"))
-        self.subtitle_langs_input.setMaximumWidth(120)
-        self.subtitle_langs_input.setEnabled(False)
+        self.subtitle_langs_input.setMaximumWidth(160)
         self.subtitle_langs_input.setToolTip(tr("tooltip_subtitle_langs"))
-        options_layout.addWidget(self.subtitle_langs_input)
-
-        # v2.0.0: Select Subtitles button
-        self.select_subs_button = QPushButton(tr("button_select_subs"))
-        self.select_subs_button.setEnabled(False)
-        self.select_subs_button.setMinimumWidth(100)
-        self.select_subs_button.clicked.connect(self._on_select_subtitles_clicked)
+        self.subtitle_langs_input.setAccessibleName(tr("label_languages"))
+        self.subtitle_langs_label.setBuddy(self.subtitle_langs_input)
+        self.select_subs_button = QPushButton(tr("button_choose_subs"))
+        self.select_subs_button.setProperty("buttonStyle", "secondary")
         self.select_subs_button.setToolTip(tr("tooltip_select_subs"))
-        self.select_subs_button.setStyleSheet(_SECONDARY_BUTTON_QSS)
-        options_layout.addWidget(self.select_subs_button)
+        self.select_subs_button.clicked.connect(self._on_select_subtitles_clicked)
+        for widget_ in (self.subtitle_langs_label, self.subtitle_langs_input, self.select_subs_button):
+            widget_.setEnabled(False)
+        subs_row = QHBoxLayout()
+        subs_row.setSpacing(8)
+        subs_row.addWidget(self.subtitles_checkbox)
+        subs_row.addSpacing(12)
+        subs_row.addWidget(self.subtitle_langs_label)
+        subs_row.addWidget(self.subtitle_langs_input)
+        subs_row.addWidget(self.select_subs_button)
+        subs_row.addStretch(1)
+        grid.addLayout(subs_row, 0, 0, 1, 2)
 
-        # v2.1.0: Metadata checkbox
-        self.metadata_checkbox = QCheckBox(tr("checkbox_metadata"))
-        self.metadata_checkbox.setChecked(False)
+        # Extra files
+        self.thumbnail_checkbox = QCheckBox(tr("checkbox_thumbnail_short"))
+        self.thumbnail_checkbox.setToolTip(tr("tooltip_thumbnail"))
+        self.metadata_checkbox = QCheckBox(tr("checkbox_metadata_short"))
         self.metadata_checkbox.setToolTip(tr("tooltip_metadata"))
-        options_layout.addWidget(self.metadata_checkbox)
-
-        # v2.0.0: Comments checkbox
-        self.comments_checkbox = QCheckBox(tr("checkbox_comments"))
-        self.comments_checkbox.setChecked(False)
+        self.comments_checkbox = QCheckBox(tr("checkbox_comments_short"))
         self.comments_checkbox.setToolTip(tr("tooltip_comments"))
-        options_layout.addWidget(self.comments_checkbox)
+        files_row = QHBoxLayout()
+        files_row.setSpacing(16)
+        files_row.addWidget(self.thumbnail_checkbox)
+        files_row.addWidget(self.metadata_checkbox)
+        files_row.addWidget(self.comments_checkbox)
+        files_row.addStretch(1)
+        grid.addLayout(files_row, 1, 0, 1, 2)
 
-        options_layout.addStretch()
-
-        input_layout.addLayout(options_layout)
-
-        # Speed limit option
-        speed_layout = QHBoxLayout()
-
-        speed_label = QLabel(tr("label_speed_limit"))
-        speed_label.setMinimumWidth(80)
-        speed_layout.addWidget(speed_label)
-
+        # Speed limit
+        speed_label = QLabel(tr("label_speed_limit_short"))
         self.speed_limit_spinbox = QSpinBox()
         self.speed_limit_spinbox.setRange(0, 100000)
         self.speed_limit_spinbox.setValue(0)
+        self.speed_limit_spinbox.setSingleStep(100)
         self.speed_limit_spinbox.setSuffix(" KB/s")
         self.speed_limit_spinbox.setSpecialValueText(tr("text_unlimited"))
-        self.speed_limit_spinbox.setMaximumWidth(150)
+        self.speed_limit_spinbox.setMinimumWidth(150)
         self.speed_limit_spinbox.setToolTip(tr("tooltip_speed_limit"))
-        speed_layout.addWidget(self.speed_limit_spinbox)
+        self.speed_limit_spinbox.setAccessibleName(tr("label_speed_limit_short"))
+        # Digits and "KB/s" are left-to-right text, also in Hebrew.
+        self.speed_limit_spinbox.setLayoutDirection(Qt.LeftToRight)
+        speed_label.setBuddy(self.speed_limit_spinbox)
+        speed_row = QHBoxLayout()
+        speed_row.setSpacing(8)
+        speed_row.addWidget(speed_label)
+        speed_row.addWidget(self.speed_limit_spinbox)
+        speed_row.addStretch(1)
+        grid.addLayout(speed_row, 2, 0, 1, 2)
 
-        speed_layout.addStretch()
+        # The advanced options live in the Settings tab.
+        advanced_note = QLabel(tr("text_advanced_in_settings"))
+        advanced_note.setProperty("labelStyle", "secondary")
+        advanced_note.setWordWrap(True)
+        self.open_settings_button = QPushButton(tr("button_open_settings"))
+        self.open_settings_button.setProperty("buttonStyle", "link")
+        self.open_settings_button.setCursor(Qt.PointingHandCursor)
+        self.open_settings_button.clicked.connect(self.open_settings_requested.emit)
+        advanced_row = QHBoxLayout()
+        advanced_row.setSpacing(4)
+        advanced_row.addWidget(advanced_note, 1)
+        advanced_row.addWidget(self.open_settings_button)
+        grid.addLayout(advanced_row, 3, 0, 1, 2)
 
-        input_layout.addLayout(speed_layout)
+        for checkbox in (
+            self.subtitles_checkbox,
+            self.thumbnail_checkbox,
+            self.metadata_checkbox,
+            self.comments_checkbox,
+        ):
+            checkbox.toggled.connect(self._update_more_summary)
+        self.subtitle_langs_input.textChanged.connect(self._update_more_summary)
+        self.speed_limit_spinbox.valueChanged.connect(self._update_more_summary)
+        return widget
 
-        # Download buttons
-        button_layout = QHBoxLayout()
-
-        # Batch Input button (v1.7.0)
-        self.batch_button = QPushButton(tr("button_batch_input"))
-        self.batch_button.setMinimumWidth(140)
-        self.batch_button.setMinimumHeight(35)
-        self.batch_button.clicked.connect(self._on_batch_input_clicked)
-        self.batch_button.setStyleSheet("""
-            QPushButton {
-                background-color: #4a4a4a;
-                color: white;
-                border: none;
-                border-radius: 3px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #5a5a5a;
-            }
-            QPushButton:pressed {
-                background-color: #3a3a3a;
-            }
-        """)
-        self.batch_button.setToolTip(tr("tooltip_batch"))
-        button_layout.addWidget(self.batch_button)
-
-        button_layout.addStretch()
-
-        # Add to Queue button
-        self.add_to_queue_button = QPushButton(tr("button_add_to_queue"))
-        self.add_to_queue_button.setMinimumWidth(140)
-        self.add_to_queue_button.setMinimumHeight(35)
-        self.add_to_queue_button.clicked.connect(self._on_add_to_queue_clicked)
-        self.add_to_queue_button.setStyleSheet(_SECONDARY_BUTTON_QSS)
-        button_layout.addWidget(self.add_to_queue_button)
-
-        # Download Now button
-        self.download_button = QPushButton(tr("button_download_now"))
-        self.download_button.setMinimumWidth(150)
-        self.download_button.setMinimumHeight(35)
-        self.download_button.clicked.connect(self._on_download_clicked)
-        self.download_button.setStyleSheet("""
-            QPushButton {
-                background-color: #0e639c;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 8px 16px;
-                font-weight: bold;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background-color: #1177bb;
-                border: 1px solid #1a85cc;
-            }
-            QPushButton:pressed {
-                background-color: #0d5689;
-                padding: 9px 15px 7px 17px;
-            }
-            QPushButton:disabled {
-                background-color: #3e3e3e;
-                color: #858585;
-            }
-        """)
-        button_layout.addWidget(self.download_button)
-        button_layout.addStretch()
-        input_layout.addLayout(button_layout)
-
-        input_group.setLayout(input_layout)
-        main_layout.addWidget(input_group)
-
-        # Progress section
-        progress_group = QGroupBox(tr("group_progress"))
-        progress_layout = QVBoxLayout()
-        self.progress_widget = DownloadProgressWidget()
-        progress_layout.addWidget(self.progress_widget)
-        progress_group.setLayout(progress_layout)
-        main_layout.addWidget(progress_group)
-
-        # Log section (v1.9.0 - collapsible)
-        log_layout_container = QVBoxLayout()
-
-        # Toggle button for log
-        toggle_layout = QHBoxLayout()
-        self.toggle_log_button = QPushButton(tr("button_show_log"))
-        self.toggle_log_button.setMinimumWidth(150)
-        self.toggle_log_button.clicked.connect(self._toggle_log_visibility)
-        toggle_layout.addWidget(self.toggle_log_button)
-        toggle_layout.addStretch()
-        log_layout_container.addLayout(toggle_layout)
-
-        # Log group (hidden by default)
-        self.log_group = QGroupBox(tr("group_log"))
-        log_layout = QVBoxLayout()
+    def _build_log_section(self) -> CollapsibleSection:
+        """The activity log, folded away by default."""
+        self.log_section = CollapsibleSection(tr("section_activity_log"))
+        body = QWidget()
+        body.setObjectName("activityLogBody")
+        layout = QVBoxLayout(body)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
         self.log_widget = LogWidget()
-        self.log_widget.setMinimumHeight(150)
-        log_layout.addWidget(self.log_widget)
-
-        # Clear log button
-        clear_layout = QHBoxLayout()
-        clear_layout.addStretch()
+        self.log_widget.setMinimumHeight(160)
+        layout.addWidget(self.log_widget)
+        clear_row = QHBoxLayout()
+        clear_row.addStretch(1)
         self.clear_log_button = QPushButton(tr("button_clear_log"))
+        self.clear_log_button.setProperty("buttonStyle", "secondary")
         self.clear_log_button.clicked.connect(self.log_widget.clear_log)
-        clear_layout.addWidget(self.clear_log_button)
-        log_layout.addLayout(clear_layout)
+        clear_row.addWidget(self.clear_log_button)
+        layout.addLayout(clear_row)
+        self.log_section.set_content_widget(body)
+        return self.log_section
 
-        self.log_group.setLayout(log_layout)
-        self.log_group.setVisible(False)  # Hidden by default
-        log_layout_container.addWidget(self.log_group)
+    def _update_more_summary(self, *_args) -> None:
+        """One line next to "More options" that says what is switched on."""
+        parts = []
+        if self.subtitles_checkbox.isChecked():
+            langs = self.subtitle_langs_input.text().strip() or "en"
+            parts.append(tr("summary_subtitles", langs=ltr(langs)))
+        if self.thumbnail_checkbox.isChecked():
+            parts.append(tr("checkbox_thumbnail_short"))
+        if self.metadata_checkbox.isChecked():
+            parts.append(tr("summary_metadata"))
+        if self.comments_checkbox.isChecked():
+            parts.append(tr("checkbox_comments_short"))
+        limit = self.speed_limit_spinbox.value()
+        if limit:
+            parts.append(tr("summary_speed_limit", speed=ltr(f"{limit} KB/s")))
+        self.more_section.set_summary(", ".join(parts) if parts else tr("more_options_default"))
 
-        main_layout.addLayout(log_layout_container)
+    # ------------------------------------------------------------------
+    # Setup helpers
+    # ------------------------------------------------------------------
 
-    def _toggle_log_visibility(self) -> None:
-        """Toggle log visibility (v1.9.0)."""
-        is_visible = self.log_group.isVisible()
-        self.log_group.setVisible(not is_visible)
+    def update_output_directory(self, new_directory: str) -> None:
+        """Update output directory (v1.9.0 smart folder logic)."""
+        self._set_output_text(new_directory)
+        self._set_folder_error("")
+        logger.info(f"Download tab output directory updated to: {new_directory}")
 
-        if is_visible:
-            self.toggle_log_button.setText(tr("button_show_log"))
-        else:
-            self.toggle_log_button.setText(tr("button_hide_log"))
+    def _set_output_text(self, directory: str) -> None:
+        """Show the folder from its start; the tooltip has the full path."""
+        self.output_input.setText(directory)
+        self.output_input.setCursorPosition(0)
+        self.output_input.setToolTip(directory)
+
+    def set_url(self, url: str) -> None:
+        """Put ``url`` into the link field (for example "Download again" in History)."""
+        self.url_input.setText(url)
+        self.url_input.setFocus()
 
     def _setup_shortcuts(self) -> None:
         """Set up keyboard shortcuts for the download tab."""
@@ -477,19 +530,34 @@ class DownloadTab(QWidget):
         paste_shortcut = QShortcut(QKeySequence("Ctrl+V"), self)
         paste_shortcut.activated.connect(self._paste_from_clipboard)
 
-        # Ctrl+D - Download Now
+        # Ctrl+D - Download
         download_shortcut = QShortcut(QKeySequence("Ctrl+D"), self)
         download_shortcut.activated.connect(self._on_download_clicked)
 
-        # Ctrl+Shift+Q - Add to Queue
+        # Ctrl+Shift+Q - Add to queue
         queue_shortcut = QShortcut(QKeySequence("Ctrl+Shift+Q"), self)
         queue_shortcut.activated.connect(self._on_add_to_queue_clicked)
 
-        # Ctrl+Shift+I - Show Info
+        # Ctrl+Shift+I - Info
         info_shortcut = QShortcut(QKeySequence("Ctrl+Shift+I"), self)
         info_shortcut.activated.connect(self._on_show_info_clicked)
 
         logger.debug("Keyboard shortcuts configured for DownloadTab")
+
+    def _connect_queue_signals(self) -> None:
+        """Write queue events to the activity log (signals arrive on the GUI thread)."""
+        self.queue_manager.task_started.connect(self._on_task_started)
+        self.queue_manager.task_completed.connect(self._on_task_completed)
+        self.queue_manager.task_failed.connect(self._on_task_failed)
+
+    def _on_task_started(self, _index: int, title: str) -> None:
+        self.log_widget.append_info(f"Started: {title}")
+
+    def _on_task_completed(self, _index: int, filename: str) -> None:
+        self.log_widget.append_success(f"Finished: {filename}")
+
+    def _on_task_failed(self, _index: int, error: str) -> None:
+        self.log_widget.append_error(f"Stopped: {error}")
 
     def _paste_from_clipboard(self) -> None:
         """Paste URL from clipboard into URL field."""
@@ -505,13 +573,23 @@ class DownloadTab(QWidget):
     def _load_config(self) -> None:
         """Load configuration and set UI values."""
         config = self.config_manager.get_config()
-        self.output_input.setText(config.output_directory)
-        self.quality_combo.setCurrentText(config.default_quality)
+        self._set_output_text(config.output_directory)
+        self._select_quality(config.default_quality)
         self.url_input.setText(config.last_url)
         logger.debug("Config loaded into DownloadTab UI")
 
         # Auto-detect URL from clipboard on startup
         self._auto_detect_clipboard_url()
+
+    def _select_quality(self, value: str) -> None:
+        """Select a quality by its stable key, or by its label from older config files."""
+        if not value:
+            return
+        index = self.quality_combo.findData(value)
+        if index < 0:
+            index = self.quality_combo.findText(value)
+        if index >= 0:
+            self.quality_combo.setCurrentIndex(index)
 
     def _auto_detect_clipboard_url(self) -> None:
         """Auto-detect and fill URL from clipboard if valid."""
@@ -536,21 +614,76 @@ class DownloadTab(QWidget):
             else:
                 logger.debug("URL field not empty, skipping auto-fill")
 
-    def _on_download_type_changed(self, download_type: str) -> None:
-        """
-        Handle download type change (Video or Audio Only).
+    # ------------------------------------------------------------------
+    # Link field: site tier and inline errors
+    # ------------------------------------------------------------------
 
-        Args:
-            download_type: Selected download type ("Video" or "Audio Only")
-        """
+    def _on_url_changed(self, text: str) -> None:
+        """Update the site tier and clear an old error while the user types."""
+        self._set_url_error("")
+        self.site_tier_label.update_for_url(text)
+        self._sync_site_tier_icon()
+
+    def _sync_site_tier_icon(self) -> None:
+        tier = self.site_tier_label.tier
+        visible = tier in (SiteTier.TESTED, SiteTier.EXPERIMENTAL)
+        if visible:
+            self.site_tier_icon.setPixmap(_tier_pixmap(tier, self.devicePixelRatioF()))
+        self.site_tier_row.setVisible(visible)
+
+    def _set_url_error(self, text: str) -> None:
+        """Show ``text`` under the link field, or hide the error line when empty."""
+        self._set_inline_error(self.url_error_label, self.url_input, text)
+
+    def _set_folder_error(self, text: str) -> None:
+        """Show ``text`` under the folder field, or hide the error line when empty."""
+        self._set_inline_error(self.folder_error_label, self.output_input, text)
+
+    @staticmethod
+    def _set_inline_error(label: QLabel, field: QLineEdit, text: str) -> None:
+        label.setText(text)
+        label.setVisible(bool(text))
+        invalid = "true" if text else "false"
+        if field.property("invalid") != invalid:
+            field.setProperty("invalid", invalid)
+            field.style().unpolish(field)
+            field.style().polish(field)
+        field.setAccessibleDescription(text)
+
+    def _check_url(self, url: str) -> bool:
+        """Validate the link; show an inline error when it is not valid."""
+        is_valid, error = Validators.is_valid_url(url)
+        if is_valid:
+            self._set_url_error("")
+            return True
+        key = "error_link_empty" if not url else "error_link_invalid"
+        self._set_url_error(tr(key, http=ltr("http://"), https=ltr("https://")))
+        self.log_widget.append_error(f"{tr('error_invalid_url')}: {error}")
+        self.url_input.setFocus()
+        return False
+
+    def _check_output_dir(self, output_dir: str) -> bool:
+        """Validate the folder; show an inline error when it cannot be used."""
+        is_valid, error = Validators.is_valid_directory(output_dir)
+        if is_valid:
+            self._set_folder_error("")
+            return True
+        self._set_folder_error(tr("error_folder_invalid"))
+        self.log_widget.append_error(f"{tr('error_invalid_directory')}: {error}")
+        return False
+
+    # ------------------------------------------------------------------
+    # Options
+    # ------------------------------------------------------------------
+
+    def _on_download_type_changed(self, *_args) -> None:
+        """Handle download type change (Video or Audio Only)."""
         self._update_quality_options()
-        logger.info(f"Download type changed to: {download_type}")
+        logger.info(f"Download type changed to: {self.download_type_combo.currentData()}")
 
     def _update_quality_options(self) -> None:
         """
-        Update quality dropdown and show/hide format options based on download type.
-
-        v3.0.0: Separate video and audio quality options for better UX.
+        Update the quality list and the format combo for the download type.
 
         Each combo entry stores its stable English key as userData so callers
         can look it up in QUALITY_OPTIONS / AUDIO_QUALITY_MAP via
@@ -559,33 +692,18 @@ class DownloadTab(QWidget):
         """
         self._is_audio_mode = self.download_type_combo.currentData() == "audio"
 
-        # Clear and update quality combo
+        self.quality_combo.blockSignals(True)
         self.quality_combo.clear()
-
         if self._is_audio_mode:
-            # Show audio quality options only. (label, internal_key)
-            audio_qualities = [
+            qualities = [
                 (tr("quality_best"), "Best Quality"),
                 (tr("quality_audio_320"), "Audio 320kbps"),
                 (tr("quality_audio_256"), "Audio 256kbps"),
                 (tr("quality_audio_192"), "Audio 192kbps"),
                 (tr("quality_audio_128"), "Audio 128kbps"),
             ]
-            for label, key in audio_qualities:
-                self.quality_combo.addItem(label, key)
-            self.quality_combo.setCurrentIndex(0)  # Default to Best Quality
-
-            # Hide video format, show audio format
-            self.container_label.setVisible(False)
-            self.container_combo.setVisible(False)
-            self.audio_format_label.setVisible(True)
-            self.audio_format_combo.setVisible(True)
-
-            if hasattr(self, "log_widget"):
-                self.log_widget.append_info("Audio-only mode: Select quality and audio format")
         else:
-            # Show video quality options only. (label, internal_key)
-            video_qualities = [
+            qualities = [
                 (tr("quality_best"), "Best Quality"),
                 ("8K (4320p)", "8K (4320p)"),
                 ("4K (2160p)", "4K (2160p)"),
@@ -595,29 +713,37 @@ class DownloadTab(QWidget):
                 (tr("quality_480p"), "480p (SD)"),
                 ("360p", "360p"),
             ]
-            for label, key in video_qualities:
-                self.quality_combo.addItem(label, key)
-            self.quality_combo.setCurrentIndex(0)  # Default to Best Quality
+        for label, key in qualities:
+            self.quality_combo.addItem(label, key)
+        self.quality_combo.setCurrentIndex(0)  # Default to Best Quality
+        self.quality_combo.blockSignals(False)
 
-            # Show video format, hide audio format
-            self.container_label.setVisible(True)
-            self.container_combo.setVisible(True)
-            self.audio_format_label.setVisible(False)
-            self.audio_format_combo.setVisible(False)
+        self.container_combo.setVisible(not self._is_audio_mode)
+        self.audio_format_combo.setVisible(self._is_audio_mode)
+        self.format_label.setBuddy(self.audio_format_combo if self._is_audio_mode else self.container_combo)
 
-            if hasattr(self, "log_widget"):
-                self.log_widget.append_info("Video mode: Select quality and video format")
-
-    def _on_quality_changed(self, quality: str) -> None:
-        """
-        Handle quality selection change.
-
-        Args:
-            quality: Selected quality name
-        """
         if hasattr(self, "log_widget"):
+            mode = "Audio-only mode" if self._is_audio_mode else "Video mode"
+            self.log_widget.append_info(f"{mode}: select quality and format")
+
+    def _on_quality_changed(self, *_args) -> None:
+        """Log the quality choice with a short description."""
+        quality = self._current_quality()
+        if hasattr(self, "log_widget") and quality:
             description = FormatHandler.get_quality_description(quality)
             self.log_widget.append_info(f"Quality selected: {quality} - {description}")
+
+    def _current_quality(self) -> str:
+        # currentData() is the stable English key, currentText() the
+        # translated label; the queue needs the key.
+        return self.quality_combo.currentData() or self.quality_combo.currentText()
+
+    def _on_subtitles_toggled(self, checked) -> None:
+        """Enable the language field and the Choose button with the checkbox."""
+        enabled = bool(checked)
+        self.subtitle_langs_label.setEnabled(enabled)
+        self.subtitle_langs_input.setEnabled(enabled)
+        self.select_subs_button.setEnabled(enabled)
 
     def _browse_directory(self) -> None:
         """Open directory browser dialog."""
@@ -625,307 +751,199 @@ class DownloadTab(QWidget):
         directory = QFileDialog.getExistingDirectory(self, tr("dialog_select_download_dir"), current_dir)
 
         if directory:
-            self.output_input.setText(directory)
+            self._set_output_text(directory)
+            self._set_folder_error("")
             self.config_manager.update_config(output_directory=directory)
             self.log_widget.append_info(f"Output directory changed to: {directory}")
 
     def _open_directory(self) -> None:
-        """Open the download directory in file explorer (v1.7.0)."""
+        """Open the download directory in the file manager."""
         import os
-        import platform
-        import subprocess
 
         directory = self.output_input.text().strip()
 
-        if not directory or not os.path.exists(directory):
+        if not directory or not os.path.isdir(directory):
             QMessageBox.warning(self, tr("msg_dir_not_found"), tr("msg_dir_not_exist", directory=directory))
             return
 
-        try:
-            # Open directory based on platform
-            system = platform.system()
-
-            if system == "Windows":
-                os.startfile(directory)
-            elif system == "Darwin":  # macOS
-                subprocess.Popen(["open", directory])
-            else:  # Linux and other Unix-like
-                subprocess.Popen(["xdg-open", directory])
-
+        if open_local_path(directory):
             self.log_widget.append_success(f"Opened directory: {directory}")
-            logger.info(f"Opened download directory: {directory}")
-
-        except Exception:
-            logger.exception("Failed to open directory")
+        else:
             QMessageBox.critical(self, tr("error_generic"), tr("msg_failed_open_dir"))
 
-    def _on_add_to_queue_clicked(self) -> None:
-        """Handle add to queue button click."""
-        # Get inputs
-        url = self.url_input.text().strip()
-        output_dir = self.output_input.text().strip()
-        # currentData() returns the stable English key, currentText() returns
-        # the translated label - we need the key for QUALITY_OPTIONS lookup.
-        quality = self.quality_combo.currentData() or self.quality_combo.currentText()
-
-        # Validate URL
-        is_valid, error = Validators.is_valid_url(url)
-        if not is_valid:
-            QMessageBox.warning(self, tr("error_invalid_url"), error)
-            self.log_widget.append_error(f"{tr('error_invalid_url')}: {error}")
-            return
-
-        # Validate directory
-        is_valid, error = Validators.is_valid_directory(output_dir)
-        if not is_valid:
-            QMessageBox.warning(self, tr("error_invalid_dir"), error)
-            self.log_widget.append_error(f"{tr('error_invalid_dir')}: {error}")
-            return
-
-        # Check if URL is a playlist
-        is_playlist, platform = PlaylistDetector.is_playlist_url(url)
-
-        if is_playlist:
-            # Ask user if they want to fetch playlist info
-            reply = QMessageBox.question(
-                self,
-                tr("dialog_playlist_detected"),
-                tr("msg_playlist_detected_options", platform=platform),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes,
-            )
-
-            if reply == QMessageBox.Yes:
-                # Fetch and show playlist dialog
-                self._fetch_playlist_info(url, platform)
-                return
-
-        # Save last URL
-        self.config_manager.update_config(last_url=url)
-
-        # Determine if this is an audio-only download (v3.0.0: from download type)
-        audio_only = self._is_audio_mode
-
-        # Check for duplicate download (same URL + quality + format)
-        if self.queue_manager.is_duplicate_task(url, quality, audio_only):
-            reply = QMessageBox.question(
-                self,
-                tr("duplicate_download"),
-                tr("duplicate_download_message"),
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
-            )
-
-            if reply == QMessageBox.No:
-                return  # User chose not to add duplicate
-
-        # Create download task with v2.1.0 options
-        task = DownloadTask(
-            url=url,
-            output_directory=output_dir,
-            quality=quality,
-            audio_only=audio_only,
-            download_thumbnail=self.thumbnail_checkbox.isChecked(),
-            download_subtitles=self.subtitles_checkbox.isChecked(),
-            subtitle_languages=self.subtitle_langs_input.text().strip() or "en",
-            speed_limit=self.speed_limit_spinbox.value(),
-            video_container=VIDEO_CONTAINER_FORMATS.get(self.container_combo.currentText()),
-            audio_format=AUDIO_FORMATS.get(self.audio_format_combo.currentText(), "mp3"),
-            selected_subtitles=self.selected_subtitle_codes,  # v2.0.0
-            download_metadata=self.metadata_checkbox.isChecked(),  # v2.1.0
-            download_comments=self.comments_checkbox.isChecked(),  # v2.0.0
-            auto_number_duplicates=True,  # v2.1.0 - always enabled
-        )
-
-        # Add to queue
-        index = self.queue_manager.add_task(task)
-        self.log_widget.append_success(f"Added to queue at position {index + 1}: {url}")
-
-        # Clear URL input for next entry
-        self.url_input.clear()
-
-        # Show info message
-        QMessageBox.information(self, tr("dialog_added_to_queue"), tr("msg_video_added_to_queue", position=index + 1))
+    # ------------------------------------------------------------------
+    # Download and Add to queue (one code path)
+    # ------------------------------------------------------------------
 
     def _on_download_clicked(self) -> None:
-        """Handle download button click - adds to queue and starts immediately."""
-        # Get inputs
+        """Download: start at once, also while the queue is paused."""
+        self.submit(start_now=True)
+
+    def _on_add_to_queue_clicked(self) -> None:
+        """Add to queue: wait for a turn; a paused queue stays paused."""
+        self.submit(start_now=False)
+
+    def submit(self, start_now: bool) -> DownloadTask | None:
+        """
+        Check the form and add the link to the queue.
+
+        Download and Add to queue both call this method, so both run the
+        same checks: the link, the folder, the playlist question and the
+        duplicate question.
+
+        Args:
+            start_now: True for Download (start at once, also while the
+                queue is paused), False for Add to queue
+
+        Returns:
+            The new task, or None if nothing was added (an error, the user
+            said no, or the playlist dialog takes over)
+        """
         url = self.url_input.text().strip()
+        if not self._check_url(url):
+            return None
         output_dir = self.output_input.text().strip()
-        quality = self.quality_combo.currentData() or self.quality_combo.currentText()
+        if not self._check_output_dir(output_dir):
+            return None
 
-        # Validate URL
-        is_valid, error = Validators.is_valid_url(url)
-        if not is_valid:
-            QMessageBox.warning(self, tr("error_invalid_url"), error)
-            self.log_widget.append_error(f"{tr('error_invalid_url')}: {error}")
-            return
+        is_playlist, platform = PlaylistDetector.is_playlist_url(url)
+        if is_playlist:
+            choice = self._ask_playlist_choice(platform)
+            if choice == PLAYLIST_CANCEL:
+                return None
+            if choice == PLAYLIST_CHOOSE:
+                self._playlist_start_now = start_now
+                self._fetch_playlist_info(url, platform)
+                return None
+            # PLAYLIST_WHOLE: the playlist link becomes one download.
 
-        # Validate directory
-        is_valid, error = Validators.is_valid_directory(output_dir)
-        if not is_valid:
-            QMessageBox.warning(self, tr("error_invalid_directory"), error)
-            self.log_widget.append_error(f"{tr('error_invalid_directory')}: {error}")
-            return
-
-        # Save last URL
-        self.config_manager.update_config(last_url=url)
-
-        # Determine if this is an audio-only download (v3.0.0: from download type)
+        quality = self._current_quality()
         audio_only = self._is_audio_mode
+        if self.queue_manager.is_duplicate_task(url, quality, audio_only) and not self._confirm_duplicate():
+            return None
 
-        # Create download task with v2.1.0 options
-        task = DownloadTask(
+        self.config_manager.update_config(last_url=url)
+        task = self._build_task(url, output_dir)
+        index = self.queue_manager.add_task(task, start_now=start_now)
+        self._report_added(task, index, start_now)
+        self.url_input.clear()
+        return task
+
+    def _build_task(
+        self,
+        url: str,
+        output_dir: str,
+        quality: str | None = None,
+        audio_only: bool | None = None,
+        subtitles: tuple[bool, str, list] | None = None,
+    ) -> DownloadTask:
+        """Create a task from the form. Playlist videos pass their own quality and subtitles."""
+        if subtitles is None:
+            subtitles = (
+                self.subtitles_checkbox.isChecked(),
+                self.subtitle_langs_input.text().strip() or "en",
+                self.selected_subtitle_codes,
+            )
+        download_subtitles, subtitle_languages, selected_subtitles = subtitles
+        return DownloadTask(
             url=url,
             output_directory=output_dir,
-            quality=quality,
-            audio_only=audio_only,
+            quality=self._current_quality() if quality is None else quality,
+            audio_only=self._is_audio_mode if audio_only is None else audio_only,
             download_thumbnail=self.thumbnail_checkbox.isChecked(),
-            download_subtitles=self.subtitles_checkbox.isChecked(),
-            subtitle_languages=self.subtitle_langs_input.text().strip() or "en",
+            download_subtitles=download_subtitles,
+            subtitle_languages=subtitle_languages,
             speed_limit=self.speed_limit_spinbox.value(),
             video_container=VIDEO_CONTAINER_FORMATS.get(self.container_combo.currentText()),
             audio_format=AUDIO_FORMATS.get(self.audio_format_combo.currentText(), "mp3"),
-            selected_subtitles=self.selected_subtitle_codes,  # v2.0.0
-            download_metadata=self.metadata_checkbox.isChecked(),  # v2.1.0
-            download_comments=self.comments_checkbox.isChecked(),  # v2.0.0
-            auto_number_duplicates=True,  # v2.1.0 - always enabled
+            selected_subtitles=selected_subtitles,
+            download_metadata=self.metadata_checkbox.isChecked(),
+            download_comments=self.comments_checkbox.isChecked(),
+            auto_number_duplicates=True,
         )
 
-        # Add to queue - queue manager will auto-start it
-        # This provides unified tracking in the Queue tab
-        index = self.queue_manager.add_task(task)
-        self.log_widget.append_success(f"Download started and added to queue at position {index + 1}")
-        self.log_widget.append_info("Check the Queue tab to monitor progress")
+    def _report_added(self, task: DownloadTask, index: int, start_now: bool) -> None:
+        """Tell the user what happens with the new task (status bar, no dialog)."""
+        position = index + 1
+        if start_now:
+            if self.queue_manager.get_worker(task) is not None:
+                text = tr("status_download_started")
+            else:
+                text = tr("status_download_next")
+        elif self.queue_manager.is_paused:
+            text = tr("status_added_paused", position=position)
+        else:
+            text = tr("status_added_to_queue", position=position)
+        self.log_widget.append_success(f"Added to queue at position {position}: {task.url}")
+        show_status(self, text)
 
-        # Clear URL input for next entry
-        self.url_input.clear()
-
-    def _on_progress_updated(self, progress_data: dict) -> None:
+    def _ask_playlist_choice(self, platform: str) -> str:
         """
-        Handle progress update from worker.
+        Ask what to do with a playlist link.
 
-        Args:
-            progress_data: Progress dictionary
+        Returns:
+            PLAYLIST_CHOOSE, PLAYLIST_WHOLE or PLAYLIST_CANCEL
         """
-        self.progress_widget.update_progress(
-            percent=progress_data.get("percent", 0),
-            speed=progress_data.get("speed", 0),
-            eta=progress_data.get("eta", 0),
-            total_bytes=progress_data.get("total", 0),
-            downloaded_bytes=progress_data.get("downloaded", 0),
+        name = _PLATFORM_NAMES.get((platform or "").lower(), platform or "")
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Question)
+        box.setWindowTitle(tr("dialog_playlist_detected"))
+        box.setText(tr("msg_playlist_choice", platform=name))
+        choose = box.addButton(tr("button_choose_videos"), QMessageBox.AcceptRole)
+        whole = box.addButton(tr("button_whole_playlist"), QMessageBox.ActionRole)
+        cancel = box.addButton(tr("button_cancel"), QMessageBox.RejectRole)
+        box.setDefaultButton(choose)
+        box.setEscapeButton(cancel)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked is choose:
+            return PLAYLIST_CHOOSE
+        if clicked is whole:
+            return PLAYLIST_WHOLE
+        return PLAYLIST_CANCEL
+
+    def _confirm_duplicate(self) -> bool:
+        """Ask before adding the same link with the same settings again."""
+        reply = QMessageBox.question(
+            self,
+            tr("duplicate_download"),
+            tr("duplicate_download_message"),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
+        return reply == QMessageBox.Yes
 
-    def _on_download_started(self, title: str) -> None:
-        """
-        Handle download started signal.
-
-        Args:
-            title: Video title
-        """
-        self.log_widget.append_success(f"Download started: {title}")
-        self.progress_widget.set_status("Downloading...")
-
-    def _on_download_completed(self, filename: str) -> None:
-        """
-        Handle download completed signal.
-
-        Args:
-            filename: Output filename
-        """
-        logger.info(f"Download completed: {filename}")
-        self.log_widget.append_success(f"Download completed: {filename}")
-        if self.current_worker is not None:
-            self.queue_manager.record_history(self.current_worker.task, "completed")
-        self.progress_widget.set_success_state()
-
-        # Re-enable button
-        self.download_button.setEnabled(True)
-        self.download_button.setText(tr("button_download_now"))
-
-        # Show success message
-        QMessageBox.information(self, tr("dialog_download_complete"), tr("msg_download_complete", filename=filename))
-
-    def _on_download_failed(self, error_message: str) -> None:
-        """
-        Handle download failed signal.
-
-        Args:
-            error_message: Error description
-        """
-        logger.error(f"Download failed: {error_message}")
-        self.log_widget.append_error(f"Download failed: {error_message}")
-        self.progress_widget.set_error_state(error_message[:100])
-        if self.current_worker is not None:
-            task = self.current_worker.task
-            status = "cancelled" if task.status == TaskStatus.CANCELLED else "failed"
-            detail = getattr(getattr(self.current_worker, "wrapper", None), "last_error", None)
-            self.queue_manager.record_history(
-                task, status, error_message="" if status == "cancelled" else (detail or error_message)
-            )
-
-        # Re-enable button
-        self.download_button.setEnabled(True)
-        self.download_button.setText(tr("button_download_now"))
-
-        # Get better error info
-        error_html = ErrorHandler.format_error_dialog_text(error_message)
-
-        # Show detailed error dialog
-        error_dialog = QMessageBox(self)
-        error_dialog.setIcon(QMessageBox.Critical)
-        error_dialog.setWindowTitle(tr("dialog_download_failed"))
-        error_dialog.setTextFormat(Qt.RichText)
-        error_dialog.setText(error_html)
-        error_dialog.setStandardButtons(QMessageBox.Ok)
-        error_dialog.exec()
+    # ------------------------------------------------------------------
+    # Info, playlists and subtitles
+    # ------------------------------------------------------------------
 
     def _on_show_info_clicked(self) -> None:
-        """Handle show info button click."""
-        # Check if info worker is already running
+        """Handle the Info button."""
         if self.info_worker and self.info_worker.isRunning():
             self.log_widget.append_error("Already fetching video info, please wait...")
             return
-
-        # Check if playlist worker is already running
         if self.playlist_worker and self.playlist_worker.isRunning():
             self.log_widget.append_error("Already fetching playlist info, please wait...")
             return
 
-        # Get URL
         url = self.url_input.text().strip()
-
-        # Validate URL
-        is_valid, error = Validators.is_valid_url(url)
-        if not is_valid:
-            QMessageBox.warning(self, tr("error_invalid_url"), error)
-            self.log_widget.append_error(f"{tr('error_invalid_url')}: {error}")
+        if not self._check_url(url):
             return
 
-        # Check if URL is a playlist
         is_playlist, platform = PlaylistDetector.is_playlist_url(url)
-
         if is_playlist:
-            # Handle as playlist
+            # Videos picked after "Info" go to the queue like "Add to queue".
+            self._playlist_start_now = False
             self._fetch_playlist_info(url, platform)
         else:
-            # Handle as single video
             self._fetch_video_info(url)
 
     def _fetch_video_info(self, url: str) -> None:
-        """
-        Fetch video info for a single video URL.
-
-        Args:
-            url: Video URL
-        """
-        # Disable button while fetching
+        """Fetch video info for a single video URL in a worker thread."""
         self.show_info_button.setEnabled(False)
         self.show_info_button.setText(tr("button_fetching"))
-
         self.log_widget.append_info(f"Fetching video info: {url}")
 
-        # Create and start worker
         self.info_worker = VideoInfoWorker(url)
         self.info_worker.info_fetched.connect(self._on_info_fetched)
         self.info_worker.fetch_failed.connect(self._on_info_fetch_failed)
@@ -933,20 +951,11 @@ class DownloadTab(QWidget):
         self.info_worker.start()
 
     def _fetch_playlist_info(self, url: str, platform: str) -> None:
-        """
-        Fetch playlist info for a playlist URL.
-
-        Args:
-            url: Playlist URL
-            platform: Platform type (e.g., 'youtube', 'vimeo')
-        """
-        # Disable button while fetching
+        """Fetch playlist info for a playlist URL in a worker thread."""
         self.show_info_button.setEnabled(False)
         self.show_info_button.setText(tr("button_fetching_playlist"))
-
         self.log_widget.append_info(f"Detected {platform} playlist, fetching info...")
 
-        # Create and start worker
         self.playlist_worker = PlaylistWorker(url)
         self.playlist_worker.playlist_fetched.connect(self._on_playlist_fetched)
         self.playlist_worker.fetch_failed.connect(self._on_playlist_fetch_failed)
@@ -954,93 +963,62 @@ class DownloadTab(QWidget):
         self.playlist_worker.start()
 
     def _on_info_fetched(self, video_info) -> None:
-        """
-        Handle video info fetched successfully.
-
-        Args:
-            video_info: VideoInfo object
-        """
+        """Show the video info dialog."""
         logger.info(f"Video info received: {video_info.title}")
         # The page URL from yt-dlp can differ from the entered one (short links).
         if video_info.url:
             self.site_tier_label.update_for_url(video_info.url)
+            self._sync_site_tier_icon()
         self.log_widget.append_success(f"Video info fetched: {video_info.title}")
 
-        # Show dialog
         dialog = VideoInfoDialog(video_info, self)
-        dialog.exec()
+        # The dialog shows a Download button because this is connected. The
+        # download starts after the dialog closes, so its questions (playlist,
+        # duplicate) do not open on top of it.
+        # Download accepts the dialog; Close rejects it.
+        dialog.download_requested.connect(self._on_info_download_requested)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._on_download_clicked()
+
+    def _on_info_download_requested(self) -> None:
+        """Log that the video info dialog asked for a download."""
+        logger.info("Download requested from the video info dialog")
+
+    def _show_error_dialog(self, title_key: str, error_message: str) -> None:
+        """Detailed error dialog with the friendly text, suggestions and Copy details."""
+        show_download_error(self, error_message, tr(title_key))
 
     def _on_info_fetch_failed(self, error_message: str) -> None:
-        """
-        Handle video info fetch failure.
-
-        Args:
-            error_message: Error description
-        """
+        """Handle video info fetch failure."""
         logger.error(f"Info fetch failed: {error_message}")
         self.log_widget.append_error(f"Failed to fetch video info: {error_message}")
-
-        # Get better error info
-        error_html = ErrorHandler.format_error_dialog_text(error_message)
-
-        # Show detailed error dialog
-        error_dialog = QMessageBox(self)
-        error_dialog.setIcon(QMessageBox.Critical)
-        error_dialog.setWindowTitle(tr("dialog_failed_fetch_video_info"))
-        error_dialog.setTextFormat(Qt.RichText)
-        error_dialog.setText(error_html)
-        error_dialog.setStandardButtons(QMessageBox.Ok)
-        error_dialog.exec()
+        self._show_error_dialog("dialog_failed_fetch_video_info", error_message)
 
     def _on_info_worker_finished(self) -> None:
         """Handle info worker finished (cleanup)."""
-        # Re-enable button
         self.show_info_button.setEnabled(True)
-        self.show_info_button.setText(tr("button_show_info"))
+        self.show_info_button.setText(tr("button_info"))
         logger.debug("Info worker finished")
 
     def _on_playlist_fetched(self, playlist_info) -> None:
-        """
-        Handle playlist info fetched successfully.
-
-        Args:
-            playlist_info: PlaylistInfo object
-        """
+        """Show the playlist dialog."""
         logger.info(f"Playlist info received: {playlist_info.title} ({playlist_info.video_count} videos)")
         self.log_widget.append_success(f"Playlist fetched: {playlist_info.title} ({playlist_info.video_count} videos)")
 
-        # Show playlist dialog
         dialog = PlaylistDialog(playlist_info, self)
         dialog.videos_selected.connect(self._on_playlist_videos_selected)
         dialog.exec()
 
     def _on_playlist_fetch_failed(self, error_message: str) -> None:
-        """
-        Handle playlist info fetch failure.
-
-        Args:
-            error_message: Error description
-        """
+        """Handle playlist info fetch failure."""
         logger.error(f"Playlist fetch failed: {error_message}")
         self.log_widget.append_error(f"Failed to fetch playlist info: {error_message}")
-
-        # Get better error info
-        error_html = ErrorHandler.format_error_dialog_text(error_message)
-
-        # Show detailed error dialog
-        error_dialog = QMessageBox(self)
-        error_dialog.setIcon(QMessageBox.Critical)
-        error_dialog.setWindowTitle(tr("dialog_failed_fetch_playlist_info"))
-        error_dialog.setTextFormat(Qt.RichText)
-        error_dialog.setText(error_html)
-        error_dialog.setStandardButtons(QMessageBox.Ok)
-        error_dialog.exec()
+        self._show_error_dialog("dialog_failed_fetch_playlist_info", error_message)
 
     def _on_playlist_worker_finished(self) -> None:
         """Handle playlist worker finished (cleanup)."""
-        # Re-enable button
         self.show_info_button.setEnabled(True)
-        self.show_info_button.setText(tr("button_show_info"))
+        self.show_info_button.setText(tr("button_info"))
         logger.debug("Playlist worker finished")
 
     def _on_playlist_videos_selected(
@@ -1050,7 +1028,7 @@ class DownloadTab(QWidget):
         subtitle_langs: list | None = None,
     ) -> None:
         """
-        Handle selected videos from playlist dialog.
+        Add the videos picked in the playlist dialog.
 
         Args:
             video_urls: List of selected video URLs.
@@ -1060,98 +1038,47 @@ class DownloadTab(QWidget):
                 playlist did not override subtitles - fall back to the
                 download tab's own subtitle settings.
         """
+        start_now = self._playlist_start_now
+        self._playlist_start_now = False
         if not video_urls:
             self.log_widget.append_warning("No videos selected from playlist")
             return
 
         output_dir = self.output_input.text().strip()
-
-        # Validate directory
-        is_valid, error = Validators.is_valid_directory(output_dir)
-        if not is_valid:
-            QMessageBox.warning(self, tr("error_invalid_directory"), error)
-            self.log_widget.append_error(f"{tr('error_invalid_directory')}: {error}")
+        if not self._check_output_dir(output_dir):
             return
 
-        # Resolve subtitle settings. A non-empty `subtitle_langs` from the
-        # playlist dialog overrides whatever the download tab has set;
-        # otherwise we inherit the tab's settings as before.
+        # A non-empty `subtitle_langs` from the playlist dialog overrides the
+        # tab's subtitle settings; otherwise the tab's settings apply.
         playlist_subs = list(subtitle_langs or [])
-        if playlist_subs:
-            download_subtitles = True
-            subtitle_languages_str = ",".join(playlist_subs)
-            selected_subtitle_codes = playlist_subs
-        else:
-            download_subtitles = self.subtitles_checkbox.isChecked()
-            subtitle_languages_str = self.subtitle_langs_input.text().strip() or "en"
-            selected_subtitle_codes = self.selected_subtitle_codes
+        subtitles = (True, ",".join(playlist_subs), playlist_subs) if playlist_subs else None
 
-        # Add each video to queue with v1.7.0 options
-        added_count = 0
         audio_only = quality == tr("quality_audio_only")  # playlist dialog uses translated "Audio Only"
         for url in video_urls:
-            task = DownloadTask(
-                url=url,
-                output_directory=output_dir,
-                quality=quality,
-                audio_only=audio_only,
-                download_thumbnail=self.thumbnail_checkbox.isChecked(),
-                download_subtitles=download_subtitles,
-                subtitle_languages=subtitle_languages_str,
-                speed_limit=self.speed_limit_spinbox.value(),
-                video_container=VIDEO_CONTAINER_FORMATS.get(self.container_combo.currentText()),
-                audio_format=AUDIO_FORMATS.get(self.audio_format_combo.currentText(), "mp3"),
-                selected_subtitles=selected_subtitle_codes,  # v2.0.0
-                download_metadata=self.metadata_checkbox.isChecked(),  # v2.1.0
-                download_comments=self.comments_checkbox.isChecked(),  # v2.0.0
-                auto_number_duplicates=True,  # v2.1.0 - always enabled
-            )
-            self.queue_manager.add_task(task)
-            added_count += 1
+            task = self._build_task(url, output_dir, quality=quality, audio_only=audio_only, subtitles=subtitles)
+            self.queue_manager.add_task(task, start_now=start_now)
 
+        added_count = len(video_urls)
         if playlist_subs:
             self.log_widget.append_success(
                 f"Added {added_count} videos to queue (subtitles: {', '.join(playlist_subs)})"
             )
         else:
             self.log_widget.append_success(f"Added {added_count} videos to queue")
-
-        # Clear URL input
         self.url_input.clear()
-
-        # Show success message
-        QMessageBox.information(
-            self, tr("dialog_playlist_added_to_queue"), tr("msg_playlist_added_to_queue", count=added_count)
-        )
-
-    def _on_subtitles_toggled(self, state: int) -> None:
-        """
-        Handle subtitles checkbox toggle.
-
-        Args:
-            state: Checkbox state
-        """
-        enabled = bool(state)
-        self.subtitle_langs_label.setEnabled(enabled)
-        self.subtitle_langs_input.setEnabled(enabled)
-        self.select_subs_button.setEnabled(enabled)  # v2.0.0: Enable/disable button
+        show_status(self, tr("status_videos_added", count=added_count))
 
     def _on_select_subtitles_clicked(self) -> None:
-        """Handle Select Subtitles button click (v2.0.0).
+        """Handle the Choose subtitles button (v2.0.0).
 
         Dispatches the yt-dlp subtitle enumeration to a ``SubtitleListWorker``
         QThread so the 2-10 second network call does NOT freeze the Qt event
         loop. Results return via ``_on_subtitle_list_fetched`` /
         ``_on_subtitle_list_failed``; until then the button is disabled and
-        shows the translated "Fetching…" label.
+        shows the translated "Fetching..." label.
         """
         url = self.url_input.text().strip()
-
-        # Validate URL
-        is_valid, error = Validators.is_valid_url(url)
-        if not is_valid:
-            QMessageBox.warning(self, tr("error_invalid_url"), error)
-            self.log_widget.append_error(f"{tr('error_invalid_url')}: {error}")
+        if not self._check_url(url):
             return
 
         # If a previous fetch is still running, ignore the second click.
@@ -1171,11 +1098,7 @@ class DownloadTab(QWidget):
     def _on_subtitle_list_fetched(self, available_subs: dict) -> None:
         """Worker thread succeeded; open the selection dialog on the UI thread."""
         if not available_subs:
-            QMessageBox.information(
-                self,
-                tr("dialog_no_subs_available"),
-                tr("msg_no_subs_available"),
-            )
+            show_status(self, tr("msg_no_subs_available"))
             self.log_widget.append_warning("No subtitles found for this video")
             return
 
@@ -1199,68 +1122,39 @@ class DownloadTab(QWidget):
 
     def _on_subtitle_list_finished(self) -> None:
         """Restore the button label and detach the worker so it can be reused."""
-        self.select_subs_button.setEnabled(True)
-        self.select_subs_button.setText(tr("button_select_subs"))
+        self.select_subs_button.setEnabled(self.subtitles_checkbox.isChecked())
+        self.select_subs_button.setText(tr("button_choose_subs"))
         if self.subtitle_list_worker is not None:
             self.subtitle_list_worker.deleteLater()
             self.subtitle_list_worker = None
 
+    # ------------------------------------------------------------------
+    # Batch links and drag and drop
+    # ------------------------------------------------------------------
+
     def _on_batch_input_clicked(self) -> None:
-        """Handle batch input button click (v1.7.0)."""
+        """Add several links at once. They go to the queue like Add to queue."""
         from .batch_input_dialog import BatchInputDialog
 
         dialog = BatchInputDialog(self)
-        if dialog.exec():
-            urls = dialog.get_urls()
+        if not dialog.exec():
+            return
+        urls = dialog.get_urls()
+        if not urls:
+            return
 
-            if not urls:
-                return
+        output_dir = self.output_input.text().strip()
+        if not self._check_output_dir(output_dir):
+            return
 
-            output_dir = self.output_input.text().strip()
-            quality = self.quality_combo.currentData() or self.quality_combo.currentText()
+        for url in urls:
+            self.queue_manager.add_task(self._build_task(url, output_dir))
 
-            # Validate directory
-            is_valid, error = Validators.is_valid_directory(output_dir)
-            if not is_valid:
-                QMessageBox.warning(self, tr("error_invalid_directory"), error)
-                self.log_widget.append_error(f"{tr('error_invalid_directory')}: {error}")
-                return
-
-            # Add each URL to queue with current settings
-            added_count = 0
-            audio_only = self._is_audio_mode
-            for url in urls:
-                task = DownloadTask(
-                    url=url,
-                    output_directory=output_dir,
-                    quality=quality,
-                    audio_only=audio_only,
-                    download_thumbnail=self.thumbnail_checkbox.isChecked(),
-                    download_subtitles=self.subtitles_checkbox.isChecked(),
-                    subtitle_languages=self.subtitle_langs_input.text().strip() or "en",
-                    speed_limit=self.speed_limit_spinbox.value(),
-                    video_container=VIDEO_CONTAINER_FORMATS.get(self.container_combo.currentText()),
-                    audio_format=AUDIO_FORMATS.get(self.audio_format_combo.currentText(), "mp3"),
-                    selected_subtitles=self.selected_subtitle_codes,  # v2.0.0
-                    download_metadata=self.metadata_checkbox.isChecked(),  # v2.1.0
-                    download_comments=self.comments_checkbox.isChecked(),  # v2.0.0
-                    auto_number_duplicates=True,  # v2.1.0 - always enabled
-                )
-                self.queue_manager.add_task(task)
-                added_count += 1
-
-            self.log_widget.append_success(f"Batch: Added {added_count} URLs to queue")
-
-            # Show success message
-            QMessageBox.information(self, tr("dialog_batch_added"), tr("msg_batch_added_to_queue", count=added_count))
+        self.log_widget.append_success(f"Batch: Added {len(urls)} URLs to queue")
+        show_status(self, tr("status_batch_added", count=len(urls)))
 
     def _drag_enter_event(self, event) -> None:
-        """
-        Handle drag enter event for URL input.
-
-        Args:
-            event: Drag enter event
-        """
+        """Accept dragged text (a link) on the link field."""
         if event.mimeData().hasText():
             event.acceptProposedAction()
             logger.debug("Drag enter accepted: text/URL detected")
@@ -1268,12 +1162,7 @@ class DownloadTab(QWidget):
             event.ignore()
 
     def _drop_event(self, event) -> None:
-        """
-        Handle drop event for URL input.
-
-        Args:
-            event: Drop event
-        """
+        """Put a dropped link into the link field."""
         if event.mimeData().hasText():
             text = event.mimeData().text().strip()
             self.url_input.setText(text)

@@ -413,7 +413,7 @@ jobs:
             "2. Run yt-dlp-studio.exe",
             "",
             "REQUIREMENTS",
-            "- Windows 10/11 (64-bit)",
+            "- Windows (64-bit). Tested on Windows 11. Windows 10 should work but is not tested.",
             "- No additional software needed (FFmpeg included)",
             "",
             "SUPPORT",
@@ -813,7 +813,7 @@ jobs:
           echo
           echo "### System requirements"
           echo
-          echo "**Windows:** Windows 10/11 (64-bit) - no additional software needed."
+          echo "**Windows:** 64-bit. Tested on Windows 11. Windows 10 should work but is not tested. No additional software needed."
           echo
           echo "**Linux:** 64-bit, glibc 2.35+ (Ubuntu 22.04+, Debian 12+, Fedora 36+, and most 2022-and-later distros). Requires FFmpeg; Deno is auto-downloaded on first run."
           echo
