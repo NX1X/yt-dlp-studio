@@ -46,13 +46,12 @@ dnf_opts=(
     "--setopt=updates.baseurl=${FEDORA_MIRROR}/updates/${releasever}/Everything/\$basearch/"
 )
 
-# The .rpm sets AutoReqProv: no and requires only FFmpeg and glibc. The
-# bundled Qt still needs these system libraries (the Fedora names of the set
-# the .deb depends on). A desktop Fedora has them; the container does not.
-qt_libs=(libglvnd-egl libglvnd-glx libxkbcommon dbus-libs xcb-util-cursor glib2 fontconfig)
+# The .rpm requires the system libraries the bundled Qt needs by soname
+# (libEGL.so.1()(64bit) and so on), so dnf must pull them in by itself on
+# this minimal image. Installing only the .rpm proves those Requires.
 
 # ---------- install ----------
-dnf "${dnf_opts[@]}" install "${RPM_FILE}" "${qt_libs[@]}"
+dnf "${dnf_opts[@]}" install "${RPM_FILE}"
 rpm -q yt-dlp-studio >/dev/null || fail "yt-dlp-studio is not installed"
 ok ".rpm installed with dnf ($(rpm -q yt-dlp-studio))"
 rpm -q ffmpeg-free >/dev/null || rpm -q ffmpeg >/dev/null || fail "no FFmpeg package was pulled in"
