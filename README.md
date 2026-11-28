@@ -69,7 +69,7 @@ To ask for a site, [open a feature request](https://github.com/NX1X/yt-dlp-studi
 - **Interface:** dark and light themes, English and Hebrew (right-to-left), drag and drop, keyboard shortcuts.
 - **Updates:** check for a new release from inside the app. The app checks the SHA-256 of a downloaded update against the digest that GitHub publishes. It never starts an update that it could not verify.
 
-The [Getting Started guide](docs/GETTING_STARTED.md) explains each feature.
+The [Getting Started guide](docs/GETTING_STARTED.md) is a short quick start. The [User Guide](docs/USER_GUIDE.md) explains each feature.
 
 ## Download and install
 
@@ -265,7 +265,7 @@ Yes. YT-DLP Studio is free and open source under the [Apache License 2.0](LICENS
 
 ## Documentation
 
-- [Getting Started](docs/GETTING_STARTED.md): how to use the app, keyboard shortcuts, playlists.
+- [Getting Started](docs/GETTING_STARTED.md): a short quick start: install, first download, where files go.
 - [User Guide](docs/USER_GUIDE.md): every tab and setting, and common tasks.
 - [Troubleshooting](docs/TROUBLESHOOTING.md): fixes for common problems, and how to report an issue.
 - [Installation Guide](docs/INSTALLATION_GUIDE.md): all install options, run from source, uninstall.

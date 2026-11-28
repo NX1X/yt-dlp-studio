@@ -1,155 +1,58 @@
 # Getting Started
 
-This guide explains how to use YT-DLP Studio. For install options, see the [Installation Guide](INSTALLATION_GUIDE.md). To contribute, see the [Development Guide](DEVELOPMENT.md).
+This page gets you from install to your first download. For details, see the [Installation Guide](INSTALLATION_GUIDE.md), the [User Guide](USER_GUIDE.md) and [Troubleshooting](TROUBLESHOOTING.md).
 
-## Supported sites
+## Install
 
-YT-DLP Studio is in public beta. Sites are in two tiers:
+Tested on Windows 11. Windows 10 should work but is not tested. Linux builds are also available.
 
-- **Tested:** YouTube, Instagram, TikTok, Facebook and X (Twitter). They are checked before every release. Only YouTube is covered by the automatic weekly check in CI; the other tested sites are checked by hand before each release.
-- **Experimental:** every other site. The download engine (yt-dlp) supports more than 1000 sites, but YT-DLP Studio does not test them. A download may work, partly work or fail. The app does not block it.
+**Windows:**
 
-When you enter a URL, the Download tab shows "Tested site" or "Experimental site: may not work" next to the URL field. Hover over the label for an explanation. The [README](../README.md#supported-sites) lists the exact host names of the tested sites. If a site is important to you, [open a feature request](https://github.com/NX1X/yt-dlp-studio/issues/new/choose).
+1. Download `YT-DLP-Studio-Setup-<version>.exe` from the [Releases page](https://github.com/NX1X/yt-dlp-studio/releases/latest).
+2. Run it. If SmartScreen shows a warning, click **More info**, then **Run anyway**.
+3. Start YT-DLP Studio from the Start menu.
 
-## Install and start
+The installer needs no admin rights. FFmpeg and Deno are included. For a portable copy, use `YT-DLP.Studio.exe`.
 
-- **Windows:** download `YT-DLP-Studio-Setup-<version>.exe` (the installer) from [Releases](https://github.com/NX1X/yt-dlp-studio/releases) and run it. It needs no admin rights and no Python. For a portable copy, download the portable EXE (`YT-DLP.Studio.exe`) or the portable ZIP (`yt-dlp-studio-v<version>-Windows.zip`).
-- **Linux:** use the .deb package, the .rpm package, the AppImage or the Linux archive (.tar.gz). The [Installation Guide](INSTALLATION_GUIDE.md#linux) has the commands.
-- **From source:** you need Python 3.11 or later.
+**Linux:**
 
-  ```bash
-  git clone https://github.com/NX1X/yt-dlp-studio.git
-  cd yt-dlp-studio
-  pip install -e .
-  python launcher.py
-  ```
+1. Download the package for your system from the [Releases page](https://github.com/NX1X/yt-dlp-studio/releases/latest).
+2. For Debian, Ubuntu or Mint, run `sudo apt install ./yt-dlp-studio_*_amd64.deb`.
+3. For Fedora, run `sudo dnf install ./yt-dlp-studio-*.rpm`.
+4. For other systems, use the AppImage or the .tar.gz archive. Install FFmpeg yourself first.
 
-## The tabs
+The [Installation Guide](INSTALLATION_GUIDE.md) has all options, including running from source and uninstalling.
 
-The main window has five tabs:
+## Your first download
 
-| Tab | What it does |
-|-----|--------------|
-| Download | Enter URLs, select quality and options, start downloads. |
-| Queue | See and control all downloads, including downloads started with **Download Now**. |
-| History | Search past downloads, export them to CSV, open the download folder. |
-| Settings | Default folder, default quality, language, theme, notifications, update checks. |
-| About | Version information, credits and the list of keyboard shortcuts. |
+1. Open the **Download** tab.
+2. Paste a video link into the **Link** field.
+3. Set **Get** to **Video**, and select a **Quality** and a **Format**.
+4. Check the **Save to** folder. Click **Browse** to change it.
+5. Click **Download**.
 
-## Download a video
+The **Now downloading** panel shows the progress. When the download ends, click **Open folder** to see the file.
 
-1. Copy a YouTube video URL from your browser.
-2. Paste the URL into the URL field. You can also drag the URL from the browser into the field.
-3. Select a quality.
-4. Select a format.
-5. Select the output folder, or keep the default.
-6. Click **Download Now**.
+To get only the sound, set **Get** to **Audio Only**.
 
-The progress bar shows the size, speed and time left (ETA).
+## Sites
 
-### Quality options
+- **Tested:** YouTube, Instagram, TikTok, Facebook and X.
+- **Experimental:** every other site that yt-dlp supports. A download can work, partly work or fail.
 
-- **Video:** Best Quality, 8K (4320p), 4K (2160p), 2K (1440p), 1080p (Full HD), 720p (HD), 480p (SD), 360p.
-- **Audio only:** Audio 320kbps, Audio 256kbps, Audio 192kbps, Audio 128kbps.
+The app shows "Tested site" or "Experimental site: may not work" next to the Link field.
 
-Each video quality is a maximum. yt-dlp downloads the best quality up to that height.
+## Where files go
 
-### Format options
+- **Downloads:** the **Save to** folder. The default is your `Downloads` folder.
+- **Settings, history, queue and log:** the app data folder. On Windows it is `%APPDATA%\YT-DLP Studio`. On Linux it is `~/.config/YT-DLP Studio`.
 
-- **Video containers:** MP4 (the default, best compatibility), MKV, WebM, or Auto (yt-dlp chooses).
-- **Audio formats** (for audio-only qualities): MP3 (the default), M4A/AAC, OPUS, FLAC (lossless), WAV (uncompressed), Vorbis/OGG.
+See [Where your files go](USER_GUIDE.md#where-your-files-go) for the file names.
 
-### Download options
+## Next steps
 
-These check boxes are off by default:
-
-- **Thumbnail:** save the video thumbnail as a JPG file.
-- **Subtitles:** download subtitles and embed them in the video. You can select the subtitle languages.
-- **Metadata:** save the video metadata (description, `info.json`, annotations).
-- **Comments:** save the video comments to a separate .txt file. This may be slow for popular videos.
-
-**Speed limit:** set a maximum download speed in KB/s. The value 0 means no limit.
-
-## Extract audio
-
-1. Paste a video URL.
-2. Select an audio quality (for example, **Audio 192kbps**).
-3. Select an audio format (MP3, M4A, OPUS, FLAC, WAV or Vorbis).
-4. Click **Download Now**.
-
-## Preview video info
-
-1. Paste a video URL.
-2. Click **Show Info**, or press `Ctrl+Shift+I`.
-
-The preview shows the thumbnail, title, duration, uploader or channel, view count, upload date and the start of the description.
-
-## Use the queue
-
-1. Paste a URL.
-2. Click **Add to Queue**, or press `Ctrl+Shift+Q`.
-3. Repeat for each video.
-4. Open the Queue tab.
-5. Click **Start Queue**.
-
-The queue runs up to 3 downloads at the same time. You can pause the queue, reorder tasks, cancel or retry a task, and clear completed or failed tasks. The app saves the queue and restores it when you start the app again.
-
-To add many URLs at once, click **Batch Input**. Paste one URL per line, or import the URLs from a file.
-
-## Download playlists and channels
-
-1. Paste a YouTube playlist or channel URL.
-2. Click **Show Info** or **Add to Queue**.
-3. The app shows a list of all videos with title, duration and uploader. All videos are selected by default.
-4. Clear the videos you do not want.
-5. Select one quality for all selected videos.
-6. Click **Add to Queue**.
-
-The app adds each selected video to the queue. These URL forms are supported:
-
-- Playlists: `/playlist?list=...`
-- Channels: `/@channel/videos`
-
-## Keyboard shortcuts
-
-The About tab lists all shortcuts.
-
-| Where | Shortcut | Action |
-|-------|----------|--------|
-| Download tab | `Ctrl+V` | Paste the URL from the clipboard |
-| Download tab | `Enter` | Start the download |
-| Download tab | `Ctrl+D` | Download Now |
-| Download tab | `Ctrl+Shift+Q` | Add to Queue |
-| Download tab | `Ctrl+Shift+I` | Show video info |
-| Queue tab | `Delete` | Remove the selected task |
-| Queue tab | `Ctrl+Up` / `Ctrl+Down` | Move the selected task up or down |
-| Queue tab | `Space` | Start or pause the queue |
-| Anywhere | `Ctrl+Q` | Quit |
-
-## Settings
-
-- **Default folder:** the folder for new downloads. The first default is your `Downloads` folder.
-- **Default quality:** the quality that is selected when the app starts.
-- **Language:** English or Hebrew. Restart the app after you change the language.
-- **Theme:** switch between the dark and light theme.
-- **Notifications:** show a desktop notification when a download completes or fails.
-- **Update checks:** check for a new release when the app starts (off by default), or check now.
-
-Click **Save Settings** to save your changes. The app keeps them between sessions. The Settings tab also shows the paths to the log file, the crash reports and the settings file.
-
-## Troubleshooting
-
-**"Invalid URL":** make sure the URL starts with `http://` or `https://`, or try another video.
-
-**A site fails:** if the label next to the URL field says "Experimental site: may not work", the site is not tested, and a failure can be expected. If a tested site fails, [report a bug](https://github.com/NX1X/yt-dlp-studio/issues/new/choose).
-
-**"Directory not writable":** select a different output folder, or fix the permissions of the folder.
-
-**Extraction error:** the video may be private, removed or geo-restricted. Check your internet connection and try another video.
-
-**Log file location:**
-
-- Windows: `%APPDATA%\YT-DLP Studio\yt-dlp-studio.log`
-- Linux: `~/.config/YT-DLP Studio/yt-dlp-studio.log`
-
-If you still have a problem, [open an issue](https://github.com/NX1X/yt-dlp-studio/issues/new/choose). Describe what you did and what happened, and add the relevant log lines.
+- Download many videos: use **Add to queue** or **Batch links...**, then open the **Queue** tab. See the [User Guide](USER_GUIDE.md#queue-tab).
+- Download a playlist, subtitles or a private video: see [Common tasks](USER_GUIDE.md#common-tasks).
+- Change the default folder, theme or language: open the **Settings** tab. See [Settings tab](USER_GUIDE.md#settings-tab).
+- Learn the keyboard shortcuts: see [Keyboard shortcuts](USER_GUIDE.md#keyboard-shortcuts).
+- Something went wrong: see [Troubleshooting](TROUBLESHOOTING.md).
