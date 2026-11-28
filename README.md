@@ -42,7 +42,7 @@ Sites are in two tiers. The Download tab shows the tier next to the URL field: "
 | **Tested** | YouTube, Instagram, TikTok, Facebook, X (Twitter) | Before every release |
 | **Experimental** | Every other site that yt-dlp supports (more than 1000) | Not tested by YT-DLP Studio |
 
-- **How the checks work:** only YouTube is covered by the automatic weekly check in CI. Instagram, TikTok, Facebook and X are checked by hand before each release. A site can change at any time, so a tested site can still break between releases.
+- **How the checks work:** YouTube and TikTok are covered by the automatic weekly check in CI (one video each, and one playlist for YouTube). Instagram, Facebook and X are checked by hand before each release. TikTok may block the CI runner, and then the check is inconclusive. A site can change at any time, so a tested site can still break between releases.
 - **Experimental sites:** the app does not block them. The download may work, partly work or fail.
 - **How the app finds the tier:** it compares the host name of the URL with a fixed list. Only exact host names count, so `evil-youtube.com` is experimental, not YouTube.
 - **Tested host names:**
