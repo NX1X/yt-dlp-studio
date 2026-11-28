@@ -1,0 +1,852 @@
+﻿key,en,translation,status
+tab_download,Download,,missing
+tab_queue,Queue,,missing
+tab_history,History,,missing
+tab_settings,Settings,,missing
+tab_about,About,,missing
+label_url,URL:,,missing
+download_url_placeholder,Enter YouTube URL or drag & drop here...,,missing
+label_quality,Quality:,,missing
+label_save_to,Save to:,,missing
+button_browse,Browse,,missing
+button_download_now,Download Now,,missing
+button_add_to_queue,Add to Queue,,missing
+button_batch_input,Batch Input,,missing
+button_paste,Paste,,missing
+button_show_info,Show Info,,missing
+button_open_dir,Open,,missing
+button_clear_log,Clear Log,,missing
+checkbox_thumbnail,Download Thumbnail,,missing
+checkbox_subtitles,Download Subtitles,,missing
+label_subtitle_langs,Languages:,,missing
+placeholder_subtitle_langs,"en,es,he",,missing
+label_speed_limit,Speed Limit:,,missing
+text_unlimited,Unlimited,,missing
+label_download_type,Download Type:,,missing
+download_type_video,Video,,missing
+download_type_audio,Audio Only,,missing
+tooltip_download_type,Choose whether to download video or extract audio only,,missing
+label_video_format,Video Format:,,missing
+tooltip_video_format,Choose video container format (MP4 recommended for compatibility),,missing
+label_audio_format,Audio Format:,,missing
+tooltip_audio_format,Choose audio format for audio-only downloads (MP3 recommended for compatibility),,missing
+quality_audio_320,Audio 320kbps,,missing
+quality_audio_256,Audio 256kbps,,missing
+quality_audio_192,Audio 192kbps,,missing
+quality_audio_128,Audio 128kbps,,missing
+dialog_no_subs_available,No Subtitles Available,,missing
+msg_no_subs_available,This video doesn't have any subtitles available.,,missing
+text_fetching_subs,Fetching…,,missing
+tooltip_paste,Paste URL from clipboard (Ctrl+V),,missing
+tooltip_open_dir,Open download directory in file explorer,,missing
+tooltip_thumbnail,Download video thumbnail as JPG,,missing
+tooltip_subtitles,Download and embed subtitles,,missing
+tooltip_subtitle_langs,"Comma-separated language codes (e.g., en,es,he)",,missing
+tooltip_speed_limit,Download speed limit (0 = unlimited),,missing
+tooltip_batch,Add multiple URLs at once,,missing
+group_progress,Progress,,missing
+group_log,Log,,missing
+button_show_log,Show Advanced Log,,missing
+button_hide_log,Hide Advanced Log,,missing
+error_invalid_url,Invalid URL,,missing
+error_invalid_dir,Invalid Directory,,missing
+duplicate_download,Duplicate Download?,,missing
+duplicate_download_message,"This exact download (same URL, quality, and format) is already in the queue.
+
+Do you want to add it again?",,missing
+batch_count,URLs: {count},,missing
+queue_empty,No downloads in queue,,missing
+queue_empty_hint,Go to the Download tab to add a video.,,missing
+settings_storage,Storage,,missing
+label_log_file_path,Log file:,,missing
+label_crash_dir_path,Crash reports:,,missing
+label_config_file_path,Config file:,,missing
+button_copy,Copy,,missing
+tooltip_copy_path,Copy this path to the clipboard,,missing
+msg_path_copied,Path copied to clipboard.,,missing
+settings_advanced_download,Advanced Download Options,,missing
+button_show_advanced_download,Show Advanced Download Options,,missing
+button_hide_advanced_download,Hide Advanced Download Options,,missing
+tooltip_toggle_advanced_download,"Browser cookies, proxy, file names and format options",,missing
+label_cookies_browser,Use cookies from:,,missing
+cookies_browser_none,None,,missing
+tooltip_cookies_browser,"Read the cookies of a browser, so that private and age-restricted videos can be downloaded. Sign in to the site in that browser first.",,missing
+label_cookies_profile,Browser profile:,,missing
+placeholder_cookies_profile,Optional: profile name or folder,,missing
+tooltip_cookies_profile,Leave empty to use the default profile of the browser.,,missing
+text_cookies_privacy,Cookies stay on this computer. The app reads them only to give them to yt-dlp for the download. It does not save them or write them to the log.,,missing
+label_proxy,Proxy:,,missing
+placeholder_proxy,socks5://host:1080 (empty = no proxy),,missing
+tooltip_proxy,"Used for downloads and for video, subtitle and playlist info. Supported types: http, https, socks5 and socks5h. A user name and password in the address are saved in the settings file, but never written to the log.",,missing
+label_filename_template,File name:,,missing
+filename_preset_title_quality,Title_Quality (default),,missing
+filename_preset_uploader_title,Uploader - Title,,missing
+filename_preset_date_title,Date - Title,,missing
+filename_preset_custom,Custom template,,missing
+tooltip_filename_template,How downloaded files are named. A number such as (1) is added if the file exists.,,missing
+label_custom_template,Custom template:,,missing
+placeholder_custom_template,%(title)s [%(id)s].%(ext)s,,missing
+tooltip_custom_template,"A yt-dlp output template. It must end with .%(ext)s and must be a file name only, without folders.",,missing
+label_video_codec,Video codec:,,missing
+label_audio_codec,Audio codec:,,missing
+codec_any,Any,,missing
+tooltip_video_codec,"Prefer this video codec when the site has it. To get it, the download can use a lower resolution, within the chosen quality.",,missing
+tooltip_audio_codec,Prefer this audio codec for video downloads. Audio-only downloads use the audio format from the Download tab.,,missing
+label_custom_format,Custom format:,,missing
+placeholder_custom_format,Example: bestvideo[height<=720]+bestaudio,,missing
+tooltip_custom_format,"A yt-dlp format string for advanced users. When set, it replaces the quality and codec choices.",,missing
+text_advanced_applies,These settings apply to downloads that start after you save.,,missing
+error_invalid_advanced_settings,Invalid Advanced Download Setting,,missing
+error_proxy_invalid,"The proxy address is not valid. Use the form type://host:port, for example socks5://127.0.0.1:1080.",,missing
+error_proxy_scheme,"This proxy type is not supported. Use http, https, socks5 or socks5h.",,missing
+error_cookies_profile,The browser profile is not valid. Use a profile name or folder of at most 260 characters.,,missing
+error_template_empty,The custom file name template is empty.,,missing
+error_template_too_long,The custom file name template is too long. Use at most 200 characters.,,missing
+error_template_invalid_char,"The custom file name template has a character that is not allowed in file names (< > : "" | ? * $ or a control character).",,missing
+error_template_path,"The custom file name template must be a file name only: no folders, "".."", drive letters or absolute paths.",,missing
+error_template_ext,The custom file name template must end with .%(ext)s.,,missing
+error_template_field_syntax,"The custom file name template has a field that is not written correctly. Write a field as %(name)s, and a percent sign as %%.",,missing
+error_template_unknown_field,"The custom file name template uses a field that the app does not support. Use fields such as title, id, uploader, upload_date or height.",,missing
+error_format_too_long,The custom format is too long. Use at most 500 characters.,,missing
+error_format_invalid_char,"The custom format must be one line, without control characters.",,missing
+error_format_syntax,yt-dlp cannot read the custom format. Check the brackets and parentheses.,,missing
+cookies_error_app_bound,"Could not read the cookies from {browser}. Chrome 127 and later (and some other Chromium-based browsers) protect their cookies with app-bound encryption, which yt-dlp cannot read. Use Firefox for cookies, or set the cookie option in Settings to None.",,missing
+cookies_error_locked,"Could not read the cookies from {browser}, because {browser} keeps its cookie database locked. Close {browser} completely, then try again.",,missing
+cookies_error_not_found,"No cookies from {browser} were found. Make sure that {browser} is installed, and check the browser profile in Settings.",,missing
+cookies_error_generic,Could not read the cookies from {browser}. The log file has the details.,,missing
+cookies_hint_sign_in,"This video needs a signed-in account (for example a private or age-restricted video). Sign in to the site in your browser. Then, in Settings > Advanced Download Options, set ""Use cookies from"" to that browser.",,missing
+cookies_hint_signed_in_browser,"The site still asks you to sign in. Make sure that you are signed in to the site in {browser}, with the profile set in Settings, then try again.",,missing
+proxy_error_connect,Could not connect through the proxy. Check the proxy address in Settings > Advanced Download Options.,,missing
+error_no_video_in_post,This post has no video. Downloading photo posts is planned for a later version.,,missing
+about_description,"is a user-friendly graphical interface for yt-dlp, making it easy to download videos from YouTube.",,missing
+group_about_details,Details,,missing
+group_about_developer,About the Developer,,missing
+group_about_system_info,System Information,,missing
+label_app_version,Application version:,,missing
+label_yt_dlp_version,yt-dlp engine:,,missing
+label_ffmpeg_version,FFmpeg:,,missing
+label_python_version,Python runtime:,,missing
+label_pyside_version,PySide6 (Qt):,,missing
+text_about_developer_intro,This tool is part of <b>NXtools</b> - a collection of productivity tools.,,missing
+label_website,Website:,,missing
+tooltip_view_on_github,Open the project repository in your browser,,missing
+header_credits_core_deps,Core dependencies,,missing
+header_credits_dev_framework,Development framework,,missing
+header_credits_build_dist,Build &amp; distribution,,missing
+text_credits_thanks,Thank you to all the developers and contributors of these open-source projects. This application would not be possible without your work.,,missing
+text_ffmpeg_not_found,Not found in PATH,,missing
+text_ffmpeg_unknown,Installed (version unknown),,missing
+text_ffmpeg_error,Error detecting version,,missing
+text_ffmpeg_checking,Checking...,,missing
+text_version_unknown,Unknown,,missing
+dialog_crash_title,YT-DLP Studio has crashed,,missing
+dialog_crash_body,"An unexpected error occurred and the application must close.
+
+A crash report has been saved to:
+{path}
+
+Please attach this file to a GitHub issue at https://github.com/NX1X/yt-dlp-studio/issues so the bug can be fixed.",,missing
+dialog_crash_body_no_path,"An unexpected error occurred and the application must close.
+
+(The crash report could not be written to disk.)",,missing
+queue_statistics,Queue Statistics,,missing
+queue_download_queue,Download Queue,,missing
+stat_total,Total,,missing
+stat_pending,Pending,,missing
+stat_active,Active,,missing
+stat_completed,Completed,,missing
+stat_failed,Failed,,missing
+col_video_name,Video Name,,missing
+col_url,URL,,missing
+col_quality,Quality,,missing
+col_status,Status,,missing
+col_progress,Progress,,missing
+col_speed,Speed,,missing
+col_output,Output,,missing
+col_actions,Actions,,missing
+col_select,Select,,missing
+col_index,#,,missing
+col_duration,Duration,,missing
+col_uploader,Uploader,,missing
+button_start_queue,Start Queue,,missing
+button_pause_queue,Pause Queue,,missing
+button_stop_all,Stop All,,missing
+button_move_up,Move Up,,missing
+button_move_down,Move Down,,missing
+button_remove,Remove,,missing
+button_open_file,Open File,,missing
+button_clear_completed,Clear Completed,,missing
+button_clear_failed,Clear Failed,,missing
+button_retry_all_failed,Retry All Failed,,missing
+tooltip_retry_all_failed,Retry every failed download in the queue,,missing
+tooltip_open_file,Open the downloaded file (select completed download),,missing
+text_fetching,Fetching...,,missing
+msg_no_selection,No Selection,,missing
+msg_select_download,Please select a completed download to open.,,missing
+msg_not_completed,Not Completed,,missing
+msg_not_completed_desc,"This download is not completed yet.
+Only completed downloads can be opened.",,missing
+msg_file_not_found,File Not Found,,missing
+msg_file_path_unknown,Could not determine the file path for this download.,,missing
+msg_file_not_found_desc,The downloaded file could not be found,,missing
+msg_failed_open_file,Failed to open file,,missing
+history_empty,No download history,,missing
+history_empty_hint,Downloads will appear here once completed.,,missing
+history_statistics,Statistics,,missing
+history_download_history,Download History,,missing
+label_search,Search:,,missing
+placeholder_search_history,Search by title or URL...,,missing
+col_datetime,Date/Time,,missing
+col_title,Title,,missing
+col_size,Size,,missing
+button_refresh,Refresh,,missing
+button_export_csv,Export CSV,,missing
+button_open_directory,Open Directory,,missing
+button_clear_all,Clear All,,missing
+tooltip_open_downloads_dir,Open downloads directory in file explorer,,missing
+stat_total_downloads,Total Downloads,,missing
+stat_cancelled,Cancelled,,missing
+stat_success_rate,Success Rate,,missing
+stat_total_downloaded,Total Downloaded,,missing
+stat_average_speed,Average Speed,,missing
+dialog_export_history,Export History,,missing
+filter_csv_files,CSV Files (*.csv),,missing
+msg_success,Success,,missing
+msg_history_exported,History exported to,,missing
+msg_export_failed,Failed to export history,,missing
+dialog_confirm_clear,Confirm Clear,,missing
+dialog_confirm_clear_all,Confirm Clear All,,missing
+msg_clear_status_confirm,"Clear all downloads with status ""{status}"" from history?",,missing
+msg_clear_all_confirm,Clear ALL download history? This cannot be undone!,,missing
+msg_cleared_entries,Cleared {count} history entries,,missing
+msg_dir_not_found,Directory Not Found,,missing
+msg_download_dir_not_exist,The download directory does not exist,,missing
+msg_failed_open_dir,Failed to open directory,,missing
+settings_general,General Settings,,missing
+settings_appearance,Appearance,,missing
+settings_features,Features,,missing
+label_default_folder,Default Download Folder:,,missing
+label_default_quality,Default Quality:,,missing
+label_language,Language:,,missing
+label_theme,Theme:,,missing
+button_toggle_theme,Toggle Theme (Dark/Light),,missing
+dialog_theme_switched,Theme Changed,,missing
+checkbox_notifications,Enable Desktop Notifications,,missing
+checkbox_auto_update,Notify me about new versions on startup,,missing
+tooltip_notifications,Show desktop notifications for download events,,missing
+tooltip_auto_update,Checks GitHub on startup and shows a notification if a newer version is available. Does not install automatically.,,missing
+button_check_update,Check for Updates Now,,missing
+button_reset_defaults,Reset to Defaults,,missing
+button_save_settings,Save Settings,,missing
+notif_download_complete,Download Complete,,missing
+notif_download_error,Download Error,,missing
+notif_batch_complete,Batch Download Complete,,missing
+notif_update_available,Update Available,,missing
+notif_download_complete_msg,Download completed,,missing
+notif_download_complete_msg_size,Download completed ({size}),,missing
+notif_download_error_msg,Download failed,,missing
+notif_download_error_msg_reason,Download failed: {error},,missing
+notif_batch_completed_count,Completed: {successful}/{total},,missing
+notif_batch_failed_count,Failed: {failed},,missing
+notif_update_available_msg,Version {version} is available.,,missing
+tray_show_window,Show Window,,missing
+tray_quit,Quit,,missing
+checkbox_close_to_tray,Keep running in the tray when I close the window,,missing
+tooltip_close_to_tray,Closing the window hides it to the system tray. Downloads keep running. Use Quit in the tray menu to exit.,,missing
+tooltip_close_to_tray_unavailable,"Your desktop has no system tray, so this option is not available.",,missing
+tray_still_running,Still running in the tray. Downloads keep going. Use Quit in the tray menu to exit.,,missing
+tray_tooltip_busy,"{app} - {active} downloading, {pending} waiting",,missing
+status_pending,Pending,,missing
+status_downloading,Downloading...,,missing
+status_completed,Completed,,missing
+status_error,Error,,missing
+status_cancelled,Cancelled,,missing
+status_failed,Failed,,missing
+status_preparing,Preparing your download...,,missing
+status_ready,Ready to download,,missing
+status_complete,Download complete!,,missing
+status_success,Download completed successfully!,,missing
+yes,Yes,,missing
+no,No,,missing
+cancel,Cancel,,missing
+error,Error,,missing
+warning,Warning,,missing
+info,Information,,missing
+status_bar_ready,Ready,,missing
+tooltip_toggle_theme,Switch between Dark and Light themes,,missing
+dialog_download_in_progress,Download in Progress,,missing
+msg_download_in_progress_exit,A download is currently in progress. Are you sure you want to exit?,,missing
+theme_dark,Dark,,missing
+theme_light,Light,,missing
+msg_theme_switched,Theme switched to: {theme},,missing
+dialog_select_download_dir,Select Download Directory,,missing
+error_generic,Error,,missing
+msg_dir_not_exist,"The directory does not exist:
+{directory}",,missing
+button_downloading,Downloading...,,missing
+dialog_download_failed,Download Failed,,missing
+button_fetching,Fetching...,,missing
+button_fetching_playlist,Fetching Playlist...,,missing
+dialog_failed_fetch_video_info,Failed to Fetch Video Info,,missing
+dialog_failed_fetch_playlist_info,Failed to Fetch Playlist Info,,missing
+error_invalid_directory,Invalid Directory,,missing
+dialog_playlist_detected,Playlist Detected,,missing
+msg_playlist_detected_options,"This appears to be a {platform} playlist.
+
+Do you want to view and select specific videos?
+
+Click 'Yes' to view playlist, or 'No' to add the entire playlist URL directly.",,missing
+dialog_added_to_queue,Added to Queue,,missing
+msg_video_added_to_queue,"Video added to download queue at position {position}.
+
+Go to the Queue tab to monitor progress.",,missing
+dialog_download_complete,Download Complete,,missing
+msg_download_complete,"Video downloaded successfully!
+
+Saved to: {filename}",,missing
+dialog_playlist_added_to_queue,Playlist Added to Queue,,missing
+msg_playlist_added_to_queue,"Successfully added {count} videos to the download queue.
+
+Go to the Queue tab to monitor progress.",,missing
+dialog_batch_added,Batch Added,,missing
+msg_batch_added_to_queue,"Successfully added {count} URLs to the download queue.
+
+Go to the Queue tab to monitor progress.",,missing
+dialog_batch_url_input,Batch URL Input,,missing
+msg_batch_input_instructions,"Enter video URLs (one per line):
+You can paste multiple URLs or import from a text file.",,missing
+button_import_from_file,Import from File,,missing
+label_urls_count,URLs: {count},,missing
+button_validate_urls,Validate URLs,,missing
+button_add_urls,Add URLs,,missing
+dialog_import_urls_from_file,Import URLs from File,,missing
+dialog_import_error,Import Error,,missing
+msg_failed_import_file,"Failed to import file:
+{error}",,missing
+msg_enter_at_least_one_url,Please enter at least one URL.,,missing
+dialog_validation_results,Validation Results,,missing
+dialog_validation_successful,Validation Successful,,missing
+dialog_no_valid_urls,No Valid URLs,,missing
+msg_no_valid_urls_found,No valid URLs found. Please check your input.,,missing
+dialog_invalid_urls_found,Invalid URLs Found,,missing
+dialog_select_default_download_dir,Select Default Download Directory,,missing
+dialog_settings_saved_restart_required,Settings Saved - Restart Required,,missing
+msg_language_changed_restart_required,"Settings saved successfully!
+
+Language changed to: {language}
+
+⚠️ Please restart the application for the language change to take effect.",,missing
+dialog_settings_saved,Settings Saved,,missing
+msg_settings_saved,Your settings have been saved successfully!,,missing
+msg_failed_save_settings,Failed to save settings. Please check the log for details.,,missing
+dialog_reset_settings,Reset Settings,,missing
+msg_confirm_reset_settings,Are you sure you want to reset all settings to defaults?,,missing
+dialog_settings_reset,Settings Reset,,missing
+msg_all_settings_reset,All settings have been reset to defaults.,,missing
+button_checking,Checking...,,missing
+dialog_no_updates,No Updates,,missing
+msg_already_latest_version,You are already using the latest version ({version}).,,missing
+dialog_update_check_failed,Update Check Failed,,missing
+msg_update_check_failed,"Could not check for updates:
+{error}
+
+Please check your internet connection.",,missing
+button_check_for_updates_now,Check for Updates Now,,missing
+placeholder_log_messages,Log messages will appear here...,,missing
+dialog_video_information,Video Information,,missing
+group_thumbnail,Thumbnail,,missing
+text_loading_thumbnail,Loading thumbnail...,,missing
+group_details,Details,,missing
+label_channel,Channel:,,missing
+label_duration,Duration:,,missing
+label_uploaded,Uploaded:,,missing
+label_views,Views:,,missing
+label_likes,Likes:,,missing
+label_platform,Platform:,,missing
+group_description,Description,,missing
+button_close,Close,,missing
+text_no_thumbnail_available,No thumbnail available,,missing
+text_failed_load_thumbnail,Failed to load thumbnail,,missing
+dialog_playlist_viewer,Playlist Viewer,,missing
+group_playlist_information,Playlist Information,,missing
+label_videos_count,Videos: {count},,missing
+button_select_all,Select All,,missing
+button_select_none,Select None,,missing
+label_quality_playlist,Quality:,,missing
+quality_best,Best Quality,,missing
+quality_1080p,1080p (Full HD),,missing
+quality_720p,720p (HD),,missing
+quality_480p,480p (SD),,missing
+quality_audio_only,Audio Only,,missing
+dialog_no_videos_selected,No Videos Selected,,missing
+msg_select_at_least_one_video,Please select at least one video to download.,,missing
+group_playlist_subtitles,Subtitles (overrides Download tab),,missing
+checkbox_playlist_download_subtitles,Download subtitles for every selected video,,missing
+label_playlist_subtitle_override_hint,"When off, subtitle settings from the Download tab apply. When on, only the languages below are downloaded for every video.",,missing
+tooltip_playlist_download_subtitles,"When enabled, each video in the playlist will have subtitles downloaded in the languages selected below.",,missing
+label_playlist_subtitle_languages,Languages:,,missing
+checkbox_subtitle_lang_he,Hebrew (he + iw),,missing
+checkbox_subtitle_lang_en,English (en),,missing
+checkbox_subtitle_lang_ar,Arabic (ar),,missing
+checkbox_subtitle_lang_es,Spanish (es),,missing
+checkbox_subtitle_lang_fr,French (fr),,missing
+checkbox_subtitle_lang_ru,Russian (ru),,missing
+checkbox_subtitle_lang_de,German (de),,missing
+label_playlist_subtitle_other,Other codes:,,missing
+placeholder_playlist_subtitle_other,"e.g. pt,it,zh-Hans",,missing
+tooltip_playlist_subtitle_other,Comma-separated language codes for languages not in the list above.,,missing
+msg_playlist_no_subtitle_langs,Subtitle download is enabled but no languages are selected. Tick at least one language or untick the subtitles checkbox.,,missing
+text_error_prefix,Error:,,missing
+label_size,Size:,,missing
+label_downloaded,Downloaded:,,missing
+label_speed,Speed:,,missing
+label_eta,ETA:,,missing
+text_unknown,--,,missing
+dialog_update_available,Update Available,,missing
+text_version_available,Version {version} is available!,,missing
+label_current_version,Current version:,,missing
+label_new_version,New version:,,missing
+label_release_notes,Release Notes:,,missing
+text_no_release_notes,No release notes available.,,missing
+button_view_on_github,View on GitHub,,missing
+button_visit_website,Visit Website,,missing
+button_download_update,Download Update,,missing
+button_remind_me_later,Remind Me Later,,missing
+dialog_download_error,Download Error,,missing
+msg_no_download_url,No download URL available. Please visit GitHub to download manually.,,missing
+dialog_confirm_download,Confirm Download,,missing
+msg_confirm_download_text,"This will download the update to your Downloads folder.
+
+File: {filename}
+Size: {size}
+
+The download runs in the background.
+
+Continue?",,missing
+text_downloading_update,Downloading update...,,missing
+text_download_failed,Download failed!,,missing
+dialog_download_complete_update,Download Complete,,missing
+dialog_installer_error,Installer Error,,missing
+button_skip_version,Skip This Version,,missing
+text_unknown_size,Unknown size,,missing
+text_download_verified,Download verified.,,missing
+msg_download_verified_reveal,"Update downloaded and verified successfully.
+
+File: {path}
+
+Open the download folder now? Extract the archive and run install.sh to update.",,missing
+msg_download_verified_reveal_package,"Update downloaded and verified successfully.
+
+File: {path}
+
+Open the download folder now? Open the package with your software installer to update. Your settings and history are kept.",,missing
+msg_download_verified_reveal_appimage,"Update downloaded and verified successfully.
+
+File: {path}
+
+Open the download folder now? Make the new AppImage executable and start it. You can delete the old AppImage afterwards.",,missing
+msg_installer_saved,"The verified installer has been saved to:
+{path}
+
+You can run it later to update the application.",,missing
+msg_update_install_restart,"The update is downloaded and verified.
+
+Install it now? YT-DLP Studio closes, installs version {version} and starts again. Your settings and history are kept.",,missing
+msg_portable_update_ready,"The new version is downloaded and verified:
+{path}
+
+This is a portable copy. It runs from where it is saved and does not replace the copy you are using now.
+
+Start the new version now? This copy closes. You can delete it afterwards.",,missing
+msg_portable_update_saved,"The new version is saved at:
+{path}
+
+Start it from there when you are ready. It does not replace the copy you are using now.",,missing
+dialog_verify_failed,Verification Failed,,missing
+msg_verify_failed,"The downloaded installer failed integrity verification and was deleted for your safety.
+
+Expected: {expected}
+Actual: {actual}
+
+Please try again, or download manually from GitHub.",,missing
+dialog_unverified_download,Unverified Download,,missing
+msg_unverified_download,"This release does not publish a checksum, so the download could not be verified automatically.
+
+The file was saved to:
+{path}
+
+For your safety it will not be launched automatically. Only run it manually if you trust the source.",,missing
+msg_download_failed_retry,"Failed to download the update.
+
+Please try again, or download manually from GitHub.",,missing
+msg_installer_launch_failed,"Failed to run the installer:
+{error}
+
+Please run it manually:
+{path}",,missing
+msg_update_check_rate_limited,GitHub's update server is rate-limiting requests. Please try again later.,,missing
+label_credits,Credits,,missing
+text_credits_description,This application is built using the following open-source projects:,,missing
+site_tier_tested,Tested site,,missing
+site_tier_experimental,Experimental site: may not work,,missing
+tooltip_site_tier_tested,"YT-DLP Studio checks downloads from YouTube, Instagram, TikTok, Facebook and X before every release.",,missing
+tooltip_site_tier_experimental,"YT-DLP Studio does not test this site. yt-dlp may support it, so the download can work, but it can also fail. You can still download.",,missing
+shortcuts_title,Keyboard Shortcuts,,missing
+shortcuts_general,General,,missing
+shortcuts_download_tab,Download Tab,,missing
+shortcuts_queue_tab,Queue Tab,,missing
+shortcut_quit_app,Quit application,,missing
+shortcut_show_help,Open the online help,,missing
+shortcut_close_dialogs,Close dialogs,,missing
+shortcut_paste_url,Paste URL from clipboard,,missing
+shortcut_start_download,Start download (when URL field is focused),,missing
+shortcut_show_video_info,Show video info,,missing
+shortcut_download_now,Download Now,,missing
+shortcut_add_to_queue,Add to Queue,,missing
+shortcut_remove_task,Remove selected task,,missing
+shortcut_move_task_up,Move task up,,missing
+shortcut_move_task_down,Move task down,,missing
+button_select_subs,Select Subs...,,missing
+checkbox_metadata,Download Metadata,,missing
+checkbox_comments,Download Comments,,missing
+tooltip_select_subs,Browse available subtitles and select which to download,,missing
+tooltip_metadata,"Download video metadata (description, info.json)",,missing
+tooltip_comments,Download video comments to a separate .txt file (may be slow for popular videos),,missing
+button_cancel,Cancel,,missing
+button_retry,Retry,,missing
+settings_downloads,Downloads,,missing
+settings_behavior,Behavior,,missing
+settings_bug_report_files,Files for bug reports,,missing
+label_language_restart_hint,Restart the app to apply a language change.,,missing
+tooltip_theme_combo,Applies at once and is saved,,missing
+button_settings_open_folder,Open folder,,missing
+tooltip_settings_open_folder,Open the folder in the file manager,,missing
+status_settings_saved,Settings saved.,,missing
+about_tagline,A desktop app for yt-dlp: download video and audio from YouTube and many other sites.,,missing
+button_copy_bug_report,Copy for bug report,,missing
+tooltip_copy_bug_report,"Copy the versions above and your system details, to paste into a bug report",,missing
+msg_bug_report_copied,System information copied. Paste it into your bug report.,,missing
+label_license,License:,,missing
+text_update_download_progress,Downloading: {done} of {total} ({percent}),,missing
+dialog_select_subtitle_languages,Choose subtitle languages,,missing
+text_subtitle_dialog_help,Check the subtitle languages to download. Some may be auto-generated.,,missing
+group_subtitle_languages,Subtitle languages,,missing
+placeholder_filter_languages,Type to filter languages...,,missing
+text_auto_generated,auto-generated,,missing
+button_use_selected_languages,Use selected languages,,missing
+dialog_no_subtitles_selected,No subtitles selected,,missing
+msg_continue_without_subtitles,"You did not select a subtitle language.
+
+Continue without subtitles?",,missing
+button_clear,Clear,,missing
+dialog_no_urls,No URLs,,missing
+label_batch_counts,Valid URLs: {valid}    Invalid lines: {invalid},,missing
+msg_validation_invalid_lines,"{valid} valid URLs, {invalid} invalid lines:",,missing
+text_line_number,Line {line}: {text},,missing
+text_and_more,... and {count} more,,missing
+msg_all_urls_valid,All {count} URLs are valid.,,missing
+msg_proceed_with_valid_urls,"Found {valid} valid URLs and {invalid} invalid lines.
+
+Add only the valid URLs?",,missing
+label_uploader,Uploader,,missing
+label_selected_count,{selected} of {total} selected,,missing
+button_add_videos_to_queue,Add to queue ({count}),,missing
+header_error_suggestions,Suggestions:,,missing
+header_error_technical_details,Technical details:,,missing
+button_copy_details,Copy details,,missing
+text_copied,Copied,,missing
+label_link,Link,,missing
+placeholder_link,Paste a video or playlist link (YouTube and many other sites),,missing
+button_info,Info,,missing
+tooltip_info,"Show the title, length and formats of the link without downloading (Ctrl+Shift+I)",,missing
+label_get,Get,,missing
+label_quality_short,Quality,,missing
+label_format,Format,,missing
+label_save_to_short,Save to,,missing
+action_open_folder,Open folder,,missing
+section_more_options,More options,,missing
+more_options_default,"All off, no speed limit",,missing
+summary_subtitles,Subtitles ({langs}),,missing
+summary_metadata,Metadata,,missing
+summary_speed_limit,Speed limit {speed},,missing
+checkbox_subtitles_short,Subtitles,,missing
+label_languages,Languages,,missing
+button_choose_subs,Choose...,,missing
+checkbox_thumbnail_short,Thumbnail,,missing
+checkbox_metadata_short,"Metadata (description, info.json)",,missing
+checkbox_comments_short,Comments,,missing
+label_speed_limit_short,Speed limit,,missing
+text_advanced_in_settings,"Browser cookies, proxy, file names and format options are in the Settings tab.",,missing
+button_open_settings,Open Settings,,missing
+button_batch_links,Batch links...,,missing
+button_add_to_queue_short,Add to queue,,missing
+button_download,Download,,missing
+tooltip_download_button,"Download this link now (Enter or Ctrl+D). It starts at once, also when the queue is paused. If the maximum number of downloads already runs, it starts next.",,missing
+tooltip_add_to_queue_button,Add this link to the end of the queue (Ctrl+Shift+Q). It waits its turn and does not start while the queue is paused.,,missing
+error_link_empty,Paste a link first.,,missing
+error_link_invalid,This is not a valid link. A link starts with {http} or {https}.,,missing
+error_folder_invalid,This folder does not exist or is not writable. Choose another folder with Browse.,,missing
+status_download_started,Download started.,,missing
+status_download_next,The download starts as soon as a running download finishes.,,missing
+status_added_to_queue,Added to the queue at position {position}.,,missing
+status_added_paused,Added to the queue at position {position}. The queue is paused: press Start in the Queue tab.,,missing
+status_videos_added,Added {count} videos to the queue.,,missing
+status_batch_added,Added {count} links to the queue.,,missing
+msg_playlist_choice,"This link is a {platform} playlist.
+
+Choose videos to pick the ones you want, or add the whole playlist as one download.",,missing
+button_choose_videos,Choose videos...,,missing
+button_whole_playlist,Whole playlist,,missing
+section_activity_log,Activity log,,missing
+group_now_downloading,Now downloading,,missing
+now_empty,Nothing is downloading. Paste a link above to start.,,missing
+now_empty_paused,"Nothing is downloading. The queue is paused, {count} waiting.",,missing
+now_starting,Starting...,,missing
+now_processing,Processing...,,missing
+now_time_left,{time} left,,missing
+now_progress_accessible,{title}: {percent},,missing
+button_open_queue,Open queue,,missing
+tooltip_open_queue,Go to the Queue tab,,missing
+summary_downloading,{count} downloading,,missing
+summary_waiting,{count} waiting,,missing
+summary_failed,{count} failed,,missing
+summary_done,{count} done,,missing
+summary_paused,queue paused,,missing
+summary_queue_empty,The queue is empty,,missing
+status_bar_idle,Idle,,missing
+status_bar_downloading,Downloading {active} of {total},,missing
+status_bar_paused,"Queue paused, {count} waiting",,missing
+button_start,Start,,missing
+button_pause,Pause,,missing
+button_stop_all_short,Stop all,,missing
+tooltip_start_queue,Start the waiting downloads. New links then start on their own.,,missing
+tooltip_pause_queue,"Let the running downloads finish, but start no new ones. Use Start to continue.",,missing
+tooltip_stop_all,Cancel the running downloads and pause the queue. Waiting downloads stay in the queue.,,missing
+dialog_stop_all,Stop all downloads?,,missing
+msg_stop_all_confirm,"Downloads running: {count}.
+
+Cancel them and pause the queue?",,missing
+col_time_left,Time left,,missing
+action_open_file,Open file,,missing
+tooltip_open_task_folder,Open the folder of the selected download,,missing
+tooltip_retry_task,Try the selected failed download again,,missing
+tooltip_cancel_task,Cancel the selected download. A waiting download is removed.,,missing
+button_move_up_short,Up,,missing
+button_move_down_short,Down,,missing
+tooltip_move_up,Move the selected download up (Ctrl+Up),,missing
+tooltip_move_down,Move the selected download down (Ctrl+Down),,missing
+tooltip_remove_task,Remove the selected download from the queue (Delete),,missing
+button_retry_failed,Retry failed,,missing
+button_clear_finished,Clear finished,,missing
+tooltip_clear_finished,Remove finished downloads from the queue. The files stay on disk.,,missing
+menu_clear_completed,Completed downloads,,missing
+menu_clear_failed,Failed downloads,,missing
+menu_clear_cancelled,Cancelled downloads,,missing
+menu_copy_link,Copy link,,missing
+menu_show_error,Show error details,,missing
+dialog_remove_task,Remove download?,,missing
+msg_remove_downloading,This download is running. Cancel it and remove it from the queue?,,missing
+msg_remove_waiting,Remove this waiting download from the queue?,,missing
+status_removing,Cancelling the download. It leaves the queue when it has stopped.,,missing
+status_removed,Removed from the queue.,,missing
+status_cleared_tasks,Removed {count} downloads from the queue.,,missing
+status_retrying,Trying {count} downloads again.,,missing
+status_link_copied,Link copied.,,missing
+tooltip_queue_task,"{title}
+Link: {url}
+Folder: {folder}
+Quality: {quality}",,missing
+text_title_unknown,Title not known yet,,missing
+tooltip_task_failed,"{reason}
+Double-click or right-click for details.",,missing
+tooltip_waiting_paused,Waiting. The queue is paused.,,missing
+button_go_to_download,Go to Download,,missing
+history_summary,"{total} downloads: {done} done, {failed} failed, {cancelled} cancelled, {size} in total",,missing
+history_summary_tooltip,"Success rate: {rate}
+Average speed: {speed}",,missing
+placeholder_search_title_link,Search title or link...,,missing
+filter_status,Status filter,,missing
+filter_all_statuses,All statuses,,missing
+history_no_matches,No matches,,missing
+history_no_matches_hint,Try another search word or status.,,missing
+tooltip_history_link,Link: {url},,missing
+tooltip_history_error,Error: {reason},,missing
+menu_download_again,Download again,,missing
+button_open_downloads_folder,Open downloads folder,,missing
+button_clear_menu,Clear,,missing
+tooltip_clear_history,Remove entries from the history. Downloaded files stay on disk.,,missing
+menu_clear_history_completed,Clear completed,,missing
+menu_clear_history_failed,Clear failed,,missing
+menu_clear_history_all,Clear all history,,missing
+status_history_exported,History saved to {path}.,,missing
+status_history_cleared,Removed {count} entries from the history.,,missing
+status_link_in_download_tab,"The link is in the Download tab. Check the options, then press Download.",,missing
+format_video_mp4,MP4 (Best Compatibility),,missing
+format_video_mkv,MKV (Matroska),,missing
+format_video_webm,WebM,,missing
+format_video_auto,Auto (Best Quality),,missing
+format_audio_mp3,MP3 (Most Compatible),,missing
+format_audio_m4a,M4A/AAC (High Quality),,missing
+format_audio_opus,OPUS (Best Quality/Size),,missing
+format_audio_flac,FLAC (Lossless),,missing
+format_audio_wav,WAV (Uncompressed),,missing
+format_audio_vorbis,Vorbis/OGG,,missing
+log_started,Started: {title},,missing
+log_finished,Finished: {filename},,missing
+log_stopped,Stopped: {error},,missing
+log_pasted,Pasted from clipboard: {text}...,,missing
+log_auto_detected_url,Auto-detected URL from clipboard,,missing
+log_mode_audio,Audio-only mode: select quality and format,,missing
+log_mode_video,Video mode: select quality and format,,missing
+log_quality_selected,Quality selected: {quality} - {description},,missing
+log_output_dir_changed,Output directory changed to: {directory},,missing
+log_opened_dir,Opened directory: {directory},,missing
+log_added_to_queue,Added to queue at position {position}: {url},,missing
+log_already_fetching_video,"Already fetching video info, please wait...",,missing
+log_already_fetching_playlist,"Already fetching playlist info, please wait...",,missing
+log_fetching_video_info,Fetching video info: {url},,missing
+log_detected_playlist,"Detected {platform} playlist, fetching info...",,missing
+log_video_info_fetched,Video info fetched: {title},,missing
+log_video_info_failed,Failed to fetch video info: {error},,missing
+log_playlist_fetched,Playlist fetched: {title} ({count} videos),,missing
+log_playlist_fetched_one,Playlist fetched: {title} (1 video),,missing
+log_playlist_failed,Failed to fetch playlist info: {error},,missing
+log_no_videos_selected,No videos selected from playlist,,missing
+log_added_videos,Added {count} videos to queue,,missing
+log_added_videos_one,Added 1 video to queue,,missing
+log_added_videos_subs,Added {count} videos to queue (subtitles: {langs}),,missing
+log_added_videos_subs_one,Added 1 video to queue (subtitles: {langs}),,missing
+log_fetching_subs,Fetching available subtitles for: {url},,missing
+log_no_subs_found,No subtitles found for this video,,missing
+log_selected_subs,Selected {count} subtitle languages: {langs},,missing
+log_selected_subs_one,Selected 1 subtitle language: {langs},,missing
+log_no_subs_selected,No subtitles selected,,missing
+log_batch_added,Batch: Added {count} URLs to queue,,missing
+log_batch_added_one,Batch: Added 1 URL to queue,,missing
+log_url_dropped,URL dropped: {text}...,,missing
+log_level_error,ERROR,,missing
+log_level_success,SUCCESS,,missing
+log_level_info,INFO,,missing
+log_level_warning,WARNING,,missing
+summary_waiting_one,{count} waiting,,missing
+summary_failed_one,{count} failed,,missing
+summary_done_one,{count} done,,missing
+status_bar_paused_one,"Queue paused, {count} waiting",,missing
+now_empty_paused_one,"Nothing is downloading. The queue is paused, {count} waiting.",,missing
+status_cleared_tasks_one,Removed {count} download from the queue.,,missing
+status_retrying_one,Trying {count} download again.,,missing
+status_history_cleared_one,Removed {count} entry from the history.,,missing
+msg_all_urls_valid_one,The URL is valid.,,missing
+status_videos_added_one,Added {count} video to the queue.,,missing
+status_batch_added_one,Added {count} link to the queue.,,missing
+history_summary_one,"{total} download: {done} done, {failed} failed, {cancelled} cancelled, {size} in total",,missing
+errcat_network_title,Network Error,,missing
+errcat_network_message,Unable to connect to the internet or the video server.,,missing
+errcat_network_suggestions,"• Check your internet connection
+• Verify the URL is accessible in your browser
+• Try again in a few moments
+• Check if a firewall or VPN is blocking access",,missing
+errcat_url_invalid_title,Invalid URL,,missing
+errcat_url_invalid_message,The URL you entered is not valid or not supported.,,missing
+errcat_url_invalid_suggestions,"• Make sure you copied the complete URL
+• Check if the URL starts with http:// or https://
+• Verify the site is supported by yt-dlp
+• Try clicking 'Show Info' to test the URL first",,missing
+errcat_video_unavailable_title,Video Unavailable,,missing
+errcat_video_unavailable_message,The video is no longer available or doesn't exist.,,missing
+errcat_video_unavailable_suggestions,"• The video may have been deleted by the uploader
+• The URL might be incorrect or expired
+• Try refreshing the page in your browser
+• Check if the video is still accessible online",,missing
+errcat_geo_blocked_title,Geo-Restricted Content,,missing
+errcat_geo_blocked_message,This video is not available in your region.,,missing
+errcat_geo_blocked_suggestions,"• The video may be restricted to certain countries
+• You might need a VPN to access this content
+• Check if the video is available in your browser
+• Try a different video or source",,missing
+errcat_copyright_title,Copyright Restriction,,missing
+errcat_copyright_message,This video has been removed due to copyright claims.,,missing
+errcat_copyright_suggestions,"• The video violated copyright or terms of service
+• It has been removed by the platform or uploader
+• This content cannot be downloaded
+• Look for alternative sources",,missing
+errcat_private_title,Private or Login Required,,missing
+errcat_private_message,This video is private or requires authentication.,,missing
+errcat_private_suggestions,"• The video may be set to private
+• You might need to be logged in to access it
+• Check if you can view it in your browser when logged in
+• Contact the video owner for access",,missing
+errcat_format_title,Format Error,,missing
+errcat_format_message,There was an issue with the video or audio format.,,missing
+errcat_format_suggestions,"• Try a different quality setting
+• The video format may not be compatible
+• Check if 'Best Quality' works better
+• Try downloading audio only first",,missing
+errcat_disk_space_title,Insufficient Disk Space,,missing
+errcat_disk_space_message,There is not enough space to download this file.,,missing
+errcat_disk_space_suggestions,"• Free up disk space on your drive
+• Choose a different download location
+• Delete unnecessary files
+• Try downloading a lower quality version",,missing
+errcat_permission_title,Permission Denied,,missing
+errcat_permission_message,Cannot write to the selected download directory.,,missing
+errcat_permission_suggestions,"• Choose a different download folder
+• Check folder permissions
+• Try saving to your Downloads folder
+• Run the application as administrator (Windows)",,missing
+errcat_unknown_title,Download Failed,,missing
+errcat_unknown_message,"An error occurred during download:
+
+{detail}",,missing
+errcat_unknown_suggestions,"• Try downloading again
+• Check the log for more details
+• Try a different quality setting
+• Verify the URL is still valid",,missing
+quality_desc_best,Best available quality (video+audio or VBR audio) - No limits,,missing
+quality_desc_8k,"Ultra HD 8K (7680x4320) - Extreme quality, very large files",,missing
+quality_desc_4k,"Ultra HD 4K (3840x2160) - Excellent quality, large files",,missing
+quality_desc_2k,"Quad HD (2560x1440) - Great quality, moderate file size",,missing
+quality_desc_1080p,Full HD (1920x1080) - Recommended for most devices,,missing
+quality_desc_720p,"HD (1280x720) - Good quality, smaller file size",,missing
+quality_desc_480p,Standard definition (854x480) - Faster downloads,,missing
+quality_desc_360p,Low resolution (640x360) - Smallest file size,,missing
+quality_desc_audio_320,Highest fixed quality - Near CD quality (320kbps),,missing
+quality_desc_audio_256,Very high quality - Excellent for music (256kbps),,missing
+quality_desc_audio_192,High quality - Good balance (192kbps),,missing
+quality_desc_audio_128,Standard quality - Smaller file size (128kbps),,missing
+quality_desc_none,No description available,,missing
+text_unknown_title,Unknown Title,,missing
+text_unknown_playlist,Unknown Playlist,,missing
+text_unknown_label,Unknown,,missing
+filter_text_files,Text Files (*.txt);;All Files (*.*),,missing
+error_download_stopped,Download stopped unexpectedly,,missing
+language_name_en,English,,missing
+language_name_es,Spanish,,missing
+language_name_fr,French,,missing
+language_name_de,German,,missing
+language_name_it,Italian,,missing
+language_name_pt,Portuguese,,missing
+language_name_ru,Russian,,missing
+language_name_ja,Japanese,,missing
+language_name_ko,Korean,,missing
+language_name_zh,Chinese,,missing
+language_name_zh_hans,Chinese (Simplified),,missing
+language_name_zh_hant,Chinese (Traditional),,missing
+language_name_ar,Arabic,,missing
+language_name_hi,Hindi,,missing
+language_name_he,Hebrew,,missing
+language_name_nl,Dutch,,missing
+language_name_pl,Polish,,missing
+language_name_tr,Turkish,,missing
+language_name_sv,Swedish,,missing
+language_name_da,Danish,,missing
+language_name_no,Norwegian,,missing
+language_name_fi,Finnish,,missing
+language_name_cs,Czech,,missing
+language_name_el,Greek,,missing
+language_name_hu,Hungarian,,missing
+language_name_ro,Romanian,,missing
+language_name_th,Thai,,missing
+language_name_vi,Vietnamese,,missing
+language_name_id,Indonesian,,missing
+language_name_uk,Ukrainian,,missing

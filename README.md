@@ -20,6 +20,7 @@ YT-DLP Studio is part of [NXTools](https://nx1xlab.dev/nxtools), a collection of
 - [Quick start](#quick-start)
 - [FAQ and troubleshooting](#faq-and-troubleshooting)
 - [Documentation](#documentation)
+- [Languages](#languages)
 - [Contributing](#contributing)
 - [Security](#security)
 - [License](#license)
@@ -269,10 +270,15 @@ Yes. YT-DLP Studio is free and open source under the [Apache License 2.0](LICENS
 - [User Guide](docs/USER_GUIDE.md): every tab and setting, and common tasks.
 - [Troubleshooting](docs/TROUBLESHOOTING.md): fixes for common problems, and how to report an issue.
 - [Installation Guide](docs/INSTALLATION_GUIDE.md): all install options, run from source, uninstall.
+- [Translating](docs/TRANSLATING.md): add or improve a language, with or without code.
 - [Development Guide](docs/DEVELOPMENT.md): set up a development environment, test and build.
 - [Architecture](docs/ARCHITECTURE.md): code structure and design.
 - [Roadmap](ROADMAP.md): planned features.
 - [Changelog](CHANGELOG.md): changes in each release.
+
+## Languages
+
+The app speaks English and Hebrew today. Help is wanted for other languages. You do not need to write code: fill in a spreadsheet and send it. See [docs/TRANSLATING.md](docs/TRANSLATING.md).
 
 ## Contributing
 

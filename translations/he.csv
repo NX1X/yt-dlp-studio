@@ -1,0 +1,977 @@
+﻿key,en,he,status
+tab_download,Download,הורדה,ok
+tab_queue,Queue,תור,ok
+tab_history,History,היסטוריה,ok
+tab_settings,Settings,הגדרות,ok
+tab_about,About,אודות,ok
+label_url,URL:,URL:,missing
+download_url_placeholder,Enter YouTube URL or drag & drop here...,הזן כתובת YouTube או גרור ושחרר כאן...,ok
+label_quality,Quality:,איכות:,ok
+label_save_to,Save to:,שמור ב:,ok
+button_browse,Browse,עיון,ok
+button_download_now,Download Now,הורד כעת,ok
+button_add_to_queue,Add to Queue,הוסף לתור,ok
+button_batch_input,Batch Input,קלט קבוצתי,ok
+button_paste,Paste,הדבק,ok
+button_show_info,Show Info,הצג מידע,ok
+button_open_dir,Open,פתח,ok
+button_clear_log,Clear Log,נקה יומן,ok
+checkbox_thumbnail,Download Thumbnail,הורד תמונת רקע,ok
+checkbox_subtitles,Download Subtitles,הורד כתוביות,ok
+label_subtitle_langs,Languages:,שפות:,ok
+placeholder_subtitle_langs,"en,es,he","en,es,he",missing
+label_speed_limit,Speed Limit:,הגבלת מהירות:,ok
+text_unlimited,Unlimited,ללא הגבלה,ok
+label_download_type,Download Type:,סוג הורדה:,ok
+download_type_video,Video,וידאו,ok
+download_type_audio,Audio Only,אודיו בלבד,ok
+tooltip_download_type,Choose whether to download video or extract audio only,בחר אם להוריד וידאו או להפיק אודיו בלבד,ok
+label_video_format,Video Format:,פורמט וידאו:,ok
+tooltip_video_format,Choose video container format (MP4 recommended for compatibility),בחר פורמט מיכל וידאו (מומלץ MP4 לתאימות),ok
+label_audio_format,Audio Format:,פורמט אודיו:,ok
+tooltip_audio_format,Choose audio format for audio-only downloads (MP3 recommended for compatibility),בחר פורמט אודיו להורדות אודיו בלבד (מומלץ MP3 לתאימות),ok
+quality_audio_320,Audio 320kbps,אודיו 320kbps,ok
+quality_audio_256,Audio 256kbps,אודיו 256kbps,ok
+quality_audio_192,Audio 192kbps,אודיו 192kbps,ok
+quality_audio_128,Audio 128kbps,אודיו 128kbps,ok
+dialog_no_subs_available,No Subtitles Available,אין כתוביות זמינות,ok
+msg_no_subs_available,This video doesn't have any subtitles available.,לסרטון זה אין כתוביות זמינות.,ok
+text_fetching_subs,Fetching…,טוען…,ok
+tooltip_paste,Paste URL from clipboard (Ctrl+V),הדבק URL מהלוח (Ctrl+V),ok
+tooltip_open_dir,Open download directory in file explorer,פתח תיקיית הורדות במנהל הקבצים,ok
+tooltip_thumbnail,Download video thumbnail as JPG,הורד תמונה ממוזערת כ-JPG,ok
+tooltip_subtitles,Download and embed subtitles,הורד והטמע כתוביות,ok
+tooltip_subtitle_langs,"Comma-separated language codes (e.g., en,es,he)","קודי שפה מופרדים בפסיק (למשל: en,es,he)",ok
+tooltip_speed_limit,Download speed limit (0 = unlimited),הגבלת מהירות הורדה (0 = ללא הגבלה),ok
+tooltip_batch,Add multiple URLs at once,הוסף מספר URLs בבת אחת,ok
+group_progress,Progress,התקדמות,ok
+group_log,Log,יומן,ok
+button_show_log,Show Advanced Log,הצג יומן מתקדם,ok
+button_hide_log,Hide Advanced Log,הסתר יומן מתקדם,ok
+error_invalid_url,Invalid URL,URL לא תקין,ok
+error_invalid_dir,Invalid Directory,תיקייה לא תקינה,ok
+duplicate_download,Duplicate Download?,הורדה כפולה?,ok
+duplicate_download_message,"This exact download (same URL, quality, and format) is already in the queue.
+
+Do you want to add it again?","הורדה זהה (אותו URL, איכות, ופורמט) כבר נמצאת בתור.
+
+האם להוסיף שוב?",ok
+batch_count,URLs: {count},כתובות URL: {count},ok
+queue_empty,No downloads in queue,אין הורדות בתור,ok
+queue_empty_hint,Go to the Download tab to add a video.,עבור ללשונית ההורדה כדי להוסיף סרטון.,ok
+settings_storage,Storage,אחסון,ok
+label_log_file_path,Log file:,קובץ יומן:,ok
+label_crash_dir_path,Crash reports:,דוחות קריסה:,ok
+label_config_file_path,Config file:,קובץ הגדרות:,ok
+button_copy,Copy,העתק,ok
+tooltip_copy_path,Copy this path to the clipboard,העתק נתיב זה ללוח,ok
+msg_path_copied,Path copied to clipboard.,הנתיב הועתק ללוח.,ok
+settings_advanced_download,Advanced Download Options,אפשרויות הורדה מתקדמות,ok
+button_show_advanced_download,Show Advanced Download Options,הצג אפשרויות הורדה מתקדמות,ok
+button_hide_advanced_download,Hide Advanced Download Options,הסתר אפשרויות הורדה מתקדמות,ok
+tooltip_toggle_advanced_download,"Browser cookies, proxy, file names and format options","עוגיות דפדפן, פרוקסי, שמות קבצים ואפשרויות פורמט",ok
+label_cookies_browser,Use cookies from:,השתמש בעוגיות מ:,ok
+cookies_browser_none,None,ללא,ok
+tooltip_cookies_browser,"Read the cookies of a browser, so that private and age-restricted videos can be downloaded. Sign in to the site in that browser first.","קרא את העוגיות של דפדפן, כדי שאפשר יהיה להוריד סרטונים פרטיים וסרטונים עם הגבלת גיל. התחבר קודם לאתר בדפדפן הזה.",ok
+label_cookies_profile,Browser profile:,פרופיל דפדפן:,ok
+placeholder_cookies_profile,Optional: profile name or folder,רשות: שם פרופיל או תיקייה,ok
+tooltip_cookies_profile,Leave empty to use the default profile of the browser.,השאר ריק כדי להשתמש בפרופיל ברירת המחדל של הדפדפן.,ok
+text_cookies_privacy,Cookies stay on this computer. The app reads them only to give them to yt-dlp for the download. It does not save them or write them to the log.,העוגיות נשארות במחשב הזה. התוכנה קוראת אותן רק כדי להעביר אותן ל-yt-dlp עבור ההורדה. היא לא שומרת אותן ולא כותבת אותן ליומן.,ok
+label_proxy,Proxy:,פרוקסי:,ok
+placeholder_proxy,socks5://host:1080 (empty = no proxy),socks5://host:1080 (ריק = ללא פרוקסי),ok
+tooltip_proxy,"Used for downloads and for video, subtitle and playlist info. Supported types: http, https, socks5 and socks5h. A user name and password in the address are saved in the settings file, but never written to the log.","משמש להורדות ולמידע על סרטונים, כתוביות ורשימות השמעה. סוגים נתמכים: http, https, socks5 ו-socks5h. שם משתמש וסיסמה בכתובת נשמרים בקובץ ההגדרות, אבל לעולם לא נכתבים ליומן.",ok
+label_filename_template,File name:,שם קובץ:,ok
+filename_preset_title_quality,Title_Quality (default),כותרת_איכות (ברירת מחדל),ok
+filename_preset_uploader_title,Uploader - Title,מעלה - כותרת,ok
+filename_preset_date_title,Date - Title,תאריך - כותרת,ok
+filename_preset_custom,Custom template,תבנית מותאמת אישית,ok
+tooltip_filename_template,How downloaded files are named. A number such as (1) is added if the file exists.,"איך קבצים שהורדו נקראים. אם הקובץ קיים, נוסף מספר כמו (1).",ok
+label_custom_template,Custom template:,תבנית מותאמת:,ok
+placeholder_custom_template,%(title)s [%(id)s].%(ext)s,%(title)s [%(id)s].%(ext)s,missing
+tooltip_custom_template,"A yt-dlp output template. It must end with .%(ext)s and must be a file name only, without folders.","תבנית פלט של yt-dlp. היא חייבת להסתיים ב-.%(ext)s ולהיות שם קובץ בלבד, בלי תיקיות.",ok
+label_video_codec,Video codec:,קידוד וידאו:,ok
+label_audio_codec,Audio codec:,קידוד שמע:,ok
+codec_any,Any,כלשהו,ok
+tooltip_video_codec,"Prefer this video codec when the site has it. To get it, the download can use a lower resolution, within the chosen quality.","העדף את קידוד הווידאו הזה כשהאתר מציע אותו. כדי לקבל אותו, ההורדה יכולה להשתמש ברזולוציה נמוכה יותר, בתוך האיכות שנבחרה.",ok
+tooltip_audio_codec,Prefer this audio codec for video downloads. Audio-only downloads use the audio format from the Download tab.,העדף את קידוד השמע הזה בהורדות וידאו. הורדות שמע בלבד משתמשות בפורמט השמע מלשונית ההורדה.,ok
+label_custom_format,Custom format:,פורמט מותאם:,ok
+placeholder_custom_format,Example: bestvideo[height<=720]+bestaudio,לדוגמה: bestvideo[height<=720]+bestaudio,ok
+tooltip_custom_format,"A yt-dlp format string for advanced users. When set, it replaces the quality and codec choices.","מחרוזת פורמט של yt-dlp למשתמשים מתקדמים. כשהיא מוגדרת, היא מחליפה את בחירת האיכות והקידוד.",ok
+text_advanced_applies,These settings apply to downloads that start after you save.,ההגדרות האלה חלות על הורדות שמתחילות אחרי השמירה.,ok
+error_invalid_advanced_settings,Invalid Advanced Download Setting,הגדרת הורדה מתקדמת לא תקינה,ok
+error_proxy_invalid,"The proxy address is not valid. Use the form type://host:port, for example socks5://127.0.0.1:1080.","כתובת הפרוקסי לא תקינה. השתמש בצורה type://host:port, לדוגמה socks5://127.0.0.1:1080.",ok
+error_proxy_scheme,"This proxy type is not supported. Use http, https, socks5 or socks5h.","סוג הפרוקסי הזה לא נתמך. השתמש ב-http, https, socks5 או socks5h.",ok
+error_cookies_profile,The browser profile is not valid. Use a profile name or folder of at most 260 characters.,פרופיל הדפדפן לא תקין. השתמש בשם פרופיל או בתיקייה של 260 תווים לכל היותר.,ok
+error_template_empty,The custom file name template is empty.,תבנית שם הקובץ המותאמת ריקה.,ok
+error_template_too_long,The custom file name template is too long. Use at most 200 characters.,תבנית שם הקובץ המותאמת ארוכה מדי. השתמש ב-200 תווים לכל היותר.,ok
+error_template_invalid_char,"The custom file name template has a character that is not allowed in file names (< > : "" | ? * $ or a control character).","בתבנית שם הקובץ המותאמת יש תו שאסור בשמות קבצים (< > : "" | ? * $ או תו בקרה).",ok
+error_template_path,"The custom file name template must be a file name only: no folders, "".."", drive letters or absolute paths.","תבנית שם הקובץ המותאמת חייבת להיות שם קובץ בלבד: בלי תיקיות, "".."", אותיות כונן או נתיבים מלאים.",ok
+error_template_ext,The custom file name template must end with .%(ext)s.,תבנית שם הקובץ המותאמת חייבת להסתיים ב-.%(ext)s.,ok
+error_template_field_syntax,"The custom file name template has a field that is not written correctly. Write a field as %(name)s, and a percent sign as %%.","בתבנית שם הקובץ המותאמת יש שדה שלא נכתב נכון. כתוב שדה בצורה %(name)s, וסימן אחוז בצורה %%.",ok
+error_template_unknown_field,"The custom file name template uses a field that the app does not support. Use fields such as title, id, uploader, upload_date or height.","תבנית שם הקובץ המותאמת משתמשת בשדה שהתוכנה לא תומכת בו. השתמש בשדות כמו title, id, uploader, upload_date או height.",ok
+error_format_too_long,The custom format is too long. Use at most 500 characters.,הפורמט המותאם ארוך מדי. השתמש ב-500 תווים לכל היותר.,ok
+error_format_invalid_char,"The custom format must be one line, without control characters.","הפורמט המותאם חייב להיות שורה אחת, בלי תווי בקרה.",ok
+error_format_syntax,yt-dlp cannot read the custom format. Check the brackets and parentheses.,yt-dlp לא יכול לקרוא את הפורמט המותאם. בדוק את הסוגריים.,ok
+cookies_error_app_bound,"Could not read the cookies from {browser}. Chrome 127 and later (and some other Chromium-based browsers) protect their cookies with app-bound encryption, which yt-dlp cannot read. Use Firefox for cookies, or set the cookie option in Settings to None.","לא ניתן לקרוא את העוגיות מ-{browser}. Chrome 127 ומעלה (וכמה דפדפנים אחרים מבוססי Chromium) מגינים על העוגיות שלהם בהצפנה קשורת-אפליקציה, ש-yt-dlp לא יכול לקרוא. השתמש ב-Firefox לעוגיות, או קבע את אפשרות העוגיות בהגדרות ל'ללא'.",ok
+cookies_error_locked,"Could not read the cookies from {browser}, because {browser} keeps its cookie database locked. Close {browser} completely, then try again.","לא ניתן לקרוא את העוגיות מ-{browser}, כי {browser} נועל את מסד הנתונים של העוגיות. סגור את {browser} לגמרי, ואז נסה שוב.",ok
+cookies_error_not_found,"No cookies from {browser} were found. Make sure that {browser} is installed, and check the browser profile in Settings.","לא נמצאו עוגיות של {browser}. ודא ש-{browser} מותקן, ובדוק את פרופיל הדפדפן בהגדרות.",ok
+cookies_error_generic,Could not read the cookies from {browser}. The log file has the details.,לא ניתן לקרוא את העוגיות מ-{browser}. הפרטים נמצאים בקובץ היומן.,ok
+cookies_hint_sign_in,"This video needs a signed-in account (for example a private or age-restricted video). Sign in to the site in your browser. Then, in Settings > Advanced Download Options, set ""Use cookies from"" to that browser.","הסרטון הזה דורש חשבון מחובר (לדוגמה סרטון פרטי או סרטון עם הגבלת גיל). התחבר לאתר בדפדפן שלך. אחר כך, בהגדרות > אפשרויות הורדה מתקדמות, קבע את 'השתמש בעוגיות מ' לדפדפן הזה.",ok
+cookies_hint_signed_in_browser,"The site still asks you to sign in. Make sure that you are signed in to the site in {browser}, with the profile set in Settings, then try again.","האתר עדיין מבקש להתחבר. ודא שאתה מחובר לאתר ב-{browser}, עם הפרופיל שהוגדר בהגדרות, ואז נסה שוב.",ok
+proxy_error_connect,Could not connect through the proxy. Check the proxy address in Settings > Advanced Download Options.,לא ניתן להתחבר דרך הפרוקסי. בדוק את כתובת הפרוקסי בהגדרות > אפשרויות הורדה מתקדמות.,ok
+error_no_video_in_post,This post has no video. Downloading photo posts is planned for a later version.,בפוסט הזה אין סרטון. הורדת פוסטים של תמונות מתוכננת לגרסה עתידית.,ok
+about_description,"is a user-friendly graphical interface for yt-dlp, making it easy to download videos from YouTube.",הוא ממשק גרפי ידידותי למשתמש עבור yt-dlp שמקל על הורדת סרטונים מ-YouTube.,ok
+group_about_details,Details,פרטים,ok
+group_about_developer,About the Developer,אודות המפתח,ok
+group_about_system_info,System Information,מידע מערכת,ok
+label_app_version,Application version:,גרסת אפליקציה:,ok
+label_yt_dlp_version,yt-dlp engine:,מנוע yt-dlp:,ok
+label_ffmpeg_version,FFmpeg:,FFmpeg:,missing
+label_python_version,Python runtime:,סביבת Python:,ok
+label_pyside_version,PySide6 (Qt):,PySide6 (Qt):,missing
+text_about_developer_intro,This tool is part of <b>NXtools</b> - a collection of productivity tools.,כלי זה הוא חלק מ-<b>NXtools</b> - אוסף של כלי פרודקטיביות.,ok
+label_website,Website:,אתר:,ok
+tooltip_view_on_github,Open the project repository in your browser,פתח את מאגר הפרויקט בדפדפן,ok
+header_credits_core_deps,Core dependencies,תלויות מרכזיות,ok
+header_credits_dev_framework,Development framework,סביבת פיתוח,ok
+header_credits_build_dist,Build &amp; distribution,בנייה והפצה,ok
+text_credits_thanks,Thank you to all the developers and contributors of these open-source projects. This application would not be possible without your work.,תודה לכל המפתחים והתורמים של פרויקטי הקוד הפתוח הללו. האפליקציה הזו לא הייתה מתאפשרת בלי עבודתכם.,ok
+text_ffmpeg_not_found,Not found in PATH,לא נמצא ב-PATH,ok
+text_ffmpeg_unknown,Installed (version unknown),מותקן (גרסה לא ידועה),ok
+text_ffmpeg_error,Error detecting version,שגיאה בזיהוי גרסה,ok
+text_ffmpeg_checking,Checking...,בודק...,ok
+text_version_unknown,Unknown,לא ידוע,ok
+dialog_crash_title,YT-DLP Studio has crashed,YT-DLP Studio קרס,ok
+dialog_crash_body,"An unexpected error occurred and the application must close.
+
+A crash report has been saved to:
+{path}
+
+Please attach this file to a GitHub issue at https://github.com/NX1X/yt-dlp-studio/issues so the bug can be fixed.","אירעה שגיאה בלתי צפויה והאפליקציה חייבת להיסגר.
+
+דוח הקריסה נשמר אל:
+{path}
+
+אנא צרף קובץ זה לדיווח באג ב-https://github.com/NX1X/yt-dlp-studio/issues כדי שנוכל לתקן את הבעיה.",ok
+dialog_crash_body_no_path,"An unexpected error occurred and the application must close.
+
+(The crash report could not be written to disk.)","אירעה שגיאה בלתי צפויה והאפליקציה חייבת להיסגר.
+
+(לא ניתן היה לכתוב את דוח הקריסה לדיסק.)",ok
+queue_statistics,Queue Statistics,סטטיסטיקת תור,ok
+queue_download_queue,Download Queue,תור הורדות,ok
+stat_total,Total,"סה""כ",ok
+stat_pending,Pending,ממתין,ok
+stat_active,Active,פעיל,ok
+stat_completed,Completed,הושלם,ok
+stat_failed,Failed,נכשל,ok
+col_video_name,Video Name,שם הסרטון,ok
+col_url,URL,URL,missing
+col_quality,Quality,איכות,ok
+col_status,Status,מצב,ok
+col_progress,Progress,התקדמות,ok
+col_speed,Speed,מהירות,ok
+col_output,Output,פלט,ok
+col_actions,Actions,פעולות,ok
+col_select,Select,בחר,ok
+col_index,#,#,missing
+col_duration,Duration,משך,ok
+col_uploader,Uploader,מעלה,ok
+button_start_queue,Start Queue,התחל תור,ok
+button_pause_queue,Pause Queue,השהה תור,ok
+button_stop_all,Stop All,עצור הכל,ok
+button_move_up,Move Up,הזז למעלה,ok
+button_move_down,Move Down,הזז למטה,ok
+button_remove,Remove,הסר,ok
+button_open_file,Open File,פתח קובץ,ok
+button_clear_completed,Clear Completed,נקה הושלמו,ok
+button_clear_failed,Clear Failed,נקה נכשלו,ok
+button_retry_all_failed,Retry All Failed,נסה שוב את כל הנכשלים,ok
+tooltip_retry_all_failed,Retry every failed download in the queue,נסה שוב את כל ההורדות שנכשלו בתור,ok
+tooltip_open_file,Open the downloaded file (select completed download),פתח את הקובץ שהורד (בחר הורדה שהושלמה),ok
+text_fetching,Fetching...,טוען...,ok
+msg_no_selection,No Selection,אין בחירה,ok
+msg_select_download,Please select a completed download to open.,אנא בחר הורדה שהושלמה לפתיחה.,ok
+msg_not_completed,Not Completed,לא הושלם,ok
+msg_not_completed_desc,"This download is not completed yet.
+Only completed downloads can be opened.","הורדה זו עדיין לא הושלמה.
+ניתן לפתוח רק הורדות שהושלמו.",ok
+msg_file_not_found,File Not Found,קובץ לא נמצא,ok
+msg_file_path_unknown,Could not determine the file path for this download.,לא ניתן לקבוע את נתיב הקובץ להורדה זו.,ok
+msg_file_not_found_desc,The downloaded file could not be found,הקובץ שהורד לא נמצא,ok
+msg_failed_open_file,Failed to open file,נכשל בפתיחת הקובץ,ok
+history_empty,No download history,אין היסטוריית הורדות,ok
+history_empty_hint,Downloads will appear here once completed.,הורדות יופיעו כאן לאחר השלמתן.,ok
+history_statistics,Statistics,סטטיסטיקות,ok
+history_download_history,Download History,היסטוריית הורדות,ok
+label_search,Search:,חיפוש:,ok
+placeholder_search_history,Search by title or URL...,חפש לפי כותרת או URL...,ok
+col_datetime,Date/Time,תאריך/שעה,ok
+col_title,Title,כותרת,ok
+col_size,Size,גודל,ok
+button_refresh,Refresh,רענן,ok
+button_export_csv,Export CSV,ייצא CSV,ok
+button_open_directory,Open Directory,פתח תיקייה,ok
+button_clear_all,Clear All,נקה הכל,ok
+tooltip_open_downloads_dir,Open downloads directory in file explorer,פתח תיקיית הורדות במנהל הקבצים,ok
+stat_total_downloads,Total Downloads,"סה""כ הורדות",ok
+stat_cancelled,Cancelled,בוטל,ok
+stat_success_rate,Success Rate,אחוז הצלחה,ok
+stat_total_downloaded,Total Downloaded,"סה""כ הורד",ok
+stat_average_speed,Average Speed,מהירות ממוצעת,ok
+dialog_export_history,Export History,ייצא היסטוריה,ok
+filter_csv_files,CSV Files (*.csv),קבצי CSV (*.csv),ok
+msg_success,Success,הצלחה,ok
+msg_history_exported,History exported to,היסטוריה יוצאה אל,ok
+msg_export_failed,Failed to export history,נכשל לייצא היסטוריה,ok
+dialog_confirm_clear,Confirm Clear,אישור ניקוי,ok
+dialog_confirm_clear_all,Confirm Clear All,אישור ניקוי הכל,ok
+msg_clear_status_confirm,"Clear all downloads with status ""{status}"" from history?","לנקות מההיסטוריה את כל ההורדות במצב ""{status}""?",ok
+msg_clear_all_confirm,Clear ALL download history? This cannot be undone!,לנקות את כל היסטוריית ההורדות? לא ניתן לבטל פעולה זו!,ok
+msg_cleared_entries,Cleared {count} history entries,נוקו {count} רשומות היסטוריה,ok
+msg_dir_not_found,Directory Not Found,תיקייה לא נמצאה,ok
+msg_download_dir_not_exist,The download directory does not exist,תיקיית ההורדות לא קיימת,ok
+msg_failed_open_dir,Failed to open directory,נכשל לפתוח תיקייה,ok
+settings_general,General Settings,הגדרות כלליות,ok
+settings_appearance,Appearance,מראה,ok
+settings_features,Features,תכונות,ok
+label_default_folder,Default Download Folder:,תיקיית הורדה ברירת מחדל:,ok
+label_default_quality,Default Quality:,איכות ברירת מחדל:,ok
+label_language,Language:,שפה:,ok
+label_theme,Theme:,ערכת נושא:,ok
+button_toggle_theme,Toggle Theme (Dark/Light),החלף ערכת נושא (כהה/בהיר),ok
+dialog_theme_switched,Theme Changed,ערכת נושא שונתה,ok
+checkbox_notifications,Enable Desktop Notifications,הפעל התראות שולחן עבודה,ok
+checkbox_auto_update,Notify me about new versions on startup,הודע לי על גרסאות חדשות בהפעלה,ok
+tooltip_notifications,Show desktop notifications for download events,הצג התראות שולחן עבודה לאירועי הורדה,ok
+tooltip_auto_update,Checks GitHub on startup and shows a notification if a newer version is available. Does not install automatically.,בודק את GitHub בהפעלה ומציג הודעה אם זמינה גרסה חדשה. אינו מתקין באופן אוטומטי.,ok
+button_check_update,Check for Updates Now,בדוק עדכונים כעת,ok
+button_reset_defaults,Reset to Defaults,אפס לברירת מחדל,ok
+button_save_settings,Save Settings,שמור הגדרות,ok
+notif_download_complete,Download Complete,ההורדה הושלמה,ok
+notif_download_error,Download Error,שגיאת הורדה,ok
+notif_batch_complete,Batch Download Complete,הורדה קבוצתית הושלמה,ok
+notif_update_available,Update Available,עדכון זמין,ok
+notif_download_complete_msg,Download completed,ההורדה הסתיימה,ok
+notif_download_complete_msg_size,Download completed ({size}),ההורדה הסתיימה ({size}),ok
+notif_download_error_msg,Download failed,ההורדה נכשלה,ok
+notif_download_error_msg_reason,Download failed: {error},ההורדה נכשלה: {error},ok
+notif_batch_completed_count,Completed: {successful}/{total},הושלמו: {successful}/{total},ok
+notif_batch_failed_count,Failed: {failed},נכשלו: {failed},ok
+notif_update_available_msg,Version {version} is available.,גרסה {version} זמינה.,ok
+tray_show_window,Show Window,הצג חלון,ok
+tray_quit,Quit,יציאה,ok
+checkbox_close_to_tray,Keep running in the tray when I close the window,המשך לפעול במגש המערכת כשאני סוגר את החלון,ok
+tooltip_close_to_tray,Closing the window hides it to the system tray. Downloads keep running. Use Quit in the tray menu to exit.,"סגירת החלון מסתירה אותו במגש המערכת. ההורדות ממשיכות. ליציאה, בחר יציאה בתפריט המגש.",ok
+tooltip_close_to_tray_unavailable,"Your desktop has no system tray, so this option is not available.","בשולחן העבודה שלך אין מגש מערכת, לכן אפשרות זו אינה זמינה.",ok
+tray_still_running,Still running in the tray. Downloads keep going. Use Quit in the tray menu to exit.,"התוכנה ממשיכה לפעול במגש המערכת וההורדות ממשיכות. ליציאה, בחר יציאה בתפריט המגש.",ok
+tray_tooltip_busy,"{app} - {active} downloading, {pending} waiting","{app} - {active} בהורדה, {pending} בהמתנה",ok
+status_pending,Pending,ממתין,ok
+status_downloading,Downloading...,מוריד...,ok
+status_completed,Completed,הושלם,ok
+status_error,Error,שגיאה,ok
+status_cancelled,Cancelled,בוטל,ok
+status_failed,Failed,נכשל,ok
+status_preparing,Preparing your download...,מכין את ההורדה שלך...,ok
+status_ready,Ready to download,מוכן להורדה,ok
+status_complete,Download complete!,ההורדה הושלמה!,ok
+status_success,Download completed successfully!,ההורדה הושלמה בהצלחה!,ok
+yes,Yes,כן,ok
+no,No,לא,ok
+cancel,Cancel,ביטול,ok
+error,Error,שגיאה,ok
+warning,Warning,אזהרה,ok
+info,Information,מידע,ok
+status_bar_ready,Ready,מוכן,ok
+tooltip_toggle_theme,Switch between Dark and Light themes,החלף בין ערכות נושא כהות ובהירות,ok
+dialog_download_in_progress,Download in Progress,הורדה מתבצעת,ok
+msg_download_in_progress_exit,A download is currently in progress. Are you sure you want to exit?,הורדה מתבצעת כעת. האם אתה בטוח שברצונך לצאת?,ok
+theme_dark,Dark,כהה,ok
+theme_light,Light,בהיר,ok
+msg_theme_switched,Theme switched to: {theme},ערכת הנושא שונתה ל: {theme},ok
+dialog_select_download_dir,Select Download Directory,בחר תיקיית הורדה,ok
+error_generic,Error,שגיאה,ok
+msg_dir_not_exist,"The directory does not exist:
+{directory}","התיקייה אינה קיימת:
+{directory}",ok
+button_downloading,Downloading...,מוריד...,ok
+dialog_download_failed,Download Failed,ההורדה נכשלה,ok
+button_fetching,Fetching...,טוען...,ok
+button_fetching_playlist,Fetching Playlist...,טוען פלייליסט...,ok
+dialog_failed_fetch_video_info,Failed to Fetch Video Info,נכשל בטעינת מידע על הסרטון,ok
+dialog_failed_fetch_playlist_info,Failed to Fetch Playlist Info,נכשל בטעינת מידע על הפלייליסט,ok
+error_invalid_directory,Invalid Directory,תיקייה לא תקינה,ok
+dialog_playlist_detected,Playlist Detected,פלייליסט זוהה,ok
+msg_playlist_detected_options,"This appears to be a {platform} playlist.
+
+Do you want to view and select specific videos?
+
+Click 'Yes' to view playlist, or 'No' to add the entire playlist URL directly.","זה נראה כמו פלייליסט {platform}.
+
+האם ברצונך לצפות ולבחור סרטונים ספציפיים?
+
+לחץ 'כן' לצפייה בפלייליסט, או 'לא' להוספת כתובת הפלייליסט המלאה ישירות.",ok
+dialog_added_to_queue,Added to Queue,נוסף לתור,ok
+msg_video_added_to_queue,"Video added to download queue at position {position}.
+
+Go to the Queue tab to monitor progress.","הסרטון נוסף לתור ההורדות במיקום {position}.
+
+עבור ללשונית התור לניטור התקדמות.",ok
+dialog_download_complete,Download Complete,ההורדה הושלמה,ok
+msg_download_complete,"Video downloaded successfully!
+
+Saved to: {filename}","הסרטון הורד בהצלחה!
+
+נשמר ב: {filename}",ok
+dialog_playlist_added_to_queue,Playlist Added to Queue,הפלייליסט נוסף לתור,ok
+msg_playlist_added_to_queue,"Successfully added {count} videos to the download queue.
+
+Go to the Queue tab to monitor progress.","נוספו {count} סרטונים לתור ההורדות בהצלחה.
+
+עבור ללשונית התור לניטור התקדמות.",ok
+dialog_batch_added,Batch Added,נוסף בקבוצה,ok
+msg_batch_added_to_queue,"Successfully added {count} URLs to the download queue.
+
+Go to the Queue tab to monitor progress.","נוספו {count} כתובות URL לתור ההורדות בהצלחה.
+
+עבור ללשונית התור לניטור התקדמות.",ok
+dialog_batch_url_input,Batch URL Input,קלט קבוצתי של כתובות URL,ok
+msg_batch_input_instructions,"Enter video URLs (one per line):
+You can paste multiple URLs or import from a text file.","הזן כתובות URL של סרטונים (אחת בכל שורה):
+ניתן להדביק מספר כתובות או לייבא מקובץ טקסט.",ok
+button_import_from_file,Import from File,ייבא מקובץ,ok
+label_urls_count,URLs: {count},כתובות URL: {count},ok
+button_validate_urls,Validate URLs,אמת כתובות URL,ok
+button_add_urls,Add URLs,הוסף כתובות URL,ok
+dialog_import_urls_from_file,Import URLs from File,ייבא כתובות URL מקובץ,ok
+dialog_import_error,Import Error,שגיאת ייבוא,ok
+msg_failed_import_file,"Failed to import file:
+{error}","נכשל בייבוא הקובץ:
+{error}",ok
+msg_enter_at_least_one_url,Please enter at least one URL.,אנא הזן לפחות כתובת URL אחת.,ok
+dialog_validation_results,Validation Results,תוצאות אימות,ok
+dialog_validation_successful,Validation Successful,האימות הצליח,ok
+dialog_no_valid_urls,No Valid URLs,אין כתובות URL תקינות,ok
+msg_no_valid_urls_found,No valid URLs found. Please check your input.,לא נמצאו כתובות URL תקינות. אנא בדוק את הקלט שלך.,ok
+dialog_invalid_urls_found,Invalid URLs Found,נמצאו כתובות URL לא תקינות,ok
+dialog_select_default_download_dir,Select Default Download Directory,בחר תיקיית הורדה ברירת מחדל,ok
+dialog_settings_saved_restart_required,Settings Saved - Restart Required,הגדרות נשמרו - נדרש אתחול,ok
+msg_language_changed_restart_required,"Settings saved successfully!
+
+Language changed to: {language}
+
+⚠️ Please restart the application for the language change to take effect.","ההגדרות נשמרו בהצלחה!
+
+השפה שונתה ל: {language}
+
+⚠️ אנא הפעל מחדש את התוכנה כדי שהשינוי ייכנס לתוקף.",ok
+dialog_settings_saved,Settings Saved,הגדרות נשמרו,ok
+msg_settings_saved,Your settings have been saved successfully!,ההגדרות נשמרו בהצלחה!,ok
+msg_failed_save_settings,Failed to save settings. Please check the log for details.,נכשל בשמירת הגדרות. אנא בדוק את היומן לפרטים.,ok
+dialog_reset_settings,Reset Settings,אפס הגדרות,ok
+msg_confirm_reset_settings,Are you sure you want to reset all settings to defaults?,האם אתה בטוח שברצונך לאפס את כל ההגדרות לברירת המחדל?,ok
+dialog_settings_reset,Settings Reset,הגדרות אופסו,ok
+msg_all_settings_reset,All settings have been reset to defaults.,כל ההגדרות אופסו לברירת המחדל.,ok
+button_checking,Checking...,בודק...,ok
+dialog_no_updates,No Updates,אין עדכונים,ok
+msg_already_latest_version,You are already using the latest version ({version}).,אתה כבר משתמש בגרסה העדכנית ביותר ({version}).,ok
+dialog_update_check_failed,Update Check Failed,בדיקת עדכון נכשלה,ok
+msg_update_check_failed,"Could not check for updates:
+{error}
+
+Please check your internet connection.","לא ניתן לבדוק עדכונים:
+{error}
+
+אנא בדוק את חיבור האינטרנט שלך.",ok
+button_check_for_updates_now,Check for Updates Now,בדוק עדכונים כעת,ok
+placeholder_log_messages,Log messages will appear here...,הודעות יומן יופיעו כאן...,ok
+dialog_video_information,Video Information,מידע על הסרטון,ok
+group_thumbnail,Thumbnail,תמונה ממוזערת,ok
+text_loading_thumbnail,Loading thumbnail...,טוען תמונה...,ok
+group_details,Details,פרטים,ok
+label_channel,Channel:,ערוץ:,ok
+label_duration,Duration:,משך:,ok
+label_uploaded,Uploaded:,הועלה:,ok
+label_views,Views:,צפיות:,ok
+label_likes,Likes:,לייקים:,ok
+label_platform,Platform:,פלטפורמה:,ok
+group_description,Description,תיאור,ok
+button_close,Close,סגור,ok
+text_no_thumbnail_available,No thumbnail available,אין תמונה ממוזערת זמינה,ok
+text_failed_load_thumbnail,Failed to load thumbnail,נכשל בטעינת תמונה ממוזערת,ok
+dialog_playlist_viewer,Playlist Viewer,מציג פלייליסט,ok
+group_playlist_information,Playlist Information,מידע על הפלייליסט,ok
+label_videos_count,Videos: {count},סרטונים: {count},ok
+button_select_all,Select All,בחר הכל,ok
+button_select_none,Select None,בטל בחירה,ok
+label_quality_playlist,Quality:,איכות:,ok
+quality_best,Best Quality,איכות מיטבית,ok
+quality_1080p,1080p (Full HD),1080p (Full HD),missing
+quality_720p,720p (HD),720p (HD),missing
+quality_480p,480p (SD),480p (SD),missing
+quality_audio_only,Audio Only,אודיו בלבד,ok
+dialog_no_videos_selected,No Videos Selected,לא נבחרו סרטונים,ok
+msg_select_at_least_one_video,Please select at least one video to download.,אנא בחר לפחות סרטון אחד להורדה.,ok
+group_playlist_subtitles,Subtitles (overrides Download tab),כתוביות (עוקף את לשונית ההורדה),ok
+checkbox_playlist_download_subtitles,Download subtitles for every selected video,הורד כתוביות לכל סרטון שנבחר,ok
+label_playlist_subtitle_override_hint,"When off, subtitle settings from the Download tab apply. When on, only the languages below are downloaded for every video.","כשהאפשרות מבוטלת, הגדרות הכתוביות מלשונית ההורדה תקפות. כשהאפשרות מופעלת, רק השפות הנבחרות למטה יורדו עבור כל סרטון.",ok
+tooltip_playlist_download_subtitles,"When enabled, each video in the playlist will have subtitles downloaded in the languages selected below.","כשהאפשרות מופעלת, כל סרטון בפלייליסט יוריד כתוביות בשפות שייבחרו למטה.",ok
+label_playlist_subtitle_languages,Languages:,שפות:,ok
+checkbox_subtitle_lang_he,Hebrew (he + iw),עברית (he + iw),ok
+checkbox_subtitle_lang_en,English (en),אנגלית (en),ok
+checkbox_subtitle_lang_ar,Arabic (ar),ערבית (ar),ok
+checkbox_subtitle_lang_es,Spanish (es),ספרדית (es),ok
+checkbox_subtitle_lang_fr,French (fr),צרפתית (fr),ok
+checkbox_subtitle_lang_ru,Russian (ru),רוסית (ru),ok
+checkbox_subtitle_lang_de,German (de),גרמנית (de),ok
+label_playlist_subtitle_other,Other codes:,קודים נוספים:,ok
+placeholder_playlist_subtitle_other,"e.g. pt,it,zh-Hans","לדוגמה: pt,it,zh-Hans",ok
+tooltip_playlist_subtitle_other,Comma-separated language codes for languages not in the list above.,קודי שפה מופרדים בפסיק עבור שפות שאינן ברשימה למעלה.,ok
+msg_playlist_no_subtitle_langs,Subtitle download is enabled but no languages are selected. Tick at least one language or untick the subtitles checkbox.,הורדת כתוביות מופעלת אך לא נבחרה אף שפה. סמן לפחות שפה אחת או בטל את תיבת הסימון של הכתוביות.,ok
+text_error_prefix,Error:,שגיאה:,ok
+label_size,Size:,גודל:,ok
+label_downloaded,Downloaded:,הורד:,ok
+label_speed,Speed:,מהירות:,ok
+label_eta,ETA:,זמן משוער:,ok
+text_unknown,--,--,missing
+dialog_update_available,Update Available,עדכון זמין,ok
+text_version_available,Version {version} is available!,גרסה {version} זמינה!,ok
+label_current_version,Current version:,גרסה נוכחית:,ok
+label_new_version,New version:,גרסה חדשה:,ok
+label_release_notes,Release Notes:,הערות שחרור:,ok
+text_no_release_notes,No release notes available.,אין הערות שחרור זמינות.,ok
+button_view_on_github,View on GitHub,צפה ב-GitHub,ok
+button_visit_website,Visit Website,בקר באתר,ok
+button_download_update,Download Update,הורד עדכון,ok
+button_remind_me_later,Remind Me Later,הזכר לי מאוחר יותר,ok
+dialog_download_error,Download Error,שגיאת הורדה,ok
+msg_no_download_url,No download URL available. Please visit GitHub to download manually.,אין כתובת הורדה זמינה. אנא בקר ב-GitHub להורדה ידנית.,ok
+dialog_confirm_download,Confirm Download,אשר הורדה,ok
+msg_confirm_download_text,"This will download the update to your Downloads folder.
+
+File: {filename}
+Size: {size}
+
+The download runs in the background.
+
+Continue?","פעולה זו תוריד את העדכון לתיקיית ההורדות שלך.
+
+קובץ: {filename}
+גודל: {size}
+
+ההורדה תתבצע ברקע.
+
+להמשיך?",ok
+text_downloading_update,Downloading update...,מוריד עדכון...,ok
+text_download_failed,Download failed!,ההורדה נכשלה!,ok
+dialog_download_complete_update,Download Complete,הורדה הושלמה,ok
+dialog_installer_error,Installer Error,שגיאת התקנה,ok
+button_skip_version,Skip This Version,דלג על גרסה זו,ok
+text_unknown_size,Unknown size,גודל לא ידוע,ok
+text_download_verified,Download verified.,ההורדה אומתה.,ok
+msg_download_verified_reveal,"Update downloaded and verified successfully.
+
+File: {path}
+
+Open the download folder now? Extract the archive and run install.sh to update.","העדכון הורד ואומת בהצלחה.
+
+קובץ: {path}
+
+לפתוח את תיקיית ההורדות כעת? חלץ את הארכיון והרץ את install.sh כדי לעדכן.",ok
+msg_download_verified_reveal_package,"Update downloaded and verified successfully.
+
+File: {path}
+
+Open the download folder now? Open the package with your software installer to update. Your settings and history are kept.","העדכון הורד ואומת בהצלחה.
+
+קובץ: {path}
+
+לפתוח את תיקיית ההורדות כעת? פתח את החבילה במנהל התוכנה כדי לעדכן. ההגדרות וההיסטוריה שלך יישמרו.",ok
+msg_download_verified_reveal_appimage,"Update downloaded and verified successfully.
+
+File: {path}
+
+Open the download folder now? Make the new AppImage executable and start it. You can delete the old AppImage afterwards.","העדכון הורד ואומת בהצלחה.
+
+קובץ: {path}
+
+לפתוח את תיקיית ההורדות כעת? הפוך את קובץ ה-AppImage החדש להרצה והפעל אותו. לאחר מכן תוכל למחוק את ה-AppImage הישן.",ok
+msg_installer_saved,"The verified installer has been saved to:
+{path}
+
+You can run it later to update the application.","המתקין המאומת נשמר אל:
+{path}
+
+תוכל להפעיל אותו מאוחר יותר כדי לעדכן את התוכנה.",ok
+msg_update_install_restart,"The update is downloaded and verified.
+
+Install it now? YT-DLP Studio closes, installs version {version} and starts again. Your settings and history are kept.","העדכון הורד ואומת.
+
+להתקין אותו עכשיו? YT-DLP Studio ייסגר, יתקין את גרסה {version} ויופעל מחדש. ההגדרות וההיסטוריה שלך יישמרו.",ok
+msg_portable_update_ready,"The new version is downloaded and verified:
+{path}
+
+This is a portable copy. It runs from where it is saved and does not replace the copy you are using now.
+
+Start the new version now? This copy closes. You can delete it afterwards.","הגרסה החדשה הורדה ואומתה:
+{path}
+
+זו גרסה ניידת. היא פועלת מהמקום שבו נשמרה ואינה מחליפה את העותק שבו אתה משתמש כעת.
+
+להפעיל את הגרסה החדשה עכשיו? העותק הנוכחי ייסגר. תוכל למחוק אותו לאחר מכן.",ok
+msg_portable_update_saved,"The new version is saved at:
+{path}
+
+Start it from there when you are ready. It does not replace the copy you are using now.","הגרסה החדשה נשמרה ב:
+{path}
+
+הפעל אותה משם כשתהיה מוכן. היא אינה מחליפה את העותק שבו אתה משתמש כעת.",ok
+dialog_verify_failed,Verification Failed,האימות נכשל,ok
+msg_verify_failed,"The downloaded installer failed integrity verification and was deleted for your safety.
+
+Expected: {expected}
+Actual: {actual}
+
+Please try again, or download manually from GitHub.","המתקין שהורד נכשל באימות התקינות ונמחק לשם בטיחותך.
+
+צפוי: {expected}
+בפועל: {actual}
+
+אנא נסה שוב, או הורד ידנית מ-GitHub.",ok
+dialog_unverified_download,Unverified Download,הורדה לא מאומתת,ok
+msg_unverified_download,"This release does not publish a checksum, so the download could not be verified automatically.
+
+The file was saved to:
+{path}
+
+For your safety it will not be launched automatically. Only run it manually if you trust the source.","גרסה זו אינה מפרסמת סכום ביקורת, ולכן לא ניתן היה לאמת את ההורדה אוטומטית.
+
+הקובץ נשמר אל:
+{path}
+
+לשם בטיחותך הוא לא יופעל אוטומטית. הפעל אותו ידנית רק אם אתה סומך על המקור.",ok
+msg_download_failed_retry,"Failed to download the update.
+
+Please try again, or download manually from GitHub.","הורדת העדכון נכשלה.
+
+אנא נסה שוב, או הורד ידנית מ-GitHub.",ok
+msg_installer_launch_failed,"Failed to run the installer:
+{error}
+
+Please run it manually:
+{path}","הפעלת המתקין נכשלה:
+{error}
+
+אנא הפעל אותו ידנית:
+{path}",ok
+msg_update_check_rate_limited,GitHub's update server is rate-limiting requests. Please try again later.,שרת העדכונים של GitHub מגביל בקשות. אנא נסה שוב מאוחר יותר.,ok
+label_credits,Credits,קרדיטים,ok
+text_credits_description,This application is built using the following open-source projects:,אפליקציה זו בנויה באמצעות הפרוייקטים הקוד-פתוח הבאים:,ok
+site_tier_tested,Tested site,אתר שנבדק,ok
+site_tier_experimental,Experimental site: may not work,אתר ניסיוני: ייתכן שלא יעבוד,ok
+tooltip_site_tier_tested,"YT-DLP Studio checks downloads from YouTube, Instagram, TikTok, Facebook and X before every release.","YT-DLP Studio בודק הורדות מהאתרים YouTube, Instagram, TikTok, Facebook ו-X לפני כל גרסה.",ok
+tooltip_site_tier_experimental,"YT-DLP Studio does not test this site. yt-dlp may support it, so the download can work, but it can also fail. You can still download.","YT-DLP Studio לא בודק את האתר הזה. ייתכן ש-yt-dlp תומך בו, כך שההורדה עשויה לעבוד, אבל היא עלולה גם להיכשל. אפשר עדיין להוריד.",ok
+shortcuts_title,Keyboard Shortcuts,קיצורי מקלדת,ok
+shortcuts_general,General,כללי,ok
+shortcuts_download_tab,Download Tab,לשונית הורדה,ok
+shortcuts_queue_tab,Queue Tab,לשונית תור,ok
+shortcut_quit_app,Quit application,יציאה מהתוכנה,ok
+shortcut_show_help,Open the online help,פתח את העזרה המקוונת,ok
+shortcut_close_dialogs,Close dialogs,סגור חלונות דו-שיח,ok
+shortcut_paste_url,Paste URL from clipboard,הדבק URL מהלוח,ok
+shortcut_start_download,Start download (when URL field is focused),התחל הורדה (כאשר שדה URL ממוקד),ok
+shortcut_show_video_info,Show video info,הצג מידע על הסרטון,ok
+shortcut_download_now,Download Now,הורד כעת,ok
+shortcut_add_to_queue,Add to Queue,הוסף לתור,ok
+shortcut_remove_task,Remove selected task,הסר משימה שנבחרה,ok
+shortcut_move_task_up,Move task up,הזז משימה למעלה,ok
+shortcut_move_task_down,Move task down,הזז משימה למטה,ok
+button_select_subs,Select Subs...,בחר כתוביות...,ok
+checkbox_metadata,Download Metadata,הורד מטא-דאטה,ok
+checkbox_comments,Download Comments,הורד תגובות,ok
+tooltip_select_subs,Browse available subtitles and select which to download,עיין בכתוביות הזמינות ובחר אילו להוריד,ok
+tooltip_metadata,"Download video metadata (description, info.json)","הורד מטא-דאטה של הסרטון (תיאור, info.json)",ok
+tooltip_comments,Download video comments to a separate .txt file (may be slow for popular videos),הורד תגובות הסרטון לקובץ .txt נפרד (עשוי להיות איטי עבור סרטונים פופולריים),ok
+button_cancel,Cancel,ביטול,ok
+button_retry,Retry,נסה שוב,ok
+settings_downloads,Downloads,הורדות,ok
+settings_behavior,Behavior,התנהגות,ok
+settings_bug_report_files,Files for bug reports,קבצים לדיווח על באג,ok
+label_language_restart_hint,Restart the app to apply a language change.,שינוי השפה ייכנס לתוקף אחרי הפעלה מחדש של האפליקציה.,ok
+tooltip_theme_combo,Applies at once and is saved,מוחל מיד ונשמר,ok
+button_settings_open_folder,Open folder,פתח תיקייה,ok
+tooltip_settings_open_folder,Open the folder in the file manager,פתח את התיקייה במנהל הקבצים,ok
+status_settings_saved,Settings saved.,ההגדרות נשמרו.,ok
+about_tagline,A desktop app for yt-dlp: download video and audio from YouTube and many other sites.,אפליקציית שולחן עבודה ל-yt-dlp: הורדת וידאו ואודיו מ-YouTube ומאתרים רבים אחרים.,ok
+button_copy_bug_report,Copy for bug report,העתק לדיווח על באג,ok
+tooltip_copy_bug_report,"Copy the versions above and your system details, to paste into a bug report","העתק את הגרסאות שלמעלה ואת פרטי המערכת, כדי להדביק אותם בדיווח על באג",ok
+msg_bug_report_copied,System information copied. Paste it into your bug report.,פרטי המערכת הועתקו. הדבק אותם בדיווח על הבאג.,ok
+label_license,License:,רישיון:,ok
+text_update_download_progress,Downloading: {done} of {total} ({percent}),מוריד: {done} מתוך {total} ({percent}),ok
+dialog_select_subtitle_languages,Choose subtitle languages,בחירת שפות כתוביות,ok
+text_subtitle_dialog_help,Check the subtitle languages to download. Some may be auto-generated.,סמן את שפות הכתוביות להורדה. חלקן עשויות להיות כתוביות שנוצרו אוטומטית.,ok
+group_subtitle_languages,Subtitle languages,שפות כתוביות,ok
+placeholder_filter_languages,Type to filter languages...,הקלד כדי לסנן שפות...,ok
+text_auto_generated,auto-generated,נוצרו אוטומטית,ok
+button_use_selected_languages,Use selected languages,השתמש בשפות שנבחרו,ok
+dialog_no_subtitles_selected,No subtitles selected,לא נבחרו כתוביות,ok
+msg_continue_without_subtitles,"You did not select a subtitle language.
+
+Continue without subtitles?","לא בחרת שפת כתוביות.
+
+להמשיך בלי כתוביות?",ok
+button_clear,Clear,נקה,ok
+dialog_no_urls,No URLs,אין כתובות URL,ok
+label_batch_counts,Valid URLs: {valid}    Invalid lines: {invalid},כתובות URL תקינות: {valid}    שורות לא תקינות: {invalid},ok
+msg_validation_invalid_lines,"{valid} valid URLs, {invalid} invalid lines:","{valid} כתובות URL תקינות, {invalid} שורות לא תקינות:",ok
+text_line_number,Line {line}: {text},שורה {line}: {text},ok
+text_and_more,... and {count} more,... ועוד {count},ok
+msg_all_urls_valid,All {count} URLs are valid.,כל {count} כתובות ה-URL תקינות.,ok
+msg_proceed_with_valid_urls,"Found {valid} valid URLs and {invalid} invalid lines.
+
+Add only the valid URLs?","נמצאו {valid} כתובות URL תקינות ו-{invalid} שורות לא תקינות.
+
+להוסיף רק את הכתובות התקינות?",ok
+label_uploader,Uploader,מעלה,ok
+label_selected_count,{selected} of {total} selected,{selected} מתוך {total} נבחרו,ok
+button_add_videos_to_queue,Add to queue ({count}),הוסף לתור ({count}),ok
+header_error_suggestions,Suggestions:,הצעות:,ok
+header_error_technical_details,Technical details:,פרטים טכניים:,ok
+button_copy_details,Copy details,העתק פרטים,ok
+text_copied,Copied,הועתק,ok
+label_link,Link,קישור,ok
+placeholder_link,Paste a video or playlist link (YouTube and many other sites),הדבק קישור לסרטון או לפלייליסט (YouTube ואתרים רבים נוספים),ok
+button_info,Info,מידע,ok
+tooltip_info,"Show the title, length and formats of the link without downloading (Ctrl+Shift+I)","הצג את הכותרת, האורך והפורמטים של הקישור בלי להוריד (Ctrl+Shift+I)",ok
+label_get,Get,מה להוריד,ok
+label_quality_short,Quality,איכות,ok
+label_format,Format,פורמט,ok
+label_save_to_short,Save to,שמור אל,ok
+action_open_folder,Open folder,פתח תיקייה,ok
+section_more_options,More options,אפשרויות נוספות,ok
+more_options_default,"All off, no speed limit","הכול כבוי, ללא הגבלת מהירות",ok
+summary_subtitles,Subtitles ({langs}),כתוביות ({langs}),ok
+summary_metadata,Metadata,מטא-דאטה,ok
+summary_speed_limit,Speed limit {speed},הגבלת מהירות {speed},ok
+checkbox_subtitles_short,Subtitles,כתוביות,ok
+label_languages,Languages,שפות,ok
+button_choose_subs,Choose...,בחר...,ok
+checkbox_thumbnail_short,Thumbnail,תמונה ממוזערת,ok
+checkbox_metadata_short,"Metadata (description, info.json)","מטא-דאטה (info.json, תיאור)",ok
+checkbox_comments_short,Comments,תגובות,ok
+label_speed_limit_short,Speed limit,הגבלת מהירות,ok
+text_advanced_in_settings,"Browser cookies, proxy, file names and format options are in the Settings tab.","עוגיות מהדפדפן, פרוקסי, שמות קבצים ואפשרויות פורמט נמצאים בלשונית ההגדרות.",ok
+button_open_settings,Open Settings,פתח הגדרות,ok
+button_batch_links,Batch links...,קישורים מרובים...,ok
+button_add_to_queue_short,Add to queue,הוסף לתור,ok
+button_download,Download,הורד,ok
+tooltip_download_button,"Download this link now (Enter or Ctrl+D). It starts at once, also when the queue is paused. If the maximum number of downloads already runs, it starts next.","הורד את הקישור עכשיו (Enter או Ctrl+D). ההורדה מתחילה מיד, גם כשהתור מושהה. אם כבר פועל המספר המרבי של הורדות, היא תתחיל ראשונה כשיתפנה מקום.",ok
+tooltip_add_to_queue_button,Add this link to the end of the queue (Ctrl+Shift+Q). It waits its turn and does not start while the queue is paused.,הוסף את הקישור לסוף התור (Ctrl+Shift+Q). ההורדה ממתינה לתורה ולא מתחילה כשהתור מושהה.,ok
+error_link_empty,Paste a link first.,הדבק קישור קודם.,ok
+error_link_invalid,This is not a valid link. A link starts with {http} or {https}.,זה לא קישור תקין. קישור מתחיל ב-{http} או ב-{https}.,ok
+error_folder_invalid,This folder does not exist or is not writable. Choose another folder with Browse.,התיקייה לא קיימת או שאין הרשאה לכתוב בה. בחר תיקייה אחרת בעזרת עיון.,ok
+status_download_started,Download started.,ההורדה התחילה.,ok
+status_download_next,The download starts as soon as a running download finishes.,ההורדה תתחיל מיד כשאחת ההורדות הפעילות תסתיים.,ok
+status_added_to_queue,Added to the queue at position {position}.,נוסף לתור במקום {position}.,ok
+status_added_paused,Added to the queue at position {position}. The queue is paused: press Start in the Queue tab.,נוסף לתור במקום {position}. התור מושהה: לחץ על התחל בלשונית התור.,ok
+status_videos_added,Added {count} videos to the queue.,{count} סרטונים נוספו לתור.,ok
+status_batch_added,Added {count} links to the queue.,{count} קישורים נוספו לתור.,ok
+msg_playlist_choice,"This link is a {platform} playlist.
+
+Choose videos to pick the ones you want, or add the whole playlist as one download.","הקישור הזה הוא פלייליסט של {platform}.
+
+בחר סרטונים כדי לבחור רק את מה שאתה רוצה, או הוסף את כל הפלייליסט כהורדה אחת.",ok
+button_choose_videos,Choose videos...,בחר סרטונים...,ok
+button_whole_playlist,Whole playlist,כל הפלייליסט,ok
+section_activity_log,Activity log,יומן פעילות,ok
+group_now_downloading,Now downloading,מוריד עכשיו,ok
+now_empty,Nothing is downloading. Paste a link above to start.,אין הורדות פעילות. הדבק קישור למעלה כדי להתחיל.,ok
+now_empty_paused,"Nothing is downloading. The queue is paused, {count} waiting.","אין הורדות פעילות. התור מושהה, {count} הורדות ממתינות.",ok
+now_starting,Starting...,מתחיל...,ok
+now_processing,Processing...,מעבד...,ok
+now_time_left,{time} left,נותרו {time},ok
+now_progress_accessible,{title}: {percent},{title}: {percent},missing
+button_open_queue,Open queue,פתח את התור,ok
+tooltip_open_queue,Go to the Queue tab,עבור ללשונית התור,ok
+summary_downloading,{count} downloading,{count} בהורדה,ok
+summary_waiting,{count} waiting,{count} ממתינות,ok
+summary_failed,{count} failed,{count} נכשלו,ok
+summary_done,{count} done,{count} הושלמו,ok
+summary_paused,queue paused,התור מושהה,ok
+summary_queue_empty,The queue is empty,התור ריק,ok
+status_bar_idle,Idle,לא פעיל,ok
+status_bar_downloading,Downloading {active} of {total},מוריד {active} מתוך {total},ok
+status_bar_paused,"Queue paused, {count} waiting","התור מושהה, {count} ממתינות",ok
+button_start,Start,התחל,ok
+button_pause,Pause,השהה,ok
+button_stop_all_short,Stop all,עצור הכול,ok
+tooltip_start_queue,Start the waiting downloads. New links then start on their own.,התחל את ההורדות הממתינות. מעכשיו קישורים חדשים יתחילו מעצמם.,ok
+tooltip_pause_queue,"Let the running downloads finish, but start no new ones. Use Start to continue.","ההורדות הפעילות יסתיימו, אבל הורדות חדשות לא יתחילו. לחץ על התחל כדי להמשיך.",ok
+tooltip_stop_all,Cancel the running downloads and pause the queue. Waiting downloads stay in the queue.,בטל את ההורדות הפעילות והשהה את התור. ההורדות הממתינות נשארות בתור.,ok
+dialog_stop_all,Stop all downloads?,לעצור את כל ההורדות?,ok
+msg_stop_all_confirm,"Downloads running: {count}.
+
+Cancel them and pause the queue?","הורדות פעילות: {count}.
+
+לבטל אותן ולהשהות את התור?",ok
+col_time_left,Time left,זמן נותר,ok
+action_open_file,Open file,פתח קובץ,ok
+tooltip_open_task_folder,Open the folder of the selected download,פתח את התיקייה של ההורדה שנבחרה,ok
+tooltip_retry_task,Try the selected failed download again,נסה שוב את ההורדה שנכשלה,ok
+tooltip_cancel_task,Cancel the selected download. A waiting download is removed.,בטל את ההורדה שנבחרה. הורדה ממתינה תוסר מהתור.,ok
+button_move_up_short,Up,למעלה,ok
+button_move_down_short,Down,למטה,ok
+tooltip_move_up,Move the selected download up (Ctrl+Up),הזז את ההורדה שנבחרה למעלה (Ctrl+Up),ok
+tooltip_move_down,Move the selected download down (Ctrl+Down),הזז את ההורדה שנבחרה למטה (Ctrl+Down),ok
+tooltip_remove_task,Remove the selected download from the queue (Delete),הסר את ההורדה שנבחרה מהתור (Delete),ok
+button_retry_failed,Retry failed,נסה שוב את הכושלות,ok
+button_clear_finished,Clear finished,נקה הורדות שהסתיימו,ok
+tooltip_clear_finished,Remove finished downloads from the queue. The files stay on disk.,הסר מהתור הורדות שהסתיימו. הקבצים נשארים בדיסק.,ok
+menu_clear_completed,Completed downloads,הורדות שהושלמו,ok
+menu_clear_failed,Failed downloads,הורדות שנכשלו,ok
+menu_clear_cancelled,Cancelled downloads,הורדות שבוטלו,ok
+menu_copy_link,Copy link,העתק קישור,ok
+menu_show_error,Show error details,הצג פרטי שגיאה,ok
+dialog_remove_task,Remove download?,להסיר את ההורדה?,ok
+msg_remove_downloading,This download is running. Cancel it and remove it from the queue?,ההורדה הזאת פעילה. לבטל אותה ולהסיר אותה מהתור?,ok
+msg_remove_waiting,Remove this waiting download from the queue?,להסיר את ההורדה הממתינה מהתור?,ok
+status_removing,Cancelling the download. It leaves the queue when it has stopped.,מבטל את ההורדה. היא תוסר מהתור כשתיעצר.,ok
+status_removed,Removed from the queue.,הוסר מהתור.,ok
+status_cleared_tasks,Removed {count} downloads from the queue.,{count} הורדות הוסרו מהתור.,ok
+status_retrying,Trying {count} downloads again.,מנסה שוב {count} הורדות.,ok
+status_link_copied,Link copied.,הקישור הועתק.,ok
+tooltip_queue_task,"{title}
+Link: {url}
+Folder: {folder}
+Quality: {quality}","{title}
+קישור: {url}
+תיקייה: {folder}
+איכות: {quality}",ok
+text_title_unknown,Title not known yet,הכותרת עדיין לא ידועה,ok
+tooltip_task_failed,"{reason}
+Double-click or right-click for details.","{reason}
+לחץ פעמיים או לחץ לחיצה ימנית לפרטים.",ok
+tooltip_waiting_paused,Waiting. The queue is paused.,ממתין. התור מושהה.,ok
+button_go_to_download,Go to Download,עבור להורדה,ok
+history_summary,"{total} downloads: {done} done, {failed} failed, {cancelled} cancelled, {size} in total","{total} הורדות, הושלמו: {done}, נכשלו: {failed}, בוטלו: {cancelled}, בסך הכול: {size}",ok
+history_summary_tooltip,"Success rate: {rate}
+Average speed: {speed}","שיעור הצלחה: {rate}
+מהירות ממוצעת: {speed}",ok
+placeholder_search_title_link,Search title or link...,חפש לפי כותרת או קישור...,ok
+filter_status,Status filter,סינון לפי מצב,ok
+filter_all_statuses,All statuses,כל המצבים,ok
+history_no_matches,No matches,אין תוצאות,ok
+history_no_matches_hint,Try another search word or status.,נסה מילת חיפוש אחרת או מצב אחר.,ok
+tooltip_history_link,Link: {url},קישור: {url},ok
+tooltip_history_error,Error: {reason},שגיאה: {reason},ok
+menu_download_again,Download again,הורד שוב,ok
+button_open_downloads_folder,Open downloads folder,פתח את תיקיית ההורדות,ok
+button_clear_menu,Clear,נקה,ok
+tooltip_clear_history,Remove entries from the history. Downloaded files stay on disk.,הסר רשומות מההיסטוריה. הקבצים שהורדו נשארים בדיסק.,ok
+menu_clear_history_completed,Clear completed,נקה הורדות שהושלמו,ok
+menu_clear_history_failed,Clear failed,נקה הורדות שנכשלו,ok
+menu_clear_history_all,Clear all history,נקה את כל ההיסטוריה,ok
+status_history_exported,History saved to {path}.,ההיסטוריה נשמרה ב-{path}.,ok
+status_history_cleared,Removed {count} entries from the history.,{count} רשומות הוסרו מההיסטוריה.,ok
+status_link_in_download_tab,"The link is in the Download tab. Check the options, then press Download.",הקישור נמצא בלשונית ההורדה. בדוק את האפשרויות ולחץ על הורד.,ok
+format_video_mp4,MP4 (Best Compatibility),MP4 (תאימות מרבית),ok
+format_video_mkv,MKV (Matroska),MKV (Matroska),missing
+format_video_webm,WebM,WebM,missing
+format_video_auto,Auto (Best Quality),אוטומטי (איכות מיטבית),ok
+format_audio_mp3,MP3 (Most Compatible),MP3 (תאימות מרבית),ok
+format_audio_m4a,M4A/AAC (High Quality),M4A/AAC (איכות גבוהה),ok
+format_audio_opus,OPUS (Best Quality/Size),OPUS (איכות וגודל מיטביים),ok
+format_audio_flac,FLAC (Lossless),FLAC (ללא אובדן איכות),ok
+format_audio_wav,WAV (Uncompressed),WAV (ללא דחיסה),ok
+format_audio_vorbis,Vorbis/OGG,Vorbis/OGG,missing
+log_started,Started: {title},התחיל: {title},ok
+log_finished,Finished: {filename},הסתיים: {filename},ok
+log_stopped,Stopped: {error},נעצר: {error},ok
+log_pasted,Pasted from clipboard: {text}...,הודבק מהלוח: {text}...,ok
+log_auto_detected_url,Auto-detected URL from clipboard,זוהה קישור בלוח,ok
+log_mode_audio,Audio-only mode: select quality and format,מצב אודיו בלבד: בחר איכות ופורמט,ok
+log_mode_video,Video mode: select quality and format,מצב וידאו: בחר איכות ופורמט,ok
+log_quality_selected,Quality selected: {quality} - {description},נבחרה איכות: {quality} - {description},ok
+log_output_dir_changed,Output directory changed to: {directory},תיקיית ההורדה שונתה אל: {directory},ok
+log_opened_dir,Opened directory: {directory},נפתחה התיקייה: {directory},ok
+log_added_to_queue,Added to queue at position {position}: {url},נוסף לתור במקום {position}: {url},ok
+log_already_fetching_video,"Already fetching video info, please wait...","מידע על סרטון כבר בהבאה, אנא המתן...",ok
+log_already_fetching_playlist,"Already fetching playlist info, please wait...","מידע על פלייליסט כבר בהבאה, אנא המתן...",ok
+log_fetching_video_info,Fetching video info: {url},מביא מידע על הסרטון: {url},ok
+log_detected_playlist,"Detected {platform} playlist, fetching info...","זוהה פלייליסט של {platform}, מביא מידע...",ok
+log_video_info_fetched,Video info fetched: {title},המידע על הסרטון התקבל: {title},ok
+log_video_info_failed,Failed to fetch video info: {error},הבאת המידע על הסרטון נכשלה: {error},ok
+log_playlist_fetched,Playlist fetched: {title} ({count} videos),הפלייליסט התקבל: {title} ({count} סרטונים),ok
+log_playlist_fetched_one,Playlist fetched: {title} (1 video),הפלייליסט התקבל: {title} (סרטון אחד),ok
+log_playlist_failed,Failed to fetch playlist info: {error},הבאת המידע על הפלייליסט נכשלה: {error},ok
+log_no_videos_selected,No videos selected from playlist,לא נבחרו סרטונים מהפלייליסט,ok
+log_added_videos,Added {count} videos to queue,נוספו {count} סרטונים לתור,ok
+log_added_videos_one,Added 1 video to queue,נוסף סרטון אחד לתור,ok
+log_added_videos_subs,Added {count} videos to queue (subtitles: {langs}),נוספו {count} סרטונים לתור (כתוביות: {langs}),ok
+log_added_videos_subs_one,Added 1 video to queue (subtitles: {langs}),נוסף סרטון אחד לתור (כתוביות: {langs}),ok
+log_fetching_subs,Fetching available subtitles for: {url},מביא כתוביות זמינות עבור: {url},ok
+log_no_subs_found,No subtitles found for this video,לא נמצאו כתוביות לסרטון הזה,ok
+log_selected_subs,Selected {count} subtitle languages: {langs},נבחרו {count} שפות כתוביות: {langs},ok
+log_selected_subs_one,Selected 1 subtitle language: {langs},נבחרה שפת כתוביות אחת: {langs},ok
+log_no_subs_selected,No subtitles selected,לא נבחרו כתוביות,ok
+log_batch_added,Batch: Added {count} URLs to queue,קישורים מרובים: נוספו {count} קישורים לתור,ok
+log_batch_added_one,Batch: Added 1 URL to queue,קישורים מרובים: נוסף קישור אחד לתור,ok
+log_url_dropped,URL dropped: {text}...,הקישור נגרר: {text}...,ok
+log_level_error,ERROR,שגיאה,ok
+log_level_success,SUCCESS,הצלחה,ok
+log_level_info,INFO,מידע,ok
+log_level_warning,WARNING,אזהרה,ok
+summary_waiting_one,{count} waiting,{count} ממתינה,ok
+summary_failed_one,{count} failed,{count} נכשלה,ok
+summary_done_one,{count} done,{count} הושלמה,ok
+status_bar_paused_one,"Queue paused, {count} waiting","התור מושהה, {count} ממתינה",ok
+now_empty_paused_one,"Nothing is downloading. The queue is paused, {count} waiting.","אין הורדות פעילות. התור מושהה, הורדה אחת ממתינה.",ok
+status_cleared_tasks_one,Removed {count} download from the queue.,הורדה אחת הוסרה מהתור.,ok
+status_retrying_one,Trying {count} download again.,מנסה שוב הורדה אחת.,ok
+status_history_cleared_one,Removed {count} entry from the history.,רשומה אחת הוסרה מההיסטוריה.,ok
+msg_all_urls_valid_one,The URL is valid.,כתובת ה-URL תקינה.,ok
+status_videos_added_one,Added {count} video to the queue.,סרטון אחד נוסף לתור.,ok
+status_batch_added_one,Added {count} link to the queue.,קישור אחד נוסף לתור.,ok
+history_summary_one,"{total} download: {done} done, {failed} failed, {cancelled} cancelled, {size} in total","הורדה אחת, הושלמו: {done}, נכשלו: {failed}, בוטלו: {cancelled}, בסך הכול: {size}",ok
+errcat_network_title,Network Error,שגיאת רשת,ok
+errcat_network_message,Unable to connect to the internet or the video server.,לא ניתן להתחבר לאינטרנט או לשרת הסרטון.,ok
+errcat_network_suggestions,"• Check your internet connection
+• Verify the URL is accessible in your browser
+• Try again in a few moments
+• Check if a firewall or VPN is blocking access","• בדוק את חיבור האינטרנט
+• ודא שהכתובת נפתחת בדפדפן
+• נסה שוב בעוד כמה רגעים
+• בדוק אם חומת אש או VPN חוסמים את הגישה",ok
+errcat_url_invalid_title,Invalid URL,כתובת לא תקינה,ok
+errcat_url_invalid_message,The URL you entered is not valid or not supported.,הכתובת שהזנת אינה תקינה או שאינה נתמכת.,ok
+errcat_url_invalid_suggestions,"• Make sure you copied the complete URL
+• Check if the URL starts with http:// or https://
+• Verify the site is supported by yt-dlp
+• Try clicking 'Show Info' to test the URL first","• ודא שהעתקת את הכתובת המלאה
+• בדוק שהכתובת מתחילה ב-http:// או ב-https://
+• ודא שהאתר נתמך על ידי yt-dlp
+• נסה ללחוץ על 'מידע' כדי לבדוק את הכתובת קודם",ok
+errcat_video_unavailable_title,Video Unavailable,הסרטון לא זמין,ok
+errcat_video_unavailable_message,The video is no longer available or doesn't exist.,הסרטון כבר לא זמין או שאינו קיים.,ok
+errcat_video_unavailable_suggestions,"• The video may have been deleted by the uploader
+• The URL might be incorrect or expired
+• Try refreshing the page in your browser
+• Check if the video is still accessible online","• ייתכן שהמעלה מחק את הסרטון
+• ייתכן שהכתובת שגויה או שפג תוקפה
+• נסה לרענן את הדף בדפדפן
+• בדוק אם הסרטון עדיין זמין באינטרנט",ok
+errcat_geo_blocked_title,Geo-Restricted Content,תוכן מוגבל לפי אזור,ok
+errcat_geo_blocked_message,This video is not available in your region.,הסרטון הזה אינו זמין באזור שלך.,ok
+errcat_geo_blocked_suggestions,"• The video may be restricted to certain countries
+• You might need a VPN to access this content
+• Check if the video is available in your browser
+• Try a different video or source","• ייתכן שהסרטון מוגבל למדינות מסוימות
+• ייתכן שתצטרך VPN כדי לגשת לתוכן הזה
+• בדוק אם הסרטון זמין בדפדפן
+• נסה סרטון או מקור אחר",ok
+errcat_copyright_title,Copyright Restriction,הגבלת זכויות יוצרים,ok
+errcat_copyright_message,This video has been removed due to copyright claims.,הסרטון הזה הוסר בעקבות תביעת זכויות יוצרים.,ok
+errcat_copyright_suggestions,"• The video violated copyright or terms of service
+• It has been removed by the platform or uploader
+• This content cannot be downloaded
+• Look for alternative sources","• הסרטון הפר זכויות יוצרים או תנאי שירות
+• הפלטפורמה או המעלה הסירו אותו
+• אי אפשר להוריד את התוכן הזה
+• חפש מקורות חלופיים",ok
+errcat_private_title,Private or Login Required,פרטי או דורש התחברות,ok
+errcat_private_message,This video is private or requires authentication.,הסרטון הזה פרטי או דורש אימות.,ok
+errcat_private_suggestions,"• The video may be set to private
+• You might need to be logged in to access it
+• Check if you can view it in your browser when logged in
+• Contact the video owner for access","• ייתכן שהסרטון מוגדר כפרטי
+• ייתכן שתצטרך להתחבר כדי לגשת אליו
+• בדוק אם אפשר לצפות בו בדפדפן כשאתה מחובר
+• בקש גישה מבעל הסרטון",ok
+errcat_format_title,Format Error,שגיאת פורמט,ok
+errcat_format_message,There was an issue with the video or audio format.,הייתה בעיה בפורמט הווידאו או האודיו.,ok
+errcat_format_suggestions,"• Try a different quality setting
+• The video format may not be compatible
+• Check if 'Best Quality' works better
+• Try downloading audio only first","• נסה הגדרת איכות אחרת
+• ייתכן שפורמט הסרטון אינו תואם
+• בדוק אם 'איכות מיטבית' עובד טוב יותר
+• נסה להוריד קודם אודיו בלבד",ok
+errcat_disk_space_title,Insufficient Disk Space,אין מספיק מקום בדיסק,ok
+errcat_disk_space_message,There is not enough space to download this file.,אין מספיק מקום להורדת הקובץ הזה.,ok
+errcat_disk_space_suggestions,"• Free up disk space on your drive
+• Choose a different download location
+• Delete unnecessary files
+• Try downloading a lower quality version","• פנה מקום בכונן
+• בחר תיקיית הורדה אחרת
+• מחק קבצים מיותרים
+• נסה להוריד גרסה באיכות נמוכה יותר",ok
+errcat_permission_title,Permission Denied,ההרשאה נדחתה,ok
+errcat_permission_message,Cannot write to the selected download directory.,אי אפשר לכתוב לתיקיית ההורדה שנבחרה.,ok
+errcat_permission_suggestions,"• Choose a different download folder
+• Check folder permissions
+• Try saving to your Downloads folder
+• Run the application as administrator (Windows)","• בחר תיקיית הורדה אחרת
+• בדוק את הרשאות התיקייה
+• נסה לשמור בתיקיית ההורדות שלך
+• הפעל את התוכנה כמנהל (Windows)",ok
+errcat_unknown_title,Download Failed,ההורדה נכשלה,ok
+errcat_unknown_message,"An error occurred during download:
+
+{detail}","אירעה שגיאה במהלך ההורדה:
+
+{detail}",ok
+errcat_unknown_suggestions,"• Try downloading again
+• Check the log for more details
+• Try a different quality setting
+• Verify the URL is still valid","• נסה להוריד שוב
+• בדוק את היומן לפרטים נוספים
+• נסה הגדרת איכות אחרת
+• ודא שהכתובת עדיין תקינה",ok
+quality_desc_best,Best available quality (video+audio or VBR audio) - No limits,"האיכות הטובה ביותר שזמינה (וידאו ואודיו, או אודיו VBR) - ללא הגבלה",ok
+quality_desc_8k,"Ultra HD 8K (7680x4320) - Extreme quality, very large files","Ultra HD 8K (7680x4320) - איכות קיצונית, קבצים גדולים מאוד",ok
+quality_desc_4k,"Ultra HD 4K (3840x2160) - Excellent quality, large files","Ultra HD 4K (3840x2160) - איכות מצוינת, קבצים גדולים",ok
+quality_desc_2k,"Quad HD (2560x1440) - Great quality, moderate file size","Quad HD (2560x1440) - איכות גבוהה מאוד, גודל קובץ בינוני",ok
+quality_desc_1080p,Full HD (1920x1080) - Recommended for most devices,Full HD (1920x1080) - מומלץ לרוב המכשירים,ok
+quality_desc_720p,"HD (1280x720) - Good quality, smaller file size","HD (1280x720) - איכות טובה, קובץ קטן יותר",ok
+quality_desc_480p,Standard definition (854x480) - Faster downloads,רזולוציה רגילה (854x480) - הורדות מהירות יותר,ok
+quality_desc_360p,Low resolution (640x360) - Smallest file size,רזולוציה נמוכה (640x360) - הקובץ הקטן ביותר,ok
+quality_desc_audio_320,Highest fixed quality - Near CD quality (320kbps),האיכות הקבועה הגבוהה ביותר - קרוב לאיכות דיסק (320kbps),ok
+quality_desc_audio_256,Very high quality - Excellent for music (256kbps),איכות גבוהה מאוד - מצוין למוזיקה (256kbps),ok
+quality_desc_audio_192,High quality - Good balance (192kbps),איכות גבוהה - איזון טוב (192kbps),ok
+quality_desc_audio_128,Standard quality - Smaller file size (128kbps),איכות רגילה - קובץ קטן יותר (128kbps),ok
+quality_desc_none,No description available,אין תיאור זמין,ok
+text_unknown_title,Unknown Title,כותרת לא ידועה,ok
+text_unknown_playlist,Unknown Playlist,פלייליסט לא ידוע,ok
+text_unknown_label,Unknown,לא ידוע,ok
+filter_text_files,Text Files (*.txt);;All Files (*.*),קבצי טקסט (*.txt);;כל הקבצים (*.*),ok
+error_download_stopped,Download stopped unexpectedly,ההורדה נעצרה באופן לא צפוי,ok
+language_name_en,English,אנגלית,ok
+language_name_es,Spanish,ספרדית,ok
+language_name_fr,French,צרפתית,ok
+language_name_de,German,גרמנית,ok
+language_name_it,Italian,איטלקית,ok
+language_name_pt,Portuguese,פורטוגזית,ok
+language_name_ru,Russian,רוסית,ok
+language_name_ja,Japanese,יפנית,ok
+language_name_ko,Korean,קוריאנית,ok
+language_name_zh,Chinese,סינית,ok
+language_name_zh_hans,Chinese (Simplified),סינית (מפושטת),ok
+language_name_zh_hant,Chinese (Traditional),סינית (מסורתית),ok
+language_name_ar,Arabic,ערבית,ok
+language_name_hi,Hindi,הינדית,ok
+language_name_he,Hebrew,עברית,ok
+language_name_nl,Dutch,הולנדית,ok
+language_name_pl,Polish,פולנית,ok
+language_name_tr,Turkish,טורקית,ok
+language_name_sv,Swedish,שוודית,ok
+language_name_da,Danish,דנית,ok
+language_name_no,Norwegian,נורווגית,ok
+language_name_fi,Finnish,פינית,ok
+language_name_cs,Czech,צ'כית,ok
+language_name_el,Greek,יוונית,ok
+language_name_hu,Hungarian,הונגרית,ok
+language_name_ro,Romanian,רומנית,ok
+language_name_th,Thai,תאית,ok
+language_name_vi,Vietnamese,וייטנאמית,ok
+language_name_id,Indonesian,אינדונזית,ok
+language_name_uk,Ukrainian,אוקראינית,ok

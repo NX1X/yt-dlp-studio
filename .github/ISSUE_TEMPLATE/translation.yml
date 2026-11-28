@@ -1,0 +1,66 @@
+name: Translation
+description: Send a translation of YT-DLP Studio into your language
+title: "[Translation]: "
+labels: ["translation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for translating YT-DLP Studio!
+
+        Read the [translation guide](https://github.com/NX1X/yt-dlp-studio/blob/main/docs/TRANSLATING.md) first. You do not need to write code. Fill in the spreadsheet from the `translations` folder, and attach it here.
+
+  - type: input
+    id: language
+    attributes:
+      label: Language
+      description: The name of the language, in English and in the language itself.
+      placeholder: "Spanish / Español"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: native_speaker
+    attributes:
+      label: Are you a native speaker of this language?
+      options:
+        - "Yes"
+        - "No"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: file_kind
+    attributes:
+      label: What did you work on?
+      options:
+        - A new language (from template.csv)
+        - An update of a language that is already in the app
+    validations:
+      required: true
+
+  - type: textarea
+    id: csv_file
+    attributes:
+      label: CSV file
+      description: Drag the file here to attach it. If GitHub does not accept a `.csv` file, zip it and attach the `.zip`.
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Texts you were not sure about, or words you could not translate. Say if the language is written right to left.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I kept every `{placeholder}` as it is
+          required: true
+        - label: I saved the file as UTF-8 CSV
+          required: true

@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **File name templates:** "Title_Quality" (the default, as before), "Uploader - Title", "Date - Title" or a custom yt-dlp template. A custom template must end with `.%(ext)s` and must be a file name only. Duplicate numbering (" (1)") still works with every template.
 - **Format options:** a preferred video codec (H.264, H.265/HEVC, VP9, AV1) and audio codec (AAC, Opus, Vorbis) for video downloads, through yt-dlp's format sorting. A custom yt-dlp format string replaces the quality and codec choices when set.
 - **A clear message when a video needs a signed-in account,** instead of yt-dlp's hint about command-line options.
+- **Add a language without code changes.** The Settings language list now comes from the languages in `src/utils/translations.py`, with names and reading direction in a small table. Hebrew, Arabic, Persian, Urdu and Yiddish get the right-to-left layout and the mark fix for closing parentheses. A text that a language does not have yet falls back to English, and Qt's own `qtbase_<lang>.qm` is loaded when it exists. `scripts/i18n_export.py` and `scripts/i18n_import.py` take `--lang`, and `--new` adds a language. The `translations/` folder holds a CSV file per language and an empty `template.csv`, kept up to date by a test.
+- **A translation guide for non-developers** in docs/TRANSLATING.md, a "Translation" issue template, and a "Languages" section in the README.
 
 ### Changed
 
