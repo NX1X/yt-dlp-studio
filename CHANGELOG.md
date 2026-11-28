@@ -16,7 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no entries yet)_
+### Added
+
+- **Automatic winget update PR.** After each release, a new `winget` job in `release.yml` runs Microsoft's `wingetcreate` and opens an update PR for `NX1X.YTDLPStudio` in `microsoft/winget-pkgs`. It skips with a notice when the `WINGET_TOKEN` secret is not set or the package is not in winget yet. A manual run with a `version` input re-submits a release. Setup steps are in `docs/DEVELOPMENT.md`.
 
 ---
 

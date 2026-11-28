@@ -4,6 +4,14 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      version:
+        description: >-
+          Re-submit this released version (for example 0.5.0, no leading v) to
+          winget. Leave empty for the normal release flow.
+        required: false
+        type: string
+        default: ""
 
 # Least-privilege default; jobs widen scope only where required.
 permissions:
@@ -792,3 +800,122 @@ jobs:
         make_latest: ${{ needs.check-version.outputs.is_prerelease == 'true' && 'false' || 'true' }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Opens a winget-pkgs update PR for the installer that create-release just
+  # published. Needs no repo write access: the only credential is the
+  # WINGET_TOKEN secret (a classic PAT with public_repo), handed to wingetcreate
+  # alone. It never fails the release: every skip path ends in success, and the
+  # submit step only warns on error. Setup steps: docs/DEVELOPMENT.md.
+  winget:
+    name: Submit winget update
+    needs: [check-version, create-release]
+    # always(): also run on a manual re-submit, when create-release is skipped.
+    if: >-
+      ${{ always() && !cancelled() && (needs.create-release.result == 'success'
+      || (github.event_name == 'workflow_dispatch' && inputs.version != '')) }}
+    runs-on: windows-2025
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      # Official Microsoft release: https://github.com/microsoft/winget-create
+      # Published 2026-11-11. SHA-256 taken from the GitHub release asset digest
+      # and checked against a local download of wingetcreate.exe.
+      # Bump version and hash together, in one commit.
+      WINGETCREATE_VERSION: "1.28.1.0"
+      WINGETCREATE_SHA256: "63d980ba79e97042395bd6eb5992c2db9e01e9e7a8a22958a95c288f27310413"
+      WINGET_PACKAGE_ID: "NX1X.YTDLPStudio"
+    steps:
+    - name: Harden runner
+      # StepSecurity harden-runner: per-job egress allowlist in `block` mode.
+      # github.com + the two download hosts: wingetcreate.exe and the installer.
+      # api.github.com: package check, fork, branch and PR calls. The list for
+      # the submit step itself is from the wingetcreate docs; check the
+      # harden-runner log of the first real run and trim or extend it.
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+      with:
+        egress-policy: block
+        disable-sudo: true
+        allowed-endpoints: >
+          api.github.com:443
+          github.com:443
+          objects.githubusercontent.com:443
+          raw.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          aka.ms:443
+          cdn.winget.microsoft.com:443
+
+    - name: Decide whether to submit
+      id: gate
+      shell: pwsh
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        TAG_VERSION: ${{ needs.check-version.outputs.version }}
+        HAS_TOKEN: ${{ secrets.WINGET_TOKEN != '' }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $version = if ($env:INPUT_VERSION) { $env:INPUT_VERSION } else { $env:TAG_VERSION }
+        $version = $version.TrimStart('v')
+        if ($version -notmatch '^\d+\.\d+\.\d+$') {
+          # Also covers pre-releases such as 1.0.0-rc.1: not sent to winget.
+          Write-Host "::notice::skip: version '$version' is not a plain release version"
+          "run=false" >> $env:GITHUB_OUTPUT
+          exit 0
+        }
+        if ($env:HAS_TOKEN -ne 'true') {
+          Write-Host "::notice::skip: no token (repository secret WINGET_TOKEN is not set)"
+          "run=false" >> $env:GITHUB_OUTPUT
+          exit 0
+        }
+        $pkg = $env:WINGET_PACKAGE_ID
+        $parts = $pkg.Split('.')
+        $first = $parts[0].Substring(0, 1).ToLower()
+        $url = "https://api.github.com/repos/microsoft/winget-pkgs/contents/manifests/$first/$($parts -join '/')"
+        $resp = Invoke-WebRequest -Uri $url -SkipHttpErrorCheck -Headers @{
+          Authorization = "Bearer $env:GH_TOKEN"
+          Accept = 'application/vnd.github+json'
+        }
+        if ($resp.StatusCode -eq 404) {
+          Write-Host "::notice::skip: package not in winget yet ($pkg has no manifest in microsoft/winget-pkgs)"
+          "run=false" >> $env:GITHUB_OUTPUT
+          exit 0
+        }
+        if ($resp.StatusCode -ne 200) {
+          Write-Host "::warning::skip: package check returned HTTP $($resp.StatusCode)"
+          "run=false" >> $env:GITHUB_OUTPUT
+          exit 0
+        }
+        "run=true" >> $env:GITHUB_OUTPUT
+        "version=$version" >> $env:GITHUB_OUTPUT
+
+    - name: Download wingetcreate
+      if: steps.gate.outputs.run == 'true'
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $url = "https://github.com/microsoft/winget-create/releases/download/v$env:WINGETCREATE_VERSION/wingetcreate.exe"
+        $out = Join-Path $env:RUNNER_TEMP 'wingetcreate.exe'
+        Invoke-WebRequest -Uri $url -OutFile $out
+        $actual = (Get-FileHash -Algorithm SHA256 -Path $out).Hash.ToLower()
+        if ($actual -ne $env:WINGETCREATE_SHA256) {
+          throw "wingetcreate.exe SHA-256 mismatch: got $actual"
+        }
+        Write-Host "wingetcreate $env:WINGETCREATE_VERSION verified"
+
+    - name: Submit update to winget-pkgs
+      if: steps.gate.outputs.run == 'true'
+      # A failed submit must not turn the release run red; it warns instead.
+      continue-on-error: true
+      shell: pwsh
+      env:
+        VERSION: ${{ steps.gate.outputs.version }}
+        WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+      run: |
+        $installer = "https://github.com/NX1X/yt-dlp-studio/releases/download/v$env:VERSION/YT-DLP-Studio-Setup-$env:VERSION.exe"
+        $exe = Join-Path $env:RUNNER_TEMP 'wingetcreate.exe'
+        & $exe update $env:WINGET_PACKAGE_ID --version $env:VERSION --urls "$installer|x64|user" --submit --token $env:WINGET_TOKEN
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "::warning::winget submit failed (exit $LASTEXITCODE). Re-run with workflow_dispatch and the version input."
+          exit 1
+        }
