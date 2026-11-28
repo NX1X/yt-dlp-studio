@@ -21,14 +21,15 @@ REDACTED = "[REDACTED]"
 
 # Patterns that catch the most common ways a credential ends up in a
 # Python traceback, an exception message, or a log line:
-#   1. Userinfo embedded in a URL: ``https://user:pass@host/...``
+#   1. Userinfo embedded in a URL: ``https://user:pass@host/...``, also for
+#      proxy schemes such as ``socks5://user:pass@host:1080``.
 #   2. ``Bearer <token>`` / ``Basic <token>`` HTTP headers.
 #   3. ``api_key`` / ``password`` / ``token`` / ``cookie`` / ``authorization``
 #      key=value patterns, with either ``:`` or ``=`` as the separator.
 #   4. AWS-style access key IDs (``AKIA...``).
 _SECRET_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (
-        re.compile(r"(?P<scheme>https?://)[^/@\s:]+:[^/@\s]+@", re.IGNORECASE),
+        re.compile(r"(?P<scheme>(?:https?|socks[45]?[ah]?)://)[^/@\s:]+:[^/@\s]+@", re.IGNORECASE),
         rf"\g<scheme>{REDACTED}@",
     ),
     # ``Bearer <token>`` / ``Basic <token>`` - the keyword is followed by

@@ -89,6 +89,112 @@ TRANSLATIONS = {
         "button_copy": "Copy",
         "tooltip_copy_path": "Copy this path to the clipboard",
         "msg_path_copied": "Path copied to clipboard.",
+        # Settings tab - Advanced Download Options (0.5.0)
+        "settings_advanced_download": "Advanced Download Options",
+        "button_show_advanced_download": "Show Advanced Download Options",
+        "button_hide_advanced_download": "Hide Advanced Download Options",
+        "tooltip_toggle_advanced_download": "Browser cookies, proxy, file names and format options",
+        "label_cookies_browser": "Use cookies from:",
+        "cookies_browser_none": "None",
+        "tooltip_cookies_browser": (
+            "Read the cookies of a browser, so that private and age-restricted videos can be downloaded. "
+            "Sign in to the site in that browser first."
+        ),
+        "label_cookies_profile": "Browser profile:",
+        "placeholder_cookies_profile": "Optional: profile name or folder",
+        "tooltip_cookies_profile": "Leave empty to use the default profile of the browser.",
+        "text_cookies_privacy": (
+            "Cookies stay on this computer. The app reads them only to give them to yt-dlp for the download. "
+            "It does not save them or write them to the log."
+        ),
+        "label_proxy": "Proxy:",
+        "placeholder_proxy": "socks5://host:1080 (empty = no proxy)",
+        "tooltip_proxy": (
+            "Used for downloads and for video, subtitle and playlist info. Supported types: http, https, "
+            "socks5 and socks5h. A user name and password in the address are saved in the settings file, "
+            "but never written to the log."
+        ),
+        "label_filename_template": "File name:",
+        "filename_preset_title_quality": "Title_Quality (default)",
+        "filename_preset_uploader_title": "Uploader - Title",
+        "filename_preset_date_title": "Date - Title",
+        "filename_preset_custom": "Custom template",
+        "tooltip_filename_template": "How downloaded files are named. A number such as (1) is added if the file exists.",
+        "label_custom_template": "Custom template:",
+        "placeholder_custom_template": "%(title)s [%(id)s].%(ext)s",
+        "tooltip_custom_template": (
+            "A yt-dlp output template. It must end with .%(ext)s and must be a file name only, without folders."
+        ),
+        "label_video_codec": "Video codec:",
+        "label_audio_codec": "Audio codec:",
+        "codec_any": "Any",
+        "tooltip_video_codec": (
+            "Prefer this video codec when the site has it. To get it, the download can use a lower "
+            "resolution, within the chosen quality."
+        ),
+        "tooltip_audio_codec": (
+            "Prefer this audio codec for video downloads. Audio-only downloads use the audio format "
+            "from the Download tab."
+        ),
+        "label_custom_format": "Custom format:",
+        "placeholder_custom_format": "Example: bestvideo[height<=720]+bestaudio",
+        "tooltip_custom_format": (
+            "A yt-dlp format string for advanced users. When set, it replaces the quality and codec choices."
+        ),
+        "text_advanced_applies": "These settings apply to downloads that start after you save.",
+        "error_invalid_advanced_settings": "Invalid Advanced Download Setting",
+        "error_proxy_invalid": (
+            "The proxy address is not valid. Use the form type://host:port, for example socks5://127.0.0.1:1080."
+        ),
+        "error_proxy_scheme": "This proxy type is not supported. Use http, https, socks5 or socks5h.",
+        "error_cookies_profile": "The browser profile is not valid. Use a profile name or folder of at most 260 characters.",
+        "error_template_empty": "The custom file name template is empty.",
+        "error_template_too_long": "The custom file name template is too long. Use at most 200 characters.",
+        "error_template_invalid_char": (
+            "The custom file name template has a character that is not allowed in file names "
+            '(< > : " | ? * $ or a control character).'
+        ),
+        "error_template_path": (
+            'The custom file name template must be a file name only: no folders, "..", drive letters or absolute paths.'
+        ),
+        "error_template_ext": "The custom file name template must end with .%(ext)s.",
+        "error_template_field_syntax": (
+            "The custom file name template has a field that is not written correctly. Write a field as "
+            "%(name)s, and a percent sign as %%."
+        ),
+        "error_template_unknown_field": (
+            "The custom file name template uses a field that the app does not support. Use fields such as "
+            "title, id, uploader, upload_date or height."
+        ),
+        "error_format_too_long": "The custom format is too long. Use at most 500 characters.",
+        "error_format_invalid_char": "The custom format must be one line, without control characters.",
+        "error_format_syntax": "yt-dlp cannot read the custom format. Check the brackets and parentheses.",
+        "cookies_error_app_bound": (
+            "Could not read the cookies from {browser}. Chrome 127 and later (and some other Chromium-based "
+            "browsers) protect their cookies with app-bound encryption, which yt-dlp cannot read. Use Firefox "
+            "for cookies, or set the cookie option in Settings to None."
+        ),
+        "cookies_error_locked": (
+            "Could not read the cookies from {browser}, because {browser} keeps its cookie database locked. "
+            "Close {browser} completely, then try again."
+        ),
+        "cookies_error_not_found": (
+            "No cookies from {browser} were found. Make sure that {browser} is installed, and check the "
+            "browser profile in Settings."
+        ),
+        "cookies_error_generic": "Could not read the cookies from {browser}. The log file has the details.",
+        "cookies_hint_sign_in": (
+            "This video needs a signed-in account (for example a private or age-restricted video). Sign in to "
+            'the site in your browser. Then, in Settings > Advanced Download Options, set "Use cookies from" '
+            "to that browser."
+        ),
+        "cookies_hint_signed_in_browser": (
+            "The site still asks you to sign in. Make sure that you are signed in to the site in {browser}, "
+            "with the profile set in Settings, then try again."
+        ),
+        "proxy_error_connect": (
+            "Could not connect through the proxy. Check the proxy address in Settings > Advanced Download Options."
+        ),
         # About tab - sections and labels
         "about_description": "is a user-friendly graphical interface for yt-dlp, making it easy to download videos from YouTube.",
         "group_about_details": "Details",
@@ -506,6 +612,103 @@ TRANSLATIONS = {
         "button_copy": "העתק",
         "tooltip_copy_path": "העתק נתיב זה ללוח",
         "msg_path_copied": "הנתיב הועתק ללוח.",
+        # לשונית הגדרות - אפשרויות הורדה מתקדמות (0.5.0)
+        "settings_advanced_download": "אפשרויות הורדה מתקדמות",
+        "button_show_advanced_download": "הצג אפשרויות הורדה מתקדמות",
+        "button_hide_advanced_download": "הסתר אפשרויות הורדה מתקדמות",
+        "tooltip_toggle_advanced_download": "עוגיות דפדפן, פרוקסי, שמות קבצים ואפשרויות פורמט",
+        "label_cookies_browser": "השתמש בעוגיות מ:",
+        "cookies_browser_none": "ללא",
+        "tooltip_cookies_browser": (
+            "קרא את העוגיות של דפדפן, כדי שאפשר יהיה להוריד סרטונים פרטיים וסרטונים עם הגבלת גיל. "
+            "התחבר קודם לאתר בדפדפן הזה."
+        ),
+        "label_cookies_profile": "פרופיל דפדפן:",
+        "placeholder_cookies_profile": "רשות: שם פרופיל או תיקייה",
+        "tooltip_cookies_profile": "השאר ריק כדי להשתמש בפרופיל ברירת המחדל של הדפדפן.",
+        "text_cookies_privacy": (
+            "העוגיות נשארות במחשב הזה. התוכנה קוראת אותן רק כדי להעביר אותן ל-yt-dlp עבור ההורדה. "
+            "היא לא שומרת אותן ולא כותבת אותן ליומן."
+        ),
+        "label_proxy": "פרוקסי:",
+        "placeholder_proxy": "socks5://host:1080 (ריק = ללא פרוקסי)",
+        "tooltip_proxy": (
+            "משמש להורדות ולמידע על סרטונים, כתוביות ורשימות השמעה. סוגים נתמכים: http, https, "
+            "socks5 ו-socks5h. שם משתמש וסיסמה בכתובת נשמרים בקובץ ההגדרות, אבל לעולם לא נכתבים ליומן."
+        ),
+        "label_filename_template": "שם קובץ:",
+        "filename_preset_title_quality": "כותרת_איכות (ברירת מחדל)",
+        "filename_preset_uploader_title": "מעלה - כותרת",
+        "filename_preset_date_title": "תאריך - כותרת",
+        "filename_preset_custom": "תבנית מותאמת אישית",
+        "tooltip_filename_template": "איך קבצים שהורדו נקראים. אם הקובץ קיים, נוסף מספר כמו (1).",
+        "label_custom_template": "תבנית מותאמת:",
+        "placeholder_custom_template": "%(title)s [%(id)s].%(ext)s",
+        "tooltip_custom_template": (
+            "תבנית פלט של yt-dlp. היא חייבת להסתיים ב-.%(ext)s ולהיות שם קובץ בלבד, בלי תיקיות."
+        ),
+        "label_video_codec": "קידוד וידאו:",
+        "label_audio_codec": "קידוד שמע:",
+        "codec_any": "כלשהו",
+        "tooltip_video_codec": (
+            "העדף את קידוד הווידאו הזה כשהאתר מציע אותו. כדי לקבל אותו, ההורדה יכולה להשתמש ברזולוציה "
+            "נמוכה יותר, בתוך האיכות שנבחרה."
+        ),
+        "tooltip_audio_codec": (
+            "העדף את קידוד השמע הזה בהורדות וידאו. הורדות שמע בלבד משתמשות בפורמט השמע מלשונית ההורדה."
+        ),
+        "label_custom_format": "פורמט מותאם:",
+        "placeholder_custom_format": "לדוגמה: bestvideo[height<=720]+bestaudio",
+        "tooltip_custom_format": (
+            "מחרוזת פורמט של yt-dlp למשתמשים מתקדמים. כשהיא מוגדרת, היא מחליפה את בחירת האיכות והקידוד."
+        ),
+        "text_advanced_applies": "ההגדרות האלה חלות על הורדות שמתחילות אחרי השמירה.",
+        "error_invalid_advanced_settings": "הגדרת הורדה מתקדמת לא תקינה",
+        "error_proxy_invalid": (
+            "כתובת הפרוקסי לא תקינה. השתמש בצורה type://host:port, לדוגמה socks5://127.0.0.1:1080."
+        ),
+        "error_proxy_scheme": "סוג הפרוקסי הזה לא נתמך. השתמש ב-http, https, socks5 או socks5h.",
+        "error_cookies_profile": "פרופיל הדפדפן לא תקין. השתמש בשם פרופיל או בתיקייה של 260 תווים לכל היותר.",
+        "error_template_empty": "תבנית שם הקובץ המותאמת ריקה.",
+        "error_template_too_long": "תבנית שם הקובץ המותאמת ארוכה מדי. השתמש ב-200 תווים לכל היותר.",
+        "error_template_invalid_char": (
+            'בתבנית שם הקובץ המותאמת יש תו שאסור בשמות קבצים (< > : " | ? * $ או תו בקרה).'
+        ),
+        "error_template_path": (
+            'תבנית שם הקובץ המותאמת חייבת להיות שם קובץ בלבד: בלי תיקיות, "..", אותיות כונן או נתיבים מלאים.'
+        ),
+        "error_template_ext": "תבנית שם הקובץ המותאמת חייבת להסתיים ב-.%(ext)s.",
+        "error_template_field_syntax": (
+            "בתבנית שם הקובץ המותאמת יש שדה שלא נכתב נכון. כתוב שדה בצורה %(name)s, וסימן אחוז בצורה %%."
+        ),
+        "error_template_unknown_field": (
+            "תבנית שם הקובץ המותאמת משתמשת בשדה שהתוכנה לא תומכת בו. השתמש בשדות כמו "
+            "title, id, uploader, upload_date או height."
+        ),
+        "error_format_too_long": "הפורמט המותאם ארוך מדי. השתמש ב-500 תווים לכל היותר.",
+        "error_format_invalid_char": "הפורמט המותאם חייב להיות שורה אחת, בלי תווי בקרה.",
+        "error_format_syntax": "yt-dlp לא יכול לקרוא את הפורמט המותאם. בדוק את הסוגריים.",
+        "cookies_error_app_bound": (
+            "לא ניתן לקרוא את העוגיות מ-{browser}. Chrome 127 ומעלה (וכמה דפדפנים אחרים מבוססי Chromium) "
+            "מגינים על העוגיות שלהם בהצפנה קשורת-אפליקציה, ש-yt-dlp לא יכול לקרוא. השתמש ב-Firefox "
+            "לעוגיות, או קבע את אפשרות העוגיות בהגדרות ל'ללא'."
+        ),
+        "cookies_error_locked": (
+            "לא ניתן לקרוא את העוגיות מ-{browser}, כי {browser} נועל את מסד הנתונים של העוגיות. "
+            "סגור את {browser} לגמרי, ואז נסה שוב."
+        ),
+        "cookies_error_not_found": (
+            "לא נמצאו עוגיות של {browser}. ודא ש-{browser} מותקן, ובדוק את פרופיל הדפדפן בהגדרות."
+        ),
+        "cookies_error_generic": "לא ניתן לקרוא את העוגיות מ-{browser}. הפרטים נמצאים בקובץ היומן.",
+        "cookies_hint_sign_in": (
+            "הסרטון הזה דורש חשבון מחובר (לדוגמה סרטון פרטי או סרטון עם הגבלת גיל). התחבר לאתר בדפדפן "
+            "שלך. אחר כך, בהגדרות > אפשרויות הורדה מתקדמות, קבע את 'השתמש בעוגיות מ' לדפדפן הזה."
+        ),
+        "cookies_hint_signed_in_browser": (
+            "האתר עדיין מבקש להתחבר. ודא שאתה מחובר לאתר ב-{browser}, עם הפרופיל שהוגדר בהגדרות, ואז נסה שוב."
+        ),
+        "proxy_error_connect": ("לא ניתן להתחבר דרך הפרוקסי. בדוק את כתובת הפרוקסי בהגדרות > אפשרויות הורדה מתקדמות."),
         # About tab - sections and labels
         "about_description": "הוא ממשק גרפי ידידותי למשתמש עבור yt-dlp שמקל על הורדת סרטונים מ-YouTube.",
         "group_about_details": "פרטים",
