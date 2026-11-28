@@ -16,7 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no entries yet)_
+### Changed
+
+- **The weekly extractor check now covers TikTok.** It reads the info of one public video from yt-dlp's own tests (no download) on GitHub's runners. A real extraction failure opens or updates its own `extractor-broken` issue, titled for TikTok. A block (IP address blocked, login required, bot check, HTTP 403 or 429) is inconclusive and opens no issue. `scripts/check_extractors.py --site tiktok` refuses to run outside GitHub Actions, so no developer machine contacts TikTok. The job allows `www.tiktok.com` and `tiktok.com` in its network policy.
 
 ---
 
