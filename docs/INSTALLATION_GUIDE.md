@@ -8,7 +8,7 @@ Download all release files from the [Releases page](https://github.com/NX1X/yt-d
 
 | Item | Requirement |
 |------|-------------|
-| Windows | Windows 10 or 11, 64-bit |
+| Windows | 64-bit. Tested on Windows 11. Windows 10 should work but is not tested. |
 | Linux | 64-bit (x86_64), glibc 2.35 or later (Ubuntu 22.04+, Debian 12+, Fedora 36+, Linux Mint 21+, Arch and most distributions from 2022 and later) |
 | macOS | Not supported |
 | Python | Only for a source install: Python 3.11 or later. CI builds and tests on Python 3.14. |
@@ -86,8 +86,6 @@ The AppImage needs no install.
 2. Make the AppImage executable: `chmod +x YT-DLP-Studio-*.AppImage`.
 3. Run the AppImage.
 
-Your desktop may offer to add the AppImage to the app menu.
-
 **Updates:** the app can download the new AppImage. Make the new file executable and start it. You can delete the old AppImage afterwards.
 
 ### Linux archive (.tar.gz)
@@ -124,11 +122,17 @@ The AppImage and the Linux archive need FFmpeg from your distribution. The .deb 
 
 ### Deno
 
-yt-dlp uses Deno to solve YouTube's JavaScript challenges. The Linux builds do not include Deno. Without Deno, the app still works, but YouTube may offer fewer formats. To use Deno, install it from [deno.land](https://deno.land/) and make sure `deno` is on your `PATH`.
+yt-dlp uses Deno to solve YouTube's JavaScript challenges. The Linux builds do not include Deno, and you do not need to install it. The app handles it in this order:
+
+1. If a `deno` program is on your `PATH`, the app uses it.
+2. Otherwise, the app downloads Deno 2.9.8 once, in the background, to `~/.config/YT-DLP Studio/deno/2.9.8/`. It checks the SHA-256 of the download first.
+3. If the download fails, the app still starts and logs a warning. YouTube downloads may then fail or offer fewer formats.
+
+The Windows builds include Deno.
 
 ### Desktop libraries
 
-The Linux builds include Qt. They also need some system libraries, for example libGL, libEGL, libxkbcommon, libdbus, libxcb-cursor, fontconfig and GLib. A desktop environment usually has them. On a minimal or server install, you may need to install them with your package manager. The .deb package lists them as dependencies.
+The Linux builds include Qt. They also need some system libraries, for example libGL, libEGL, libxkbcommon, libdbus, libxcb-cursor, fontconfig and GLib. A desktop environment usually has them. On a minimal or server install, you may need to install them with your package manager. The .deb and .rpm packages list them as dependencies, so your package manager installs them.
 
 ## Run from source
 
@@ -225,16 +229,18 @@ Uninstalling never deletes your downloaded videos. It keeps the app data folder 
 | Linux archive | Run `./uninstall.sh` from the extracted archive. |
 | Source install | Delete the project folder. |
 
-The Windows uninstaller asks if it should also delete your settings, history and logs. The default answer is No. For an unattended uninstall, the data is kept unless you pass `/PURGEDATA=yes`. Removing or purging the .deb or .rpm package keeps the app data folder.
+The Windows uninstaller asks if it should also delete your settings, history and logs. The default answer is No. For an unattended uninstall, the data is kept unless you pass `/PURGEDATA=yes`. Removing or purging the .deb or .rpm package keeps the app data folder. The `uninstall.sh` script removes the program, icons and menu entry from `~/.local`, and keeps the app data folder. Deleting a portable EXE or an AppImage also keeps the app data folder.
 
 ### App data folder
 
-The app data folder holds your settings, language choice, log file, download history, saved queue and crash reports.
+The app data folder holds your settings, language choice, log file, download history, saved queue and crash reports. [USER_GUIDE.md](USER_GUIDE.md#where-your-files-go) lists the file names.
 
 | System | App data folder |
 |--------|-----------------|
 | Windows | `%APPDATA%\YT-DLP Studio` |
 | Linux | `~/.config/YT-DLP Studio` |
+
+On Linux, this folder also holds the Deno copy that the app downloads (`deno/<version>/`).
 
 Versions up to 0.4.0 stored the language choice in `.yt-dlp-studio` in your home folder. The app moves that file into the app data folder on the next start, and deletes the old folder if it is empty.
 
