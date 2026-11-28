@@ -49,11 +49,6 @@ security_fixes=(
   # setuptools 84.1.0: GHSA-xmj3-9gf7-h52w (build tools only). 84.2.0
   # followed 27 minutes later, so the cutoff sits between the two.
   setuptools=2026-10-19T20:20:00Z
-  # virtualenv 21.14.13: GHSA-cx6f-vjhg-g3cc (high, dev tools only, via
-  # pre-commit). Uploaded 2026-10-22T20:10Z; 21.15.0 followed on 10-27, so
-  # this cutoff lets 21.14.13 through and nothing newer. It also covers the
-  # 11 earlier CVEs fixed in 21.14.9 and 21.14.10.
-  virtualenv=2026-10-23T00:00:00Z
   # urllib3 2.8.0: GHSA-vxq7-64xx-v4gw, GHSA-8988-9cw3-xx77 and 1 more.
   urllib3
   # msgpack 1.2.3: GHSA-j586-36cw-2gc2 (CI tools only).

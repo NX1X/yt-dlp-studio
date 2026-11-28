@@ -80,11 +80,6 @@
     "**/node_modules/**",
   ],
 
-  // ----- Pre-commit hook updates ---------------------------------------------
-  "pre-commit": {
-    "enabled": true,
-  },
-
   // ----- Package rules -------------------------------------------------------
   "packageRules": [
     // === Python runtime deps (pyproject.toml [project.dependencies]) ===

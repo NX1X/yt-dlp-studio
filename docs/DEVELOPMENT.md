@@ -42,6 +42,19 @@ This guide is for developers who work on YT-DLP Studio. For the contribution rul
    ls vendor/yt_dlp_engine/yt_dlp
    ```
 
+6. Install the git hooks (needs bash; on Windows use Git Bash):
+
+   ```bash
+   scripts/install-hooks.sh
+   ```
+
+   The project uses plain scripts in `scripts/git-hooks`, not the `pre-commit` framework.
+   - `pre-commit` runs `ruff check`, `ruff format --check` and `black --check` on the staged Python files. It also checks for a final newline, trailing whitespace and files over 5 MB. It never changes a file. If a check fails, it prints the command that fixes it.
+   - `commit-msg` checks that the first line follows Conventional Commits, for example `fix(queue): keep the order`.
+   - The hooks use `ruff` and `black` from the project virtual environment or from `PATH`.
+   - The hooks do not scan for secrets or lint workflows. CI does that: GitGuardian for secrets and zizmor for workflows. There is no local `gitleaks` or `actionlint` run.
+   - To skip the hooks once, use `git commit --no-verify`. To remove them, run `git config --unset core.hooksPath`.
+
 ## Run the app
 
 From the command line:
@@ -102,7 +115,7 @@ yt-dlp-studio/
 ### Before you commit
 
 - Remove debug print statements.
-- Run the formatters and linters (`ruff`, `black`). The pre-commit hooks do this for you.
+- Run the formatters and linters (`ruff`, `black`). The git hooks (step 6 of "Set up the environment") check this for you.
 - Update the documentation if needed.
 - Test one more time.
 
@@ -298,7 +311,7 @@ On a Linux machine without a display, use `xvfb-run --auto-servernum pytest test
 - A YouTube playlist
 - An invalid URL
 - A video that does not exist
-- One video each from the other tested sites: Instagram, TikTok, Facebook and X. Check them by hand before each release; the weekly CI check covers YouTube only. The site tiers are in `src/utils/site_tiers.py`.
+- One video each from the other tested sites: Instagram, Facebook and X. Check them by hand before each release; the weekly CI check covers YouTube and TikTok. Never run the TikTok check on your own machine: `scripts/check_extractors.py --site tiktok` refuses to run outside GitHub Actions. The site tiers are in `src/utils/site_tiers.py`.
 - Optional: a video from an experimental site (for example Vimeo). A failure here is not a release blocker.
 
 ## Debugging

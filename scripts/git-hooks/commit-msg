@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# commit-msg hook for YT-DLP Studio. Install with scripts/install-hooks.sh.
+#
+# Checks the first line of the message for Conventional Commits:
+#   <type>[(scope)][!]: <description>
+# Merge and revert commits made by git are allowed.
+set -euo pipefail
+
+types='feat|fix|docs|chore|ci|deps|refactor|test|release|i18n|style|perf|build|revert'
+
+msg_file="${1:?commit-msg: message file argument is missing}"
+first_line="$( { grep -v '^#' "$msg_file" || true; } | sed -n '/[^[:space:]]/{p;q;}')"
+
+# Git-generated messages.
+if [[ "$first_line" =~ ^(Merge|Revert)\  ]] || [[ "$first_line" =~ ^(fixup|squash|amend)!\  ]]; then
+  exit 0
+fi
+
+pattern="^(${types})(\\([a-zA-Z0-9._/ -]+\\))?!?: [^[:space:]].*$"
+if [[ "$first_line" =~ $pattern ]]; then
+  exit 0
+fi
+
+cat >&2 <<MSG
+commit-msg: the first line must follow Conventional Commits:
+  <type>[(scope)][!]: <description>
+Allowed types: ${types//|/, }
+Example: fix(queue): keep the order after a restart
+Your first line: ${first_line:-<empty>}
+MSG
+exit 1

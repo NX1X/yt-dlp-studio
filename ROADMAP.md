@@ -156,7 +156,7 @@ Fix what is known to be broken, and make the download path safe to change.
 - ✅ **Retry failed tasks:** a Retry button, plus one automatic retry for network errors. (yt-dlp already retries up to 10 times inside one download.)
 - ✅ Also in 0.4.0: tray mode (#75), duplicate numbering (#76), no console flash and a startup Environment line (#74), Hebrew notifications and statuses (#73), the update restart fix (#78), Deno on Linux (#80).
 - ⬜ *(moved to 0.4.x)* **UI tests** for the Download tab (9% covered today), Settings (9%), History (8%) and the update dialog (0%). Target: about 70% overall coverage (41% today).
-- ✅ *(moved to 0.4.x, released in 0.5.0)* **Weekly extractor check in CI:** a weekly workflow reads one public YouTube video and one playlist (no download) and opens an `extractor-broken` issue if extraction fails. It covers YouTube only, not every tested site.
+- ✅ *(moved to 0.4.x, released in 0.5.0)* **Weekly extractor check in CI:** a weekly workflow reads one public YouTube video and one playlist (no download) and opens an `extractor-broken` issue if extraction fails. It covers YouTube and, since 0.6.0, TikTok (one public video, on GitHub runners only), not every tested site.
 
 ### v0.5.0 - Complete  *(released 2026-11-28)*
 Add the basics users expect before 1.0.
