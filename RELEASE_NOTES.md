@@ -1,11 +1,11 @@
-# YT-DLP Studio v0.5.0 - Release Notes
+# YT-DLP Studio v1.0.0 - Release Notes
 
 **Release Date:** 2026-11-28
-**Status:** Public Beta
+**Status:** Stable
 
 > This file describes the **current release**. For full per-version history, see [CHANGELOG.md](CHANGELOG.md). For planned future work, see [ROADMAP.md](ROADMAP.md).
 >
-> The project was developed privately before the public beta. That history is archived in a private repository.
+> The project was developed privately before the first public release. That history is archived in a private repository.
 
 ---
 
@@ -13,11 +13,32 @@
 
 A user-friendly desktop GUI for [yt-dlp](https://github.com/yt-dlp/yt-dlp) - download video and audio from YouTube, Instagram, TikTok, Facebook, X and many more sites without touching the command line.
 
-This is a **public beta**. The core feature set is functional and the app is usable for daily downloads, but expect rough edges and bug fixes in subsequent 0.x releases. We will tag **v1.0.0** when the feature set is stable and the beta exit criteria (in [ROADMAP.md](ROADMAP.md)) are met.
+Version 1.0.0 is the **first stable release**. The feature set is frozen, and the settings, history and queue file formats stay compatible from here on. From now on the project is in maintenance mode: updates of the yt-dlp engine and dependencies, security fixes and fixes for sites.
 
 ---
 
-## What's new in v0.5.0
+## What's new in v1.0.0
+
+**The first stable release.**
+
+- **Photo posts from Instagram and X.** A post with photos only, a carousel and the photos of a mixed post download as image files, next to the videos. Facebook photo posts show a clear "not supported" message, and a TikTok photo slideshow gives only its audio.
+- **Help is one key away.** F1 opens the online guide (studio.nx1xlab.dev/guide.html) at the section of the open tab. Help links are in the About tab, the Advanced Download Options and the download error dialog. The guide also has ready-made prompts to ask an AI assistant for help.
+- **Small things that make daily use easier:**
+  - Remove one entry from the history (right-click, or the Delete key).
+  - The Download tab remembers whether "More options" and the "Activity log" are open.
+  - Batch links ask about duplicates once, for all of them.
+- **Qt 6.12**, through the smaller PySide6-Essentials package.
+- **Translations:** any language can be added with a spreadsheet; see docs/TRANSLATING.md. Help with new languages is welcome.
+
+Not in this release: the Windows EXE is not code-signed, so SmartScreen may warn ("More info", then "Run anyway"). Every release lists a SHA-256 for each file and has a build provenance attestation. The winget package waits for Microsoft's review.
+
+Tested on Windows 11. Windows 10 should work but is not tested.
+
+Full detail is in [CHANGELOG.md](CHANGELOG.md).
+
+---
+
+## What was new in v0.5.0
 
 **A new interface, more control over downloads, and full Hebrew.**
 
@@ -163,7 +184,7 @@ macOS support is on the roadmap (see [ROADMAP.md](ROADMAP.md)).
 - Resume of interrupted downloads is not yet supported
 - macOS build not yet available
 
-If you hit something unexpected, please open an [issue](https://github.com/NX1X/yt-dlp-studio/issues) - beta feedback shapes the path to v1.0.0.
+If you hit something unexpected, please open an [issue](https://github.com/NX1X/yt-dlp-studio/issues) - feedback shapes the path to v1.0.0.
 
 ---
 
