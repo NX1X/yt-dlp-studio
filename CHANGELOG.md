@@ -59,6 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **English words left in the Hebrew screens.** The download error dialog (title, message and suggestions), the video and audio format names, the Activity log lines and level labels, the quality descriptions, the subtitle language names and the OK, Yes and No buttons are now in Hebrew. Counts of one read correctly ("הורדה אחת ממתינה", not "1 ממתינות"). Format choices keep a stable internal key, so a saved setting still works in both languages. A new audit (`scripts/i18n_audit.py`) and a Hebrew screen test fail when new English text skips `tr()`.
+- **Translate without editing Python.** `scripts/i18n_export.py` writes the texts to a CSV file for Excel or LibreOffice, and `scripts/i18n_import.py` writes the edited Hebrew texts back. See docs/DEVELOPMENT.md.
 - **A native crash leaves a trace.** A crash inside Qt or another native library never reached the crash handler, so it wrote no report and no log line. The app now writes the stack of every thread to `crashes/native-crash.log` when that happens.
 - **Hebrew text with a closing parenthesis after English text,** such as "(info.json)" or "(Ctrl+V)", no longer shows the parenthesis flipped on the wrong side.
 - **The .rpm installs the libraries Qt needs.** On a minimal Fedora the app failed to start with `libEGL.so.1` missing, because the package required only FFmpeg and glibc. It now requires libEGL, libGL, libxkbcommon, libdbus, libxcb-cursor, GLib and fontconfig by library name, so dnf and zypper install them. The Fedora CI test now installs only the .rpm to prove it.
